@@ -1,0 +1,46 @@
+{
+  "name": "a-one-tours-saas",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "bun@1.3.6",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "install:dependencies": "bun install",
+    "dev": "concurrently \"bun run dev:web\" \"bun run dev:api\"",
+    "dev:web": "bun --cwd apps/web dev",
+    "dev:api": "bun --cwd apps/api dev",
+    "build": "bun run build:web && bun run build:api",
+    "build:web": "bun --cwd apps/web build",
+    "build:api": "bun --cwd apps/api build",
+    "lint": "bun run lint:web && bun run lint:api",
+    "lint:web": "bun --cwd apps/web lint",
+    "lint:api": "bun --cwd apps/api lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "bun prisma/seed.ts",
+    "typecheck": "bun run typecheck:web && bun run typecheck:api",
+    "typecheck:web": "bun --cwd apps/web typecheck",
+    "typecheck:api": "bun --cwd apps/api typecheck",
+    "test": "bun --cwd apps/api test"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "concurrently": "^9.2.1",
+    "prettier": "^3.6.2",
+    "prisma": "^6.19.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "prisma": {
+    "seed": "bun prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  }
+}

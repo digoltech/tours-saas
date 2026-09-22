@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RoleCode {
+  SUPER_ADMIN
+  AGENCY_ADMIN
+  BRANCH_ADMIN
+  AGENT
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  roleId       String
+  agencyId     String?
+  branchId     String?
+  status       RecordStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  role         Role         @relation(fields: [roleId], references: [id])
+  agency       Agency?      @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  branch       Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId])
+  @@index([branchId])
+}
+
+model Agency {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  status    RecordStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  users     User[]
+  branches  Branch[]
+}
+
+model Branch {
+  id        String       @id @default(cuid())
+  agencyId  String
+  name      String
+  code      String
+  status    RecordStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  agency    Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  users     User[]
+
+  @@unique([agencyId, code])
+  @@index([agencyId])
+}
+
+model Role {
+  id          String         @id @default(cuid())
+  code        RoleCode       @unique
+  name        String
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}

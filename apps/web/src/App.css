@@ -891,6 +891,23 @@
   color: var(--teal);
   font-weight: 700;
 }
+.forgot-link {
+  margin-top: -10px;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 700;
+}
+.reset-back {
+  margin-top: 18px;
+  border: 0;
+  background: transparent;
+}
+.reset-login {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  text-decoration: none;
+}
 .onboarding-page {
   min-height: 100vh;
   display: grid;

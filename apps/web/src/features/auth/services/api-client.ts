@@ -27,6 +27,15 @@ export function login(email: string, password: string) {
 export function register(data: { firstName: string; lastName: string; email: string; password: string; agencyName: string; branchName: string }) {
   return request<{ user: AuthUser }>("/api/auth/register", { method: "POST", body: JSON.stringify(data) });
 }
+export function requestPasswordReset(email: string) {
+  return request<{ message: string }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+}
+export function verifyPasswordResetOtp(email: string, otp: string) {
+  return request<{ verified: boolean }>("/api/auth/forgot-password/verify", { method: "POST", body: JSON.stringify({ email, otp }) });
+}
+export function resetPassword(email: string, otp: string, password: string) {
+  return request<{ reset: boolean }>("/api/auth/forgot-password/reset", { method: "POST", body: JSON.stringify({ email, otp, password }) });
+}
 export function completeOnboarding(data: { agencyName: string; branchName: string; phone?: string }) {
   return request<{ user: AuthUser }>("/api/auth/onboarding", { method: "POST", body: JSON.stringify(data) });
 }

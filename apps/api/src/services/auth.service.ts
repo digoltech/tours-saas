@@ -1,8 +1,10 @@
 import { SignJWT, jwtVerify } from "jose";
+import { randomInt } from "node:crypto";
 import { Prisma, type RoleCode, type User } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext, SafeUser } from "../types/auth.js";
+import { sendPasswordResetOtp } from "./email.service.js";
 
 const secret = new TextEncoder().encode(environment.JWT_SECRET);
 
@@ -137,4 +139,63 @@ export async function completeOnboarding(userId: string, input: { agencyName: st
   const updated = await findUserById(userId);
   if (!updated) throw new Error("Unable to reload account");
   return toAuthContext(updated);
+}
+
+function randomOtp() {
+  return String(randomInt(100000, 1000000));
+}
+
+export async function requestPasswordReset(email: string) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (!user || user.status !== "ACTIVE") return;
+  await prisma.passwordResetOtp.deleteMany({ where: { userId: user.id, usedAt: null } });
+  const otp = randomOtp();
+  const record = await prisma.passwordResetOtp.create({
+    data: {
+      userId: user.id,
+      email: normalizedEmail,
+      codeHash: await hashPassword(otp),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    },
+  });
+  try {
+    await sendPasswordResetOtp(normalizedEmail, otp);
+  } catch (error) {
+    await prisma.passwordResetOtp.delete({ where: { id: record.id } });
+    throw error;
+  }
+}
+
+export async function verifyPasswordResetOtp(email: string, otp: string) {
+  const record = await prisma.passwordResetOtp.findFirst({
+    where: { email: email.toLowerCase().trim(), usedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!record || record.attempts >= 5 || !(await verifyPassword(otp, record.codeHash))) {
+    if (record) await prisma.passwordResetOtp.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
+    const error = new Error("The reset code is invalid or expired") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 400;
+    error.code = "INVALID_OTP";
+    throw error;
+  }
+  await prisma.passwordResetOtp.update({ where: { id: record.id }, data: { verifiedAt: new Date() } });
+}
+
+export async function resetPassword(email: string, otp: string, password: string) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const record = await prisma.passwordResetOtp.findFirst({
+    where: { email: normalizedEmail, usedAt: null, verifiedAt: { not: null }, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!record || !(await verifyPassword(otp, record.codeHash))) {
+    const error = new Error("Verify the reset code before choosing a new password") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 400;
+    error.code = "RESET_NOT_VERIFIED";
+    throw error;
+  }
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { passwordHash: await hashPassword(password) } }),
+    prisma.passwordResetOtp.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+  ]);
 }

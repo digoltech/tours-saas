@@ -1,6 +1,15 @@
 import { PrismaClient, RoleCode, RecordStatus } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { config as loadEnv } from "dotenv";
 
-const prisma = new PrismaClient();
+loadEnv({ path: [".env", "apps/api/.env"] });
+
+const databaseUrl = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+if (!databaseUrl)
+  throw new Error("DATABASE_URL or DIRECT_URL is required to seed");
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: databaseUrl }),
+});
 const developmentPassword = "AOnePhase2!2026";
 const permissions = [
   "agency:read",
@@ -19,10 +28,22 @@ const permissions = [
   "bus:create",
   "bus:update",
   "bus:delete",
+  "driver:read",
+  "driver:create",
+  "driver:update",
+  "driver:delete",
   "route:read",
   "route:create",
   "route:update",
   "route:delete",
+  "stop:read",
+  "stop:create",
+  "stop:update",
+  "stop:delete",
+  "boarding_point:read",
+  "boarding_point:create",
+  "boarding_point:update",
+  "boarding_point:delete",
   "trip:read",
   "trip:create",
   "trip:update",
@@ -42,7 +63,10 @@ const roleDefinitions: Record<
         code.startsWith("branch:") ||
         code.startsWith("agent:") ||
         code.startsWith("bus:") ||
+        code.startsWith("driver:") ||
         code.startsWith("route:") ||
+        code.startsWith("stop:") ||
+        code.startsWith("boarding_point:") ||
         code.startsWith("trip:"),
     ),
   },
@@ -166,6 +190,7 @@ async function main() {
         ...userData,
         passwordHash,
         status: RecordStatus.ACTIVE,
+        onboardingCompleted: true,
         roleId: roles.get(roleCode)!.id,
       },
       create: {

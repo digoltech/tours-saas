@@ -58,7 +58,7 @@ const navGroups = [
         label: "Drivers",
         path: "/drivers",
         icon: UserRound,
-        permission: "bus:read",
+        permission: "driver:read",
       },
       { label: "Routes", path: "/routes", icon: Map, permission: "route:read" },
       {

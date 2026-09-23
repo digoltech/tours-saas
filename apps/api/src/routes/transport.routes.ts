@@ -1,0 +1,168 @@
+import { Router } from "express";
+import { authenticate, requirePermission } from "../middleware/auth.js";
+import {
+  createBusController,
+  createDriverController,
+  createRouteController,
+  createStopController,
+  createTripController,
+  deleteBusController,
+  deleteDriverController,
+  deleteRouteController,
+  deleteStopController,
+  deleteTripController,
+  getBusController,
+  getDriverController,
+  getRouteController,
+  getStopController,
+  getTripController,
+  listBusesController,
+  listDriversController,
+  listRoutesController,
+  listStopsController,
+  listTripsController,
+  updateBusController,
+  updateDriverController,
+  updateRouteController,
+  updateStopController,
+  updateTripController,
+  upsertPointController,
+} from "../controllers/transport.controller.js";
+
+export const transportRouter = Router();
+transportRouter.use(authenticate);
+
+transportRouter.get(
+  "/buses",
+  requirePermission("bus:read"),
+  listBusesController,
+);
+transportRouter.get(
+  "/buses/:id",
+  requirePermission("bus:read"),
+  getBusController,
+);
+transportRouter.post(
+  "/buses",
+  requirePermission("bus:create"),
+  createBusController,
+);
+transportRouter.patch(
+  "/buses/:id",
+  requirePermission("bus:update"),
+  updateBusController,
+);
+transportRouter.delete(
+  "/buses/:id",
+  requirePermission("bus:delete"),
+  deleteBusController,
+);
+
+transportRouter.get(
+  "/drivers",
+  requirePermission("driver:read"),
+  listDriversController,
+);
+transportRouter.get(
+  "/drivers/:id",
+  requirePermission("driver:read"),
+  getDriverController,
+);
+transportRouter.post(
+  "/drivers",
+  requirePermission("driver:create"),
+  createDriverController,
+);
+transportRouter.patch(
+  "/drivers/:id",
+  requirePermission("driver:update"),
+  updateDriverController,
+);
+transportRouter.delete(
+  "/drivers/:id",
+  requirePermission("driver:delete"),
+  deleteDriverController,
+);
+
+transportRouter.get(
+  "/routes",
+  requirePermission("route:read"),
+  listRoutesController,
+);
+transportRouter.get(
+  "/routes/:id",
+  requirePermission("route:read"),
+  getRouteController,
+);
+transportRouter.post(
+  "/routes",
+  requirePermission("route:create"),
+  createRouteController,
+);
+transportRouter.patch(
+  "/routes/:id",
+  requirePermission("route:update"),
+  updateRouteController,
+);
+transportRouter.delete(
+  "/routes/:id",
+  requirePermission("route:delete"),
+  deleteRouteController,
+);
+
+transportRouter.get(
+  "/routes/:routeId/stops",
+  requirePermission("stop:read"),
+  listStopsController,
+);
+transportRouter.post(
+  "/routes/:routeId/stops",
+  requirePermission("stop:create"),
+  createStopController,
+);
+transportRouter.get(
+  "/stops/:id",
+  requirePermission("stop:read"),
+  getStopController,
+);
+transportRouter.patch(
+  "/stops/:id",
+  requirePermission("stop:update"),
+  updateStopController,
+);
+transportRouter.delete(
+  "/stops/:id",
+  requirePermission("stop:delete"),
+  deleteStopController,
+);
+transportRouter.put(
+  "/stops/:stopId/point",
+  requirePermission("boarding_point:update"),
+  upsertPointController,
+);
+
+transportRouter.get(
+  "/trips",
+  requirePermission("trip:read"),
+  listTripsController,
+);
+transportRouter.get(
+  "/trips/:id",
+  requirePermission("trip:read"),
+  getTripController,
+);
+transportRouter.post(
+  "/trips",
+  requirePermission("trip:create"),
+  createTripController,
+);
+transportRouter.patch(
+  "/trips/:id",
+  requirePermission("trip:update"),
+  updateTripController,
+);
+transportRouter.delete(
+  "/trips/:id",
+  requirePermission("trip:cancel"),
+  deleteTripController,
+);

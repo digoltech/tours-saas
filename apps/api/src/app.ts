@@ -3,8 +3,10 @@ import express from "express";
 import { environment } from "./config/env.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { tenantRouter } from "./routes/tenant.routes.js";
+import { managementRouter } from "./routes/management.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { healthRouter } from "./routes/health.routes.js";
+import { transportRouter } from "./routes/transport.routes.js";
 
 export const app = express();
 
@@ -17,5 +19,7 @@ app.use((request, _response, next) => {
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/tenants", tenantRouter);
+app.use("/api", managementRouter);
+app.use("/api", transportRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);

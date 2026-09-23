@@ -9,6 +9,7 @@ const protectedPaths = [
   "/drivers",
   "/routes",
   "/trips",
+  "/onboarding",
 ];
 
 export async function proxy(request: NextRequest) {
@@ -28,7 +29,15 @@ export async function proxy(request: NextRequest) {
         `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/auth/me`,
         { headers: { Cookie: `aone_session=${token}` }, cache: "no-store" },
       );
-      authenticated = response.ok;
+      if (response.ok) {
+        const payload = (await response.json()) as { data?: { onboardingCompleted?: boolean } };
+        authenticated = true;
+        const onboardingDone = payload.data?.onboardingCompleted === true;
+        if (request.nextUrl.pathname === "/onboarding" && onboardingDone)
+          return NextResponse.redirect(new URL("/dashboard", request.url));
+        if (request.nextUrl.pathname !== "/onboarding" && !onboardingDone)
+          return NextResponse.redirect(new URL("/onboarding", request.url));
+      }
     } catch {
       authenticated = false;
     }
@@ -51,5 +60,6 @@ export const config = {
     "/drivers/:path*",
     "/routes/:path*",
     "/trips/:path*",
+    "/onboarding",
   ],
 };

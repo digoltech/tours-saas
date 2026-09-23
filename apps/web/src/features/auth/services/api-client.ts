@@ -24,6 +24,12 @@ export function login(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 }
+export function register(data: { firstName: string; lastName: string; email: string; password: string; agencyName: string; branchName: string }) {
+  return request<{ user: AuthUser }>("/api/auth/register", { method: "POST", body: JSON.stringify(data) });
+}
+export function completeOnboarding(data: { agencyName: string; branchName: string; phone?: string }) {
+  return request<{ user: AuthUser }>("/api/auth/onboarding", { method: "POST", body: JSON.stringify(data) });
+}
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
 }
@@ -31,4 +37,246 @@ export function logout() {
   return request<{ loggedOut: boolean }>("/api/auth/logout", {
     method: "POST",
   });
+}
+
+export function getAgencies(search = "") {
+  return request<unknown[]>(
+    `/api/agencies?limit=100&search=${encodeURIComponent(search)}`,
+  );
+}
+
+export function getDashboardSummary() {
+  return request<{
+    totalAgencies: number;
+    activeAgencies: number;
+    totalBranches: number;
+    totalAgents: number;
+  }>("/api/dashboard/summary");
+}
+
+export function createAgency(data: { name: string; slug: string }) {
+  return request<unknown>("/api/agencies", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deactivateAgency(id: string) {
+  return request<unknown>(`/api/agencies/${id}`, { method: "DELETE" });
+}
+
+export function getBranches(agencyId: string, search = "") {
+  return request<unknown[]>(
+    `/api/agencies/${agencyId}/branches?limit=100&search=${encodeURIComponent(search)}`,
+  );
+}
+
+export function createBranch(
+  agencyId: string,
+  data: { name: string; code: string },
+) {
+  return request<unknown>(`/api/agencies/${agencyId}/branches`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deactivateBranch(id: string) {
+  return request<unknown>(`/api/branches/${id}`, { method: "DELETE" });
+}
+
+export function getAgents(agencyId: string, search = "") {
+  return request<unknown[]>(
+    `/api/agencies/${agencyId}/agents?limit=100&search=${encodeURIComponent(search)}`,
+  );
+}
+
+export function createAgent(
+  agencyId: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password?: string;
+  },
+) {
+  return request<unknown>(`/api/agencies/${agencyId}/agents`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deactivateAgent(id: string) {
+  return request<unknown>(`/api/agents/${id}`, { method: "DELETE" });
+}
+
+export type PageResult<T> = {
+  data: T[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+};
+export type Branch = { id: string; name: string; code: string };
+export type Bus = {
+  id: string;
+  busNumber: string;
+  registrationNumber: string;
+  operatorName?: string | null;
+  busType: string;
+  totalSeats: number;
+  status: string;
+  branch: Branch;
+};
+export type Driver = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string | null;
+  licenseNumber: string;
+  licenseExpiryDate?: string | null;
+  status: string;
+  branch: Branch;
+};
+export type Route = {
+  id: string;
+  name: string;
+  code: string;
+  source: string;
+  destination: string;
+  description?: string | null;
+  status: string;
+  _count?: { stops: number };
+};
+export type Stop = {
+  id: string;
+  name: string;
+  city?: string | null;
+  sequence: number;
+  status: string;
+  points: { pointType: string; status: string }[];
+};
+export type Trip = {
+  id: string;
+  tripCode: string;
+  travelDate: string;
+  departureTime: string;
+  arrivalTime: string;
+  status: string;
+  route: Route;
+  bus: Bus;
+  driver: Driver;
+  branch: Branch;
+};
+const transportQuery = (params: Record<string, string | undefined>) =>
+  Object.entries(params)
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}=${encodeURIComponent(value!)}`)
+    .join("&");
+export function getBuses(params: Record<string, string | undefined> = {}) {
+  return request<PageResult<Bus>>(
+    `/api/buses?${transportQuery({ limit: "20", ...params })}`,
+  );
+}
+export function createBus(data: Record<string, unknown>) {
+  return request<Bus>("/api/buses", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function updateBus(id: string, data: Record<string, unknown>) {
+  return request<Bus>(`/api/buses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+export function deactivateBusById(id: string) {
+  return request<Bus>(`/api/buses/${id}`, { method: "DELETE" });
+}
+export function getDrivers(params: Record<string, string | undefined> = {}) {
+  return request<PageResult<Driver>>(
+    `/api/drivers?${transportQuery({ limit: "20", ...params })}`,
+  );
+}
+export function createDriver(data: Record<string, unknown>) {
+  return request<Driver>("/api/drivers", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function updateDriver(id: string, data: Record<string, unknown>) {
+  return request<Driver>(`/api/drivers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+export function deactivateDriverById(id: string) {
+  return request<Driver>(`/api/drivers/${id}`, { method: "DELETE" });
+}
+export function getRoutes(params: Record<string, string | undefined> = {}) {
+  return request<PageResult<Route>>(
+    `/api/routes?${transportQuery({ limit: "20", ...params })}`,
+  );
+}
+export function getRoute(id: string) {
+  return request<Route & { stops: Stop[] }>(`/api/routes/${id}`);
+}
+export function createRoute(data: Record<string, unknown>) {
+  return request<Route>("/api/routes", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function updateRoute(id: string, data: Record<string, unknown>) {
+  return request<Route>(`/api/routes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+export function deactivateRouteById(id: string) {
+  return request<Route>(`/api/routes/${id}`, { method: "DELETE" });
+}
+export function getStops(routeId: string) {
+  return request<Stop[]>(`/api/routes/${routeId}/stops`);
+}
+export function createStop(routeId: string, data: Record<string, unknown>) {
+  return request<Stop>(`/api/routes/${routeId}/stops`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function updateStop(id: string, data: Record<string, unknown>) {
+  return request<Stop>(`/api/stops/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+export function configurePoint(stopId: string, data: Record<string, unknown>) {
+  return request<unknown>(`/api/stops/${stopId}/point`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+export function getTrips(params: Record<string, string | undefined> = {}) {
+  return request<PageResult<Trip>>(
+    `/api/trips?${transportQuery({ limit: "20", ...params })}`,
+  );
+}
+export function getTrip(id: string) {
+  return request<Trip & { route: Route & { stops: Stop[] } }>(
+    `/api/trips/${id}`,
+  );
+}
+export function createTrip(data: Record<string, unknown>) {
+  return request<Trip>("/api/trips", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function updateTrip(id: string, data: Record<string, unknown>) {
+  return request<Trip>(`/api/trips/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+export function cancelTrip(id: string) {
+  return request<Trip>(`/api/trips/${id}`, { method: "DELETE" });
 }

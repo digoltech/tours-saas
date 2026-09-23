@@ -11,6 +11,7 @@ export default function LoginRoute() {
         </Link>
       </div>
       <LoginForm />
+      <p className="auth-switch">New to A-One? <Link href="/register">Create a workspace</Link></p>
     </div>
   );
 }

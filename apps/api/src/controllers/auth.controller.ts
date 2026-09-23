@@ -8,6 +8,8 @@ import {
   toAuthContext,
   toSafeUser,
   verifyPassword,
+  registerUser,
+  completeOnboarding,
 } from "../services/auth.service.js";
 
 const loginSchema = z.object({
@@ -16,6 +18,19 @@ const loginSchema = z.object({
     .email()
     .transform((value) => value.toLowerCase()),
   password: z.string().min(8),
+});
+const registerSchema = z.object({
+  firstName: z.string().trim().min(2),
+  lastName: z.string().trim().min(2),
+  email: z.string().email().transform((value) => value.toLowerCase()),
+  password: z.string().min(8),
+  agencyName: z.string().trim().min(2),
+  branchName: z.string().trim().min(2),
+});
+const onboardingSchema = z.object({
+  agencyName: z.string().trim().min(2),
+  branchName: z.string().trim().min(2),
+  phone: z.string().trim().optional(),
 });
 
 export async function login(request: Request, response: Response) {
@@ -42,6 +57,31 @@ export async function login(request: Request, response: Response) {
   const context = toAuthContext(user);
   setAuthCookie(response, await createSession(context));
   return response.json({ success: true, data: { user: toSafeUser(context) } });
+}
+
+export async function register(request: Request, response: Response) {
+  const result = registerSchema.safeParse(request.body);
+  if (!result.success) return sendError(response, 400, "INVALID_REQUEST", "Complete all registration fields with valid values");
+  try {
+    const user = await registerUser(result.data);
+    const context = toAuthContext(user);
+    setAuthCookie(response, await createSession(context));
+    return response.status(201).json({ success: true, data: { user: toSafeUser(context) } });
+  } catch (error) {
+    const item = error as { statusCode?: number; code?: string };
+    return sendError(response, item.statusCode ?? 500, item.code ?? "INTERNAL_SERVER_ERROR", error instanceof Error ? error.message : "Unable to register");
+  }
+}
+
+export async function onboarding(request: Request, response: Response) {
+  const result = onboardingSchema.safeParse(request.body);
+  if (!result.success) return sendError(response, 400, "INVALID_REQUEST", "Complete the onboarding fields with valid values");
+  try {
+    const context = await completeOnboarding(request.auth!.userId, result.data);
+    return response.json({ success: true, data: { user: toSafeUser(context) } });
+  } catch (error) {
+    return sendError(response, 400, "ONBOARDING_FAILED", error instanceof Error ? error.message : "Unable to complete onboarding");
+  }
 }
 
 export function me(request: Request, response: Response) {

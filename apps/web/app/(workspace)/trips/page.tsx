@@ -1,6 +1,5 @@
-import { PlaceholderPage } from "../../../src/App";
-import { pageConfigs } from "../../../src/page-config";
+import { TripPage } from "../../../src/features/transport/TripPage";
 
 export default function TripsPage() {
-  return <PlaceholderPage config={pageConfigs["/trips"]} />;
+  return <TripPage />;
 }

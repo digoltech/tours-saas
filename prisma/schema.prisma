@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 enum RecordStatus {
@@ -20,6 +18,25 @@ enum RoleCode {
   AGENT
 }
 
+enum BusType {
+  SEATER
+  SLEEPER
+  SEATER_SLEEPER
+}
+
+enum TripStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PointType {
+  BOARDING
+  DROP_OFF
+  BOTH
+}
+
 model User {
   id           String       @id @default(cuid())
   email        String       @unique
@@ -31,6 +48,7 @@ model User {
   agencyId     String?
   branchId     String?
   status       RecordStatus @default(ACTIVE)
+  onboardingCompleted Boolean      @default(false)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   role         Role         @relation(fields: [roleId], references: [id])
@@ -45,11 +63,21 @@ model Agency {
   id        String       @id @default(cuid())
   name      String
   slug      String       @unique
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  country   String?
   status    RecordStatus @default(ACTIVE)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   users     User[]
   branches  Branch[]
+  buses     Bus[]
+  drivers   Driver[]
+  routes    Route[]
+  trips     Trip[]
 }
 
 model Branch {
@@ -57,11 +85,20 @@ model Branch {
   agencyId  String
   name      String
   code      String
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  country   String?
   status    RecordStatus @default(ACTIVE)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   agency    Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   users     User[]
+  buses     Bus[]
+  drivers   Driver[]
+  trips     Trip[]
 
   @@unique([agencyId, code])
   @@index([agencyId])
@@ -90,4 +127,128 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@index([permissionId])
+}
+
+model Bus {
+  id                 String       @id @default(cuid())
+  agencyId           String
+  branchId           String
+  registrationNumber String
+  busNumber          String
+  operatorName       String?
+  busType            BusType
+  totalSeats         Int
+  status             RecordStatus @default(ACTIVE)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  agency             Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branch             Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  trips              Trip[]
+
+  @@unique([agencyId, registrationNumber])
+  @@unique([agencyId, busNumber])
+  @@index([agencyId, branchId])
+  @@index([status])
+}
+
+model Driver {
+  id                String       @id @default(cuid())
+  agencyId          String
+  branchId          String
+  firstName         String
+  lastName          String
+  phone             String
+  email             String?
+  licenseNumber     String
+  licenseExpiryDate DateTime?
+  status            RecordStatus @default(ACTIVE)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  agency            Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branch            Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  trips             Trip[]
+
+  @@unique([agencyId, licenseNumber])
+  @@index([agencyId, branchId])
+  @@index([status])
+}
+
+model Route {
+  id          String       @id @default(cuid())
+  agencyId    String
+  name        String
+  code        String
+  source      String
+  destination String
+  description String?
+  status      RecordStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  agency      Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  stops       Stop[]
+  trips       Trip[]
+
+  @@unique([agencyId, code])
+  @@index([agencyId, status])
+}
+
+model Stop {
+  id                         String       @id @default(cuid())
+  routeId                    String
+  name                       String
+  address                    String?
+  city                       String?
+  latitude                   Decimal?     @db.Decimal(10, 7)
+  longitude                  Decimal?     @db.Decimal(10, 7)
+  sequence                   Int
+  estimatedMinutesFromOrigin Int?
+  status                     RecordStatus @default(ACTIVE)
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+  route                      Route        @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  points                     BoardingPoint[]
+
+  @@unique([routeId, sequence])
+  @@index([routeId, status])
+}
+
+model BoardingPoint {
+  id         String       @id @default(cuid())
+  stopId     String
+  pointType  PointType
+  timeOffset Int?
+  status     RecordStatus @default(ACTIVE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  stop       Stop         @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@unique([stopId, pointType])
+  @@index([stopId, status])
+}
+
+model Trip {
+  id            String     @id @default(cuid())
+  agencyId      String
+  branchId      String
+  routeId       String
+  busId         String
+  driverId      String
+  tripCode      String
+  travelDate    DateTime   @db.Date
+  departureTime DateTime
+  arrivalTime   DateTime
+  status        TripStatus @default(SCHEDULED)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  agency        Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branch        Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  route         Route      @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  bus           Bus        @relation(fields: [busId], references: [id], onDelete: Restrict)
+  driver        Driver     @relation(fields: [driverId], references: [id], onDelete: Restrict)
+
+  @@unique([agencyId, tripCode])
+  @@index([agencyId, travelDate])
+  @@index([busId, departureTime, arrivalTime])
+  @@index([driverId, departureTime, arrivalTime])
+  @@index([branchId, status])
 }

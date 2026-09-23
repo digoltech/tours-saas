@@ -1,6 +1,5 @@
-import { PlaceholderPage } from "../../../src/App";
-import { pageConfigs } from "../../../src/page-config";
+import { ManagementPage } from "../../../src/features/management/ManagementPage";
 
 export default function AgenciesPage() {
-  return <PlaceholderPage config={pageConfigs["/agencies"]} />;
+  return <ManagementPage resource="agencies" />;
 }

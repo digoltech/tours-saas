@@ -10,6 +10,7 @@ export type AuthUser = {
   agencyId: string | null;
   branchId: string | null;
   permissions: string[];
+  onboardingCompleted: boolean;
 };
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";

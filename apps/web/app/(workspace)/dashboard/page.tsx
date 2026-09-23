@@ -1,5 +1,5 @@
-import { DashboardPage } from "../../../src/App";
+import { DashboardOverview } from "../../../src/features/management/DashboardOverview";
 
 export default function DashboardRoute() {
-  return <DashboardPage />;
+  return <DashboardOverview />;
 }

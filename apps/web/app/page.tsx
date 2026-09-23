@@ -34,6 +34,7 @@ export default function HomePage() {
           <Link href="#platform">Platform</Link>
           <Link href="#foundation">Foundation</Link>
           <Link href="/login">Sign in</Link>
+          <Link href="/register">Create workspace</Link>
         </div>
       </nav>
       <section className="home-hero">
@@ -49,6 +50,7 @@ export default function HomePage() {
             <Link className="button button-primary" href="/dashboard">
               Open workspace <ArrowRight size={16} />
             </Link>
+            <Link className="text-link" href="/register">Start free <ArrowRight size={15} /></Link>
             <Link className="text-link" href="#foundation">
               Explore the foundation <ArrowRight size={15} />
             </Link>

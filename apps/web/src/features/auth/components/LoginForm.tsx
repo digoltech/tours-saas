@@ -30,8 +30,8 @@ export function LoginForm() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
-      router.push("/dashboard");
+      const result = await login(email, password);
+      router.push(result.user.onboardingCompleted ? "/dashboard" : "/onboarding");
       router.refresh();
     } catch (requestError) {
       setError(

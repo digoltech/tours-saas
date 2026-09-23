@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import type { RoleCode, User } from "@prisma/client";
+import { Prisma, type RoleCode, type User } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext, SafeUser } from "../types/auth.js";
@@ -20,6 +20,7 @@ export function toAuthContext(user: UserWithAccess): AuthContext {
     agencyId: user.agencyId,
     branchId: user.branchId,
     permissions: user.role.permissions.map(({ permission }) => permission.code),
+    onboardingCompleted: user.onboardingCompleted,
   };
 }
 
@@ -33,6 +34,7 @@ export function toSafeUser(context: AuthContext): SafeUser {
     agencyId: context.agencyId,
     branchId: context.branchId,
     permissions: context.permissions,
+    onboardingCompleted: context.onboardingCompleted !== false,
   };
 }
 
@@ -76,4 +78,63 @@ export async function verifyPassword(password: string, passwordHash: string) {
 
 export async function hashPassword(password: string) {
   return Bun.password.hash(password, { algorithm: "argon2id" });
+}
+
+export async function registerUser(input: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  agencyName: string;
+  branchName: string;
+}) {
+  const email = input.email.toLowerCase().trim();
+  const role = await prisma.role.findUnique({ where: { code: "AGENCY_ADMIN" } });
+  if (!role) throw new Error("Agency Admin role is not configured");
+  const slug = `${input.agencyName.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
+  const passwordHash = await hashPassword(input.password);
+  try {
+    return await prisma.$transaction(async (transaction) => {
+      const agency = await transaction.agency.create({
+        data: { name: input.agencyName.trim(), slug },
+      });
+      const branch = await transaction.branch.create({
+        data: { agencyId: agency.id, name: input.branchName.trim(), code: "MAIN" },
+      });
+      return transaction.user.create({
+        data: {
+          firstName: input.firstName.trim(),
+          lastName: input.lastName.trim(),
+          email,
+          passwordHash,
+          roleId: role.id,
+          agencyId: agency.id,
+          branchId: branch.id,
+          onboardingCompleted: false,
+        },
+        include: { role: { include: { permissions: { include: { permission: true } } } } },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const conflict = new Error("An account with this email already exists") as Error & { statusCode?: number; code?: string };
+      conflict.statusCode = 409;
+      conflict.code = "CONFLICT";
+      throw conflict;
+    }
+    throw error;
+  }
+}
+
+export async function completeOnboarding(userId: string, input: { agencyName: string; branchName: string; phone?: string }) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.agencyId || !user.branchId) throw new Error("Onboarding account is invalid");
+  await prisma.$transaction([
+    prisma.agency.update({ where: { id: user.agencyId }, data: { name: input.agencyName.trim() } }),
+    prisma.branch.update({ where: { id: user.branchId }, data: { name: input.branchName.trim(), phone: input.phone?.trim() || undefined } }),
+    prisma.user.update({ where: { id: userId }, data: { phone: input.phone?.trim() || undefined, onboardingCompleted: true } }),
+  ]);
+  const updated = await findUserById(userId);
+  if (!updated) throw new Error("Unable to reload account");
+  return toAuthContext(updated);
 }

@@ -9,6 +9,7 @@ export type AuthContext = {
   agencyId: string | null;
   branchId: string | null;
   permissions: string[];
+  onboardingCompleted?: boolean;
 };
 
 export type SafeUser = Omit<AuthContext, "userId" | "permissions"> & {

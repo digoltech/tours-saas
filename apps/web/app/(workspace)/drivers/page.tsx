@@ -1,6 +1,5 @@
-import { PlaceholderPage } from "../../../src/App";
-import { pageConfigs } from "../../../src/page-config";
+import { TransportPage } from "../../../src/features/transport/TransportPage";
 
 export default function DriversPage() {
-  return <PlaceholderPage config={pageConfigs["/drivers"]} />;
+  return <TransportPage resource="drivers" />;
 }

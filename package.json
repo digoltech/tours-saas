@@ -20,10 +20,10 @@
     "lint:api": "bun --cwd apps/api lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prisma:generate": "prisma generate",
-    "prisma:validate": "prisma validate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
+    "prisma:generate": "prisma generate --config prisma.config.ts",
+    "prisma:validate": "prisma validate --config prisma.config.ts",
+    "prisma:migrate": "prisma migrate dev --config prisma.config.ts",
+    "prisma:studio": "prisma studio --config prisma.config.ts",
     "prisma:seed": "bun prisma/seed.ts",
     "typecheck": "bun run typecheck:web && bun run typecheck:api",
     "typecheck:web": "bun --cwd apps/web typecheck",
@@ -33,14 +33,17 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "concurrently": "^9.2.1",
+    "dotenv": "^16.6.1",
     "prettier": "^3.6.2",
-    "prisma": "^6.19.0",
+    "prisma": "^7.0.0",
     "tailwindcss": "^4.3.3"
   },
   "prisma": {
     "seed": "bun prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "6.19.3"
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "pg": "^8.16.3"
   }
 }

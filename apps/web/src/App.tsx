@@ -9,6 +9,8 @@ import {
   Bus,
   ChevronDown,
   CircleHelp,
+  ChevronsLeft,
+  ChevronsRight,
   LayoutDashboard,
   Map,
   Menu,
@@ -31,6 +33,12 @@ const navGroups = [
     label: "Workspace",
     items: [
       { label: "Overview", path: "/dashboard", icon: LayoutDashboard },
+      {
+        label: "Bookings",
+        path: "/bookings",
+        icon: Armchair,
+        permission: "booking:read",
+      },
       {
         label: "Agencies",
         path: "/agencies",
@@ -68,7 +76,12 @@ const navGroups = [
         icon: BarChart3,
         permission: "trip:read",
       },
-      { label: "Seat layouts", path: "/seat-layout", icon: Armchair, permission: "bus:read" },
+      {
+        label: "Seat layouts",
+        path: "/seat-layout",
+        icon: Armchair,
+        permission: "bus:read",
+      },
     ],
   },
 ];
@@ -84,10 +97,23 @@ const pageIcons = {
 
 export function Shell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const { user, status, logout } = useAuth();
+  const pageLabels: Record<string, string> = {
+    dashboard: "Dashboard", superadmin: "Super Admin", bookings: "Bookings",
+    agencies: "Agencies", branches: "Branches", agents: "Agents", buses: "Buses",
+    drivers: "Drivers", routes: "Routes", trips: "Trips", "seat-layout": "Seat layouts",
+    settings: "Settings", profile: "Profile",
+  };
+  const pathParts = pathname.split("/").filter(Boolean);
+  const breadcrumbItems = pathParts.map((part, index) => ({
+    label: pageLabels[part] ?? (index === pathParts.length - 1 ? "Details" : part),
+    href: `/${pathParts.slice(0, index + 1).join("/")}`,
+  }));
+  const dashboardPath = user?.role === "SUPER_ADMIN" ? "/superadmin" : "/dashboard";
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
           <div className="brand-mark">A</div>
@@ -106,10 +132,13 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="tenant-switcher">
           <div className="tenant-avatar">AT</div>
           <div>
-            <strong>A-One Tours</strong>
+            <strong>{user?.agencyName ?? "A-One Tours"}</strong>
             <span>Organization</span>
           </div>
           <ChevronDown size={16} />
+          <button className="sidebar-collapse-toggle" type="button" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
+            {sidebarCollapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+          </button>
         </div>
         <nav className="navigation" aria-label="Primary navigation">
           {navGroups.map((group) => (
@@ -126,8 +155,9 @@ export function Shell({ children }: { children: ReactNode }) {
                   <Link
                     key={item.path}
                     onClick={() => setMobileOpen(false)}
-                    href={item.path}
-                    className={`nav-item ${pathname === item.path ? "nav-item-active" : ""}`}
+                    href={item.label === "Overview" ? dashboardPath : item.path}
+                    className={`nav-item ${pathname === (item.label === "Overview" ? dashboardPath : item.path) ? "nav-item-active" : ""}`}
+                    title={sidebarCollapsed ? item.label : undefined}
                   >
                     <item.icon size={18} />
                     <span>{item.label}</span>
@@ -137,7 +167,10 @@ export function Shell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <Link href="/settings" className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""}`}>
+          <Link
+            href="/settings"
+            className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""}`}
+          >
             <Settings size={18} />
             <span>Fare & policy settings</span>
           </Link>
@@ -167,16 +200,21 @@ export function Shell({ children }: { children: ReactNode }) {
           >
             <Menu size={21} />
           </button>
-          <div className="breadcrumb">
-            <span>Workspace</span>
-            <span>/</span>
-            <strong>Overview</strong>
+          <div className="breadcrumb" aria-label="Breadcrumb">
+            <Link href={dashboardPath}>Workspace</Link>
+            {breadcrumbItems.map((item, index) => (
+              <span className="breadcrumb-part" key={item.href}>
+                <span aria-hidden="true">/</span>
+                {index === breadcrumbItems.length - 1 ? <strong aria-current="page">{item.label}</strong> : <Link href={item.href}>{item.label}</Link>}
+              </span>
+            ))}
           </div>
           <div className="topbar-actions">
             <button className="icon-button" aria-label="Help">
               <CircleHelp size={20} />
             </button>
-            <div className="profile">
+            <details className="profile-menu">
+              <summary className="profile">
               <div className="profile-avatar">
                 {user ? `${user.firstName[0]}${user.lastName[0]}` : ".."}
               </div>
@@ -191,16 +229,14 @@ export function Shell({ children }: { children: ReactNode }) {
                 <span>{user?.email ?? "Sign in required"}</span>
               </div>
               <ChevronDown size={16} />
-            </div>
-            {user && (
-              <button
-                className="button button-ghost profile-logout"
-                type="button"
-                onClick={logout}
-              >
-                Log out
-              </button>
-            )}
+              </summary>
+              {user && <div className="profile-dropdown">
+                <div className="profile-dropdown-identity"><strong>{user.firstName} {user.lastName}</strong><span>{user.email}</span><span>{user.agencyName ?? "A-One Tours"}</span></div>
+                <Link href="/profile">Profile</Link>
+                <Link href="/settings">Settings</Link>
+                <button type="button" onClick={() => { if (window.confirm("Are you sure you want to log out?")) void logout(); }}>Log out</button>
+              </div>}
+            </details>
           </div>
         </header>
         <div className="content">{children}</div>

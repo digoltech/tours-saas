@@ -41,3 +41,37 @@ select:focus-visible {
   outline: 2px solid #c62828;
   outline-offset: 3px;
 }
+.seat-button.seat-selected {
+  background: #1f2937;
+  color: #fff;
+  border-color: #1f2937;
+}
+.ticket-card {
+  max-width: 860px;
+}
+.passenger-form {
+  border-top: 1px solid #e5e7eb;
+  padding: 16px 0;
+  margin: 12px 0;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-ticket,
+  #printable-ticket * {
+    visibility: visible;
+  }
+  #printable-ticket {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    box-shadow: none;
+    border: 0;
+  }
+  button,
+  aside,
+  header {
+    display: none !important;
+  }
+}

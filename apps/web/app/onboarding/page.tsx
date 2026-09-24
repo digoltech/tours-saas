@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Building2, Check, CircleHelp, MapPin, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, Building2, Check, MapPin, Phone, Sparkles } from "lucide-react";
 import { completeOnboarding } from "../../src/features/auth/services/api-client";
 import { Button } from "../../src/ui/Button";
 import { Card } from "../../src/ui/Card";
 import { Input } from "../../src/ui/Input";
+import { AuthLayout } from "../../src/features/auth/components/AuthLayout";
 
 type FormState = { agencyName: string; branchName: string; phone: string };
 const steps = [
@@ -41,24 +42,14 @@ export default function OnboardingPage() {
   const CurrentIcon = steps[step].icon;
 
   return (
-    <main className="onboarding-page">
-      <div className="onboarding-layout">
-        <aside className="onboarding-sidebar">
-          <div className="onboarding-brand"><span className="brand-mark">A</span><span><strong>A-One</strong><small>Tours & Travels</small></span></div>
-          <div className="onboarding-sidebar-copy">
-            <p className="eyebrow">Your first run</p>
-            <h1>Set up a workspace your team can run with.</h1>
-            <p>Start with the essentials. You can add vehicles, routes, trips, and team members whenever you are ready.</p>
-          </div>
-          <div className="onboarding-help"><CircleHelp size={18} /><span><strong>Need a hand?</strong><small>You can update these details later.</small></span></div>
-        </aside>
-
+    <AuthLayout>
+      <div className="auth-card-stack auth-card-stack-wide onboarding-auth-stack">
+        <div className="auth-heading"><p className="eyebrow">Workspace setup · 1–2 minutes</p><h2>Let’s set up your workspace</h2><p>Start with a few essentials. You can add the rest whenever you are ready.</p></div>
         <section className="onboarding-main" aria-label="Workspace setup">
-          <div className="onboarding-topline"><span>Workspace setup</span><span>1–2 minutes</span></div>
-          <div className="onboarding-progress" aria-label="Setup progress">
+          <div className="onboarding-progress onboarding-progress-modern" aria-label="Setup progress">
             {steps.map((item, index) => {
               const Icon = item.icon; const isComplete = index < step; const isCurrent = index === step;
-              return <div className={`onboarding-step ${isCurrent ? "current" : ""} ${isComplete ? "complete" : ""}`} key={item.label}>
+              return <div className={`onboarding-step ${isCurrent ? "current" : ""} ${isComplete ? "complete" : ""}`} key={item.label} aria-current={isCurrent ? "step" : undefined}>
                 <span className="onboarding-step-icon">{isComplete ? <Check size={15} /> : <Icon size={15} />}</span>
                 <span><strong>{item.label}</strong><small>{item.detail}</small></span>
               </div>;
@@ -95,9 +86,9 @@ export default function OnboardingPage() {
               <Button type="button" onClick={next} disabled={saving}>{saving ? "Opening workspace..." : step === steps.length - 1 ? "Open workspace" : "Continue"}{!saving && <ArrowRight size={16} />}</Button>
             </div>
           </Card>
-          <p className="onboarding-footer-note">You can change workspace details anytime from Settings.</p>
+          <p className="onboarding-footer-note">You can update these details later in Settings.</p>
         </section>
       </div>
-    </main>
+    </AuthLayout>
   );
 }

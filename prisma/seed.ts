@@ -49,6 +49,8 @@ const permissions = [
   "trip:update",
   "trip:delete",
   "trip:cancel",
+  "booking:read",
+  "booking:create",
 ];
 
 const roleDefinitions: Record<
@@ -68,18 +70,24 @@ const roleDefinitions: Record<
         code.startsWith("route:") ||
         code.startsWith("stop:") ||
         code.startsWith("boarding_point:") ||
-        code.startsWith("trip:"),
+        code.startsWith("trip:") ||
+        code.startsWith("booking:"),
     ),
   },
   BRANCH_ADMIN: {
     name: "Branch Admin",
     permissions: permissions.filter(
-      (code) => code.endsWith(":read") || code.startsWith("agent:"),
+      (code) =>
+        code.endsWith(":read") ||
+        code.startsWith("agent:") ||
+        code.startsWith("booking:"),
     ),
   },
   AGENT: {
     name: "Agent",
-    permissions: permissions.filter((code) => code.endsWith(":read")),
+    permissions: permissions.filter(
+      (code) => code.endsWith(":read") || code.startsWith("booking:"),
+    ),
   },
 };
 

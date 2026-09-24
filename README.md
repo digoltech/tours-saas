@@ -1,6 +1,6 @@
 # A-One Tours & Travels SaaS
 
-A multi-tenant bus, tour, and travel management platform. The repository contains the Phase 1 foundation and core organization, fleet, route, stop, boarding/drop-off, trip, authentication, RBAC, and tenant management flows.
+A multi-tenant bus, tour, and travel management platform. The repository contains the Phase 1 foundation and Stage 2 agent booking flow, including organization, fleet, route, stop, boarding/drop-off, trip, authentication, RBAC, tenant management, seat inventory, temporary seat holds, and ticket issuance.
 
 ## Tech stack
 
@@ -63,7 +63,7 @@ The frontend design system uses shadcn/ui conventions with `class-variance-autho
 
 The API health endpoint is `GET http://localhost:4000/api/health` and returns `{ "success": true, "message": "API is running" }`. The Super Admin dashboard summarizes agencies, branches, agents, buses, drivers, routes, and trips.
 
-Seat layouts and fare, commission, tax, and cancellation settings have Phase 1 interfaces. They are stored in the browser and do not yet sync across users or devices.
+Bus seat layouts, trip fares, and agency discount caps are stored in PostgreSQL and shared across authorized users. Commission, tax, and cancellation settings remain browser-local. Stage 2 bookings are confirmed without payment collection.
 
 ## Quality commands
 
@@ -76,6 +76,6 @@ bun run build
 
 ## Development conventions
 
-Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on tenant-owned records. Booking, payments, and reporting are outside the current Phase 1 completion target.
+Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on tenant-owned records. Payments and reporting remain outside the current implementation target.
 
 See [docs/phase-1-audit.md](docs/phase-1-audit.md) for checklist status and evidence.

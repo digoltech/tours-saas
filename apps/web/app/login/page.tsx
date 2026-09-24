@@ -1,18 +1,15 @@
 import Link from "next/link";
 import { LoginForm } from "../../src/features/auth/components/LoginForm";
+import { AuthLayout } from "../../src/features/auth/components/AuthLayout";
 
 export default function LoginRoute() {
   return (
-    <div className="login-page">
-      <div className="login-brand">
-        <Link href="/" className="home-brand">
-          <span className="brand-mark">A</span>
-          <strong>A-One Tours & Travels</strong>
-        </Link>
+    <AuthLayout>
+      <div className="auth-card-stack">
+        <div className="auth-heading"><p className="eyebrow">Welcome back</p><h2>Sign in to your workspace</h2><p>Pick up where your team left off.</p></div>
+        <LoginForm />
+        <div className="auth-links-row"><Link className="forgot-link" href="/forgot-password">Forgot password?</Link><span>New to A-One? <Link href="/register">Create a workspace</Link></span></div>
       </div>
-      <LoginForm />
-      <Link className="forgot-link" href="/forgot-password">Forgot your password?</Link>
-      <p className="auth-switch">New to A-One? <Link href="/register">Create a workspace</Link></p>
-    </div>
+    </AuthLayout>
   );
 }

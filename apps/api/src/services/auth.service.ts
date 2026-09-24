@@ -10,6 +10,7 @@ const secret = new TextEncoder().encode(environment.JWT_SECRET);
 
 type UserWithAccess = User & {
   role: { code: RoleCode; permissions: { permission: { code: string } }[] };
+  agency?: { name: string } | null;
 };
 
 export function toAuthContext(user: UserWithAccess): AuthContext {
@@ -20,6 +21,7 @@ export function toAuthContext(user: UserWithAccess): AuthContext {
     lastName: user.lastName,
     role: user.role.code,
     agencyId: user.agencyId,
+    agencyName: user.agency?.name ?? null,
     branchId: user.branchId,
     permissions: user.role.permissions.map(({ permission }) => permission.code),
     onboardingCompleted: user.onboardingCompleted,
@@ -34,6 +36,7 @@ export function toSafeUser(context: AuthContext): SafeUser {
     lastName: context.lastName,
     role: context.role,
     agencyId: context.agencyId,
+    agencyName: context.agencyName ?? null,
     branchId: context.branchId,
     permissions: context.permissions,
     onboardingCompleted: context.onboardingCompleted !== false,
@@ -45,6 +48,7 @@ export async function findUserByEmail(email: string) {
     where: { email: email.toLowerCase() },
     include: {
       role: { include: { permissions: { include: { permission: true } } } },
+      agency: { select: { name: true } },
     },
   });
 }
@@ -54,6 +58,7 @@ export async function findUserById(id: string) {
     where: { id },
     include: {
       role: { include: { permissions: { include: { permission: true } } } },
+      agency: { select: { name: true } },
     },
   });
 }

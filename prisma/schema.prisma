@@ -37,83 +37,102 @@ enum PointType {
   BOTH
 }
 
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum TripSeatStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+}
+
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  phone        String?
-  roleId       String
-  agencyId     String?
-  branchId     String?
-  status       RecordStatus @default(ACTIVE)
-  onboardingCompleted Boolean      @default(false)
-  emailVerifiedAt DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  role         Role         @relation(fields: [roleId], references: [id])
-  agency       Agency?      @relation(fields: [agencyId], references: [id], onDelete: Restrict)
-  branch       Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  passwordResetOtps PasswordResetOtp[]
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  passwordHash            String
+  firstName               String
+  lastName                String
+  phone                   String?
+  roleId                  String
+  agencyId                String?
+  branchId                String?
+  status                  RecordStatus             @default(ACTIVE)
+  onboardingCompleted     Boolean                  @default(false)
+  emailVerifiedAt         DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  role                    Role                     @relation(fields: [roleId], references: [id])
+  agency                  Agency?                  @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  branch                  Branch?                  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  passwordResetOtps       PasswordResetOtp[]
   emailVerificationTokens EmailVerificationToken[]
-  sentInvitations Invitation[] @relation("SentInvitations")
-  receivedInvitation Invitation? @relation("InvitedUser")
+  sentInvitations         Invitation[]             @relation("SentInvitations")
+  receivedInvitation      Invitation?              @relation("InvitedUser")
 
   @@index([agencyId])
   @@index([branchId])
 }
 
 model Agency {
-  id        String       @id @default(cuid())
-  name      String
-  slug      String       @unique
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  country   String?
-  status    RecordStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  users     User[]
-  branches  Branch[]
-  buses     Bus[]
-  drivers   Driver[]
-  routes    Route[]
-  trips     Trip[]
-  invitations Invitation[]
+  id               String       @id @default(cuid())
+  name             String
+  slug             String       @unique
+  email            String?
+  phone            String?
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  status           RecordStatus @default(ACTIVE)
+  maxDiscountType  DiscountType @default(PERCENTAGE)
+  maxDiscountValue Decimal      @default(0) @db.Decimal(10, 2)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  users            User[]
+  branches         Branch[]
+  buses            Bus[]
+  drivers          Driver[]
+  routes           Route[]
+  trips            Trip[]
+  invitations      Invitation[]
+  bookings         Booking[]
 }
 
 model Branch {
-  id        String       @id @default(cuid())
-  agencyId  String
-  name      String
-  code      String
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  country   String?
-  status    RecordStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  agency    Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  users     User[]
+  id          String       @id @default(cuid())
+  agencyId    String
+  name        String
+  code        String
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  status      RecordStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  agency      Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  users       User[]
   invitations Invitation[]
-  buses     Bus[]
-  drivers   Driver[]
-  trips     Trip[]
+  buses       Bus[]
+  drivers     Driver[]
+  trips       Trip[]
 
   @@unique([agencyId, code])
   @@index([agencyId])
 }
 
 model Role {
-  id          String         @id @default(cuid())
-  code        RoleCode       @unique
+  id          String           @id @default(cuid())
+  code        RoleCode         @unique
   name        String
   users       User[]
   permissions RolePermission[]
@@ -121,8 +140,8 @@ model Role {
 }
 
 model Permission {
-  id          String         @id @default(cuid())
-  code        String         @unique
+  id          String           @id @default(cuid())
+  code        String           @unique
   description String
   roles       RolePermission[]
 }
@@ -138,7 +157,7 @@ model RolePermission {
 }
 
 model Bus {
-  id                 String       @id @default(cuid())
+  id                 String         @id @default(cuid())
   agencyId           String
   branchId           String
   registrationNumber String
@@ -146,12 +165,13 @@ model Bus {
   operatorName       String?
   busType            BusType
   totalSeats         Int
-  status             RecordStatus @default(ACTIVE)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  agency             Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  branch             Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  status             RecordStatus   @default(ACTIVE)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  agency             Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branch             Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
   trips              Trip[]
+  seatLayout         BusSeatLayout?
 
   @@unique([agencyId, registrationNumber])
   @@unique([agencyId, busNumber])
@@ -201,20 +221,22 @@ model Route {
 }
 
 model Stop {
-  id                         String       @id @default(cuid())
+  id                         String          @id @default(cuid())
   routeId                    String
   name                       String
   address                    String?
   city                       String?
-  latitude                   Decimal?     @db.Decimal(10, 7)
-  longitude                  Decimal?     @db.Decimal(10, 7)
+  latitude                   Decimal?        @db.Decimal(10, 7)
+  longitude                  Decimal?        @db.Decimal(10, 7)
   sequence                   Int
   estimatedMinutesFromOrigin Int?
-  status                     RecordStatus @default(ACTIVE)
-  createdAt                  DateTime     @default(now())
-  updatedAt                  DateTime     @updatedAt
-  route                      Route        @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  status                     RecordStatus    @default(ACTIVE)
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+  route                      Route           @relation(fields: [routeId], references: [id], onDelete: Cascade)
   points                     BoardingPoint[]
+  boardingBookings           Booking[]       @relation("BookingBoardingStop")
+  dropOffBookings            Booking[]       @relation("BookingDropOffStop")
 
   @@unique([routeId, sequence])
   @@index([routeId, status])
@@ -246,6 +268,7 @@ model Trip {
   departureTime DateTime
   arrivalTime   DateTime
   status        TripStatus @default(SCHEDULED)
+  fare          Decimal    @default(0) @db.Decimal(10, 2)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   agency        Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
@@ -253,6 +276,8 @@ model Trip {
   route         Route      @relation(fields: [routeId], references: [id], onDelete: Restrict)
   bus           Bus        @relation(fields: [busId], references: [id], onDelete: Restrict)
   driver        Driver     @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  seats         TripSeat[]
+  bookings      Booking[]
 
   @@unique([agencyId, tripCode])
   @@index([agencyId, travelDate])
@@ -277,37 +302,114 @@ model PasswordResetOtp {
   @@index([userId, expiresAt])
 }
 
+model BusSeatLayout {
+  id            String   @id @default(cuid())
+  busId         String   @unique
+  rows          Int
+  columns       Int
+  disabledSeats String[] @default([])
+  updatedAt     DateTime @updatedAt
+  bus           Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+}
+
+model TripSeat {
+  id            String         @id @default(cuid())
+  tripId        String
+  seatName      String
+  status        TripSeatStatus @default(AVAILABLE)
+  holdToken     String?
+  heldById      String?
+  holdExpiresAt DateTime?
+  bookingId     String?
+  trip          Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  booking       Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([tripId, seatName])
+  @@index([tripId, status, holdExpiresAt])
+  @@index([holdToken])
+  @@index([bookingId])
+}
+
+model Booking {
+  id             String             @id @default(cuid())
+  pnr            String             @unique
+  idempotencyKey String             @unique
+  holdToken      String             @unique
+  agencyId       String
+  branchId       String
+  tripId         String
+  bookedById     String
+  boardingStopId String
+  dropOffStopId  String
+  status         BookingStatus      @default(CONFIRMED)
+  currency       String             @default("INR")
+  baseFare       Decimal            @db.Decimal(10, 2)
+  discountType   DiscountType?
+  discountValue  Decimal            @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal            @default(0) @db.Decimal(10, 2)
+  totalAmount    Decimal            @db.Decimal(10, 2)
+  createdAt      DateTime           @default(now())
+  agency         Agency             @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  trip           Trip               @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  boardingStop   Stop               @relation("BookingBoardingStop", fields: [boardingStopId], references: [id], onDelete: Restrict)
+  dropOffStop    Stop               @relation("BookingDropOffStop", fields: [dropOffStopId], references: [id], onDelete: Restrict)
+  passengers     BookingPassenger[]
+  seats          TripSeat[]
+
+  @@index([agencyId, createdAt])
+  @@index([branchId, createdAt])
+  @@index([tripId, status])
+}
+
+model BookingPassenger {
+  id                String  @id @default(cuid())
+  bookingId         String
+  seatName          String
+  firstName         String
+  lastName          String
+  age               Int
+  gender            String
+  phone             String
+  email             String?
+  documentType      String?
+  documentReference String?
+  booking           Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, seatName])
+  @@index([phone])
+}
+
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
 }
 
 model Invitation {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  agencyId   String
-  branchId   String?
-  roleId     String
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  agencyId    String
+  branchId    String?
+  roleId      String
   invitedById String
-  email      String
-  firstName  String
-  lastName   String
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  acceptedAt DateTime?
-  createdAt  DateTime @default(now())
-  user       User     @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
-  agency     Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  branch     Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  role       Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  invitedBy  User     @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Restrict)
+  email       String
+  firstName   String
+  lastName    String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
+  agency      Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branch      Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy   User      @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Restrict)
 
   @@index([email, createdAt])
   @@index([agencyId, createdAt])

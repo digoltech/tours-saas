@@ -24,29 +24,65 @@ export function login(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 }
-export function register(data: { firstName: string; lastName: string; email: string; password: string; agencyName: string; branchName: string }) {
-  return request<{ user: AuthUser }>("/api/auth/register", { method: "POST", body: JSON.stringify(data) });
+export function register(data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  agencyName: string;
+  branchName: string;
+}) {
+  return request<{ user: AuthUser }>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 export function requestPasswordReset(email: string) {
-  return request<{ message: string }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+  return request<{ message: string }>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 export function verifyPasswordResetOtp(email: string, otp: string) {
-  return request<{ verified: boolean }>("/api/auth/forgot-password/verify", { method: "POST", body: JSON.stringify({ email, otp }) });
+  return request<{ verified: boolean }>("/api/auth/forgot-password/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
 }
 export function resetPassword(email: string, otp: string, password: string) {
-  return request<{ reset: boolean }>("/api/auth/forgot-password/reset", { method: "POST", body: JSON.stringify({ email, otp, password }) });
+  return request<{ reset: boolean }>("/api/auth/forgot-password/reset", {
+    method: "POST",
+    body: JSON.stringify({ email, otp, password }),
+  });
 }
 export function verifyEmail(token: string) {
-  return request<{ verified: boolean }>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+  return request<{ verified: boolean }>(
+    `/api/auth/verify-email?token=${encodeURIComponent(token)}`,
+  );
 }
 export function getInvitation(token: string) {
-  return request<{ email: string; firstName: string; lastName: string; agencyName: string }>(`/api/auth/invitations/${encodeURIComponent(token)}`);
+  return request<{
+    email: string;
+    firstName: string;
+    lastName: string;
+    agencyName: string;
+  }>(`/api/auth/invitations/${encodeURIComponent(token)}`);
 }
 export function acceptInvitation(token: string, password: string) {
-  return request<{ user: AuthUser }>("/api/auth/invitations/accept", { method: "POST", body: JSON.stringify({ token, password }) });
+  return request<{ user: AuthUser }>("/api/auth/invitations/accept", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
 }
-export function completeOnboarding(data: { agencyName: string; branchName: string; phone?: string }) {
-  return request<{ user: AuthUser }>("/api/auth/onboarding", { method: "POST", body: JSON.stringify(data) });
+export function completeOnboarding(data: {
+  agencyName: string;
+  branchName: string;
+  phone?: string;
+}) {
+  return request<{ user: AuthUser }>("/api/auth/onboarding", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
@@ -76,14 +112,21 @@ export function getDashboardSummary() {
   }>("/api/dashboard/summary");
 }
 
-export function createAgency(data: { name: string; slug: string; email?: string }) {
+export function createAgency(data: {
+  name: string;
+  slug: string;
+  email?: string;
+}) {
   return request<unknown>("/api/agencies", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 export function updateAgency(id: string, data: Record<string, unknown>) {
-  return request<unknown>(`/api/agencies/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  return request<unknown>(`/api/agencies/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 export function deactivateAgency(id: string) {
@@ -106,7 +149,10 @@ export function createBranch(
   });
 }
 export function updateBranch(id: string, data: Record<string, unknown>) {
-  return request<unknown>(`/api/branches/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  return request<unknown>(`/api/branches/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 export function deactivateBranch(id: string) {
@@ -134,7 +180,10 @@ export function createAgent(
   });
 }
 export function updateAgent(id: string, data: Record<string, unknown>) {
-  return request<unknown>(`/api/agents/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  return request<unknown>(`/api/agents/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 export function deactivateAgent(id: string) {
@@ -145,7 +194,12 @@ export type PageResult<T> = {
   data: T[];
   meta: { page: number; limit: number; total: number; totalPages: number };
 };
-export type Branch = { id: string; name: string; code: string; agencyId?: string };
+export type Branch = {
+  id: string;
+  name: string;
+  code: string;
+  agencyId?: string;
+};
 export type Bus = {
   id: string;
   busNumber: string;
@@ -192,11 +246,129 @@ export type Trip = {
   departureTime: string;
   arrivalTime: string;
   status: string;
+  fare: number | string;
   route: Route;
   bus: Bus;
   driver: Driver;
   branch: Branch;
 };
+
+export type BookingTrip = Trip & { availableSeats: number };
+export type SeatAvailability = {
+  trip: Trip & { route: Route & { stops: Stop[] }; bus: Bus };
+  rows: number;
+  columns: number;
+  seats: { name: string; status: string; holdExpiresAt: string | null }[];
+  discountCap: { type: "FIXED" | "PERCENTAGE"; value: number };
+};
+export type BookingPassengerInput = {
+  seatName: string;
+  firstName: string;
+  lastName: string;
+  age: number;
+  gender: string;
+  phone: string;
+  email?: string;
+  documentType?: string;
+  documentReference?: string;
+};
+export function searchBookingTrips(params: {
+  source: string;
+  destination: string;
+  date: string;
+}) {
+  return request<BookingTrip[]>(
+    `/api/bookings/search?${transportQuery(params)}`,
+  );
+}
+export function getSeatAvailability(tripId: string) {
+  return request<SeatAvailability>(`/api/bookings/trips/${tripId}/seats`);
+}
+export function createSeatHold(
+  tripId: string,
+  seats: string[],
+  holdToken?: string,
+) {
+  return request<{ holdToken: string; expiresAt: string }>(
+    "/api/bookings/holds",
+    { method: "POST", body: JSON.stringify({ tripId, seats, holdToken }) },
+  );
+}
+export function releaseSeatHold(token: string) {
+  return request<{ released: boolean }>(`/api/bookings/holds/${token}`, {
+    method: "DELETE",
+  });
+}
+export function confirmBooking(data: {
+  tripId: string;
+  holdToken: string;
+  idempotencyKey: string;
+  boardingStopId: string;
+  dropOffStopId: string;
+  discountType?: "FIXED" | "PERCENTAGE";
+  discountValue?: number;
+  passengers: BookingPassengerInput[];
+}) {
+  return request<BookingRecord>("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function getBookingByPnr(pnr: string) {
+  return request<BookingRecord>(`/api/bookings/pnr/${encodeURIComponent(pnr)}`);
+}
+export function getBookings(params: Record<string, string | undefined> = {}) {
+  return request<PageResult<BookingRecord>>(
+    `/api/bookings?${transportQuery({ limit: "20", ...params })}`,
+  );
+}
+export function getBookingDashboardSummary() {
+  return request<{
+    todayBookings: number;
+    todaySales: number;
+    upcomingTrips: number;
+  }>("/api/bookings/summary");
+}
+export type BookingRecord = {
+  id: string;
+  pnr: string;
+  currency: string;
+  baseFare: number | string;
+  discountAmount: number | string;
+  totalAmount: number | string;
+  passengers: BookingPassengerInput[];
+  trip: Trip & { route: Route; bus: Bus };
+  boardingStop: { id: string; name: string };
+  dropOffStop: { id: string; name: string };
+};
+export function getSeatLayout(busId: string) {
+  return request<{ rows: number; columns: number; disabledSeats: string[] }>(
+    `/api/buses/${busId}/seat-layout`,
+  );
+}
+export function saveSeatLayout(
+  busId: string,
+  data: { rows: number; columns: number; disabledSeats: string[] },
+) {
+  return request<{ rows: number; columns: number; disabledSeats: string[] }>(
+    `/api/buses/${busId}/seat-layout`,
+    { method: "PUT", body: JSON.stringify(data) },
+  );
+}
+export function getDiscountCap() {
+  return request<{ type: "FIXED" | "PERCENTAGE"; value: number }>(
+    "/api/bookings/discount-cap",
+  );
+}
+export function updateDiscountCap(data: {
+  type: "FIXED" | "PERCENTAGE";
+  value: number;
+}) {
+  return request<{ type: "FIXED" | "PERCENTAGE"; value: number }>(
+    "/api/bookings/discount-cap",
+    { method: "PUT", body: JSON.stringify(data) },
+  );
+}
 const transportQuery = (params: Record<string, string | undefined>) =>
   Object.entries(params)
     .filter(([, value]) => value)

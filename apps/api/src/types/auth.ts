@@ -7,6 +7,7 @@ export type AuthContext = {
   lastName: string;
   role: RoleCode;
   agencyId: string | null;
+  agencyName?: string | null;
   branchId: string | null;
   permissions: string[];
   onboardingCompleted?: boolean;

@@ -22,4 +22,4 @@ Super Admin may administer across agencies. Agency Admin is scoped to their agen
 5. Services verify resource ownership and execute Prisma operations.
 6. API responses use the shared success/error envelope.
 
-The settings and seat layout screens are client-side Phase 1 interfaces backed by browser storage; they do not write settings to PostgreSQL yet.
+Commission, tax, and cancellation settings remain client-side and browser-local. Bus seat layouts, trip fares, agency discount caps, seat holds, trip seat inventory, passengers, and bookings are persisted in PostgreSQL. Booking confirmation locks the trip-seat rows in a transaction, validates the active hold and route points, then assigns the seats and generates a PNR atomically. Expired holds are released by the periodic API worker and during availability reads.

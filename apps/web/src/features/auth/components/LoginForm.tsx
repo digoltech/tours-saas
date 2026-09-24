@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { login } from "../services/api-client";
 import { Button } from "../../../ui/Button";
-import { Input } from "../../../ui/Input";
 import { Card } from "../../../ui/Card";
+import { Input } from "../../../ui/Input";
+import { PasswordInput } from "./PasswordInput";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -31,7 +32,7 @@ export function LoginForm() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      router.push(result.user.onboardingCompleted ? "/dashboard" : "/onboarding");
+      router.push(result.user.onboardingCompleted ? (result.user.role === "SUPER_ADMIN" ? "/superadmin" : "/dashboard") : "/onboarding");
       router.refresh();
     } catch (requestError) {
       setError(
@@ -46,9 +47,6 @@ export function LoginForm() {
 
   return (
     <Card className="login-card">
-      <p className="eyebrow">Welcome back</p>
-      <h1>Sign in to your workspace</h1>
-      <p className="muted">Use your A-One account to continue.</p>
       <form onSubmit={handleSubmit}>
         <Input
           label="Email address"
@@ -60,10 +58,9 @@ export function LoginForm() {
           placeholder="you@company.com"
           disabled={loading}
         />
-        <Input
+        <PasswordInput
           label="Password"
           id="password"
-          type="password"
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}

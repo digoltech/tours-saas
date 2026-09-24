@@ -540,6 +540,7 @@ async function validateTripResources(
     driverId: string;
     departureTime: string;
     arrivalTime: string;
+    fare?: number;
   },
   excludeId?: string,
 ) {
@@ -673,6 +674,7 @@ export async function createTrip(
     travelDate: string;
     departureTime: string;
     arrivalTime: string;
+    fare?: number;
     status?: TripStatus;
   },
 ) {
@@ -686,6 +688,7 @@ export async function createTrip(
         departureTime: resources.departure,
         arrivalTime: resources.arrival,
         status: input.status ?? "SCHEDULED",
+        fare: input.fare ?? 0,
       },
     });
   } catch (error) {
@@ -704,6 +707,7 @@ export async function updateTrip(
     travelDate: string;
     departureTime: string;
     arrivalTime: string;
+    fare: number;
     status: TripStatus;
   }>,
 ) {
@@ -716,6 +720,7 @@ export async function updateTrip(
     driverId: input.driverId ?? current.driverId,
     departureTime: input.departureTime ?? current.departureTime.toISOString(),
     arrivalTime: input.arrivalTime ?? current.arrivalTime.toISOString(),
+    fare: input.fare ?? Number(current.fare),
   };
   const resources = await validateTripResources(context, merged, id);
   try {

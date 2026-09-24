@@ -222,6 +222,7 @@ const tripPayload = z.object({
   travelDate: z.string().datetime(),
   departureTime: z.string().datetime(),
   arrivalTime: z.string().datetime(),
+  fare: z.coerce.number().min(0).optional(),
   status: z.enum(TripStatus).optional(),
 });
 export const listTripsController = wrap(async (r) => {

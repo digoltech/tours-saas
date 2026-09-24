@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import { randomInt } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import { Prisma, type RoleCode, type User } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
@@ -139,6 +139,41 @@ export async function completeOnboarding(userId: string, input: { agencyName: st
   const updated = await findUserById(userId);
   if (!updated) throw new Error("Unable to reload account");
   return toAuthContext(updated);
+}
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export async function createEmailVerificationToken(userId: string) {
+  const token = randomBytes(32).toString("hex");
+  await prisma.emailVerificationToken.deleteMany({ where: { userId, usedAt: null } });
+  await prisma.emailVerificationToken.create({
+    data: { userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+  });
+  return token;
+}
+
+export async function verifyEmail(token: string) {
+  const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashToken(token) } });
+  if (!record || record.usedAt || record.expiresAt <= new Date()) throw new Error("This email confirmation link is invalid or expired");
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
+    prisma.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+  ]);
+}
+
+export async function acceptInvitation(token: string, password: string) {
+  const invitation = await prisma.invitation.findUnique({ where: { tokenHash: hashToken(token) } });
+  if (!invitation || invitation.acceptedAt || invitation.expiresAt <= new Date()) throw new Error("This invitation is invalid or expired");
+  const passwordHash = await hashPassword(password);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: invitation.userId }, data: { passwordHash, emailVerifiedAt: new Date(), onboardingCompleted: true } }),
+    prisma.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } }),
+  ]);
+  const user = await findUserById(invitation.userId);
+  if (!user) throw new Error("Unable to load invited account");
+  return toAuthContext(user);
 }
 
 function randomOtp() {

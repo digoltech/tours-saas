@@ -13,7 +13,12 @@ import {
   requestPasswordReset,
   verifyPasswordResetOtp,
   resetPassword,
+  createEmailVerificationToken,
+  verifyEmail,
+  acceptInvitation,
 } from "../services/auth.service.js";
+import { sendRegistrationConfirmation } from "../services/email.service.js";
+import { environment } from "../config/env.js";
 
 const loginSchema = z.object({
   email: z
@@ -71,11 +76,56 @@ export async function register(request: Request, response: Response) {
   try {
     const user = await registerUser(result.data);
     const context = toAuthContext(user);
+    const verificationToken = await createEmailVerificationToken(user.id);
+    const verificationUrl = `${environment.WEB_URL}/verify-email?token=${encodeURIComponent(verificationToken)}`;
+    void sendRegistrationConfirmation({
+      email: user.email,
+      firstName: user.firstName,
+      agencyName: result.data.agencyName,
+      verificationUrl,
+    }).catch((error) => console.error("Registration confirmation email failed", error));
     setAuthCookie(response, await createSession(context));
     return response.status(201).json({ success: true, data: { user: toSafeUser(context) } });
   } catch (error) {
     const item = error as { statusCode?: number; code?: string };
     return sendError(response, item.statusCode ?? 500, item.code ?? "INTERNAL_SERVER_ERROR", error instanceof Error ? error.message : "Unable to register");
+  }
+}
+
+export async function confirmEmail(request: Request, response: Response) {
+  const parsed = z.string().min(20).safeParse(request.query.token);
+  if (!parsed.success) return sendError(response, 400, "INVALID_REQUEST", "A valid confirmation token is required");
+  const token = parsed.data;
+  try {
+    await verifyEmail(token);
+    return response.json({ success: true, data: { verified: true } });
+  } catch (error) {
+    return sendError(response, 400, "EMAIL_VERIFICATION_FAILED", error instanceof Error ? error.message : "Unable to verify email");
+  }
+}
+
+export async function invitationDetails(request: Request, response: Response) {
+  const token = z.string().min(20).parse(request.params.token);
+  try {
+    const { prisma } = await import("../config/prisma.js");
+    const crypto = await import("node:crypto");
+    const invitation = await prisma.invitation.findUnique({ where: { tokenHash: crypto.createHash("sha256").update(token).digest("hex") }, select: { email: true, firstName: true, lastName: true, agency: { select: { name: true } }, acceptedAt: true, expiresAt: true } });
+    if (!invitation || invitation.acceptedAt || invitation.expiresAt <= new Date()) return sendError(response, 404, "INVITATION_NOT_FOUND", "This invitation is invalid or expired");
+    return response.json({ success: true, data: { email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, agencyName: invitation.agency.name } });
+  } catch (error) {
+    return sendError(response, 404, "INVITATION_NOT_FOUND", error instanceof Error ? error.message : "Invitation not found");
+  }
+}
+
+export async function acceptInvitationController(request: Request, response: Response) {
+  const result = z.object({ token: z.string().min(20), password: z.string().min(8) }).safeParse(request.body);
+  if (!result.success) return sendError(response, 400, "INVALID_REQUEST", "Provide a valid invitation and a password with at least 8 characters");
+  try {
+    const context = await acceptInvitation(result.data.token, result.data.password);
+    setAuthCookie(response, await createSession(context));
+    return response.json({ success: true, data: { user: toSafeUser(context) } });
+  } catch (error) {
+    return sendError(response, 400, "INVITATION_FAILED", error instanceof Error ? error.message : "Unable to accept invitation");
   }
 }
 

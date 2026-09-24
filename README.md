@@ -1,6 +1,6 @@
 # A-One Tours & Travels SaaS
 
-A multi-tenant bus, tour, and travel management platform. This repository currently contains the Phase 1 technical foundation only.
+A multi-tenant bus, tour, and travel management platform. The repository contains the Phase 1 foundation and core organization, fleet, route, stop, boarding/drop-off, trip, authentication, RBAC, and tenant management flows.
 
 ## Tech stack
 
@@ -47,9 +47,7 @@ When a database is configured and a migration is needed:
 bun run prisma:migrate
 ```
 
-This phase intentionally has no business models or migrations yet.
-
-Phase 2 adds authentication, RBAC, tenant models, and a development seed. With a configured database, run `bun run prisma:migrate` followed by `bun run prisma:seed`. See [docs/authentication.md](docs/authentication.md) for development accounts and authorization rules.
+The Prisma schema and migrations include the current tenant and transport models. With a configured database, run `bun run prisma:migrate` followed by `bun run prisma:seed`. See [docs/authentication.md](docs/authentication.md) for development accounts and authorization rules.
 
 ## Running the applications
 
@@ -63,7 +61,9 @@ The frontend is a native Next.js App Router application. Navigation uses Next li
 
 The frontend design system uses shadcn/ui conventions with `class-variance-authority`, `clsx`, and `tailwind-merge`. Its visual language is intentionally red, black, white, and neutral gray for a confident travel-business feel. Typography uses Space Grotesk for headings, DM Sans for interface copy, and IBM Plex Mono for route and operational metrics.
 
-The API health endpoint is `GET http://localhost:4000/api/health` and returns `{ "success": true, "message": "API is running" }`.
+The API health endpoint is `GET http://localhost:4000/api/health` and returns `{ "success": true, "message": "API is running" }`. The Super Admin dashboard summarizes agencies, branches, agents, buses, drivers, routes, and trips.
+
+Seat layouts and fare, commission, tax, and cancellation settings have Phase 1 interfaces. They are stored in the browser and do not yet sync across users or devices.
 
 ## Quality commands
 
@@ -76,4 +76,6 @@ bun run build
 
 ## Development conventions
 
-Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on all future tenant-owned records. Booking, payments, reporting, notifications, authentication, authorization, and business CRUD are intentionally deferred to later phases.
+Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on tenant-owned records. Booking, payments, and reporting are outside the current Phase 1 completion target.
+
+See [docs/phase-1-audit.md](docs/phase-1-audit.md) for checklist status and evidence.

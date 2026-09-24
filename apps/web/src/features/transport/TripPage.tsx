@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Pencil, Plus, Search } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
@@ -13,9 +13,11 @@ import {
   createTrip,
   getBuses,
   getBranches,
+  getAgencies,
   getDrivers,
   getRoutes,
   getTrips,
+  updateTrip,
   type Branch,
   type Bus,
   type Driver,
@@ -30,38 +32,44 @@ export function TripPage() {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
   const update = (key: string, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
-  async function load() {
+  const can = (action: string) => user?.role === "SUPER_ADMIN" || user?.permissions.includes(`trip:${action}`);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
       const result = await getTrips({ page: String(page), search, status });
       setTrips(result.data);
       setPages(result.meta.totalPages);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load trips");
-    }
-  }
+    } finally { setLoading(false); }
+  }, [page, search, status]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void load();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [page, search, status]);
+  }, [load]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void Promise.all([
         getRoutes({ limit: "100", status: "ACTIVE" }),
         getBuses({ limit: "100", status: "ACTIVE" }),
         getDrivers({ limit: "100", status: "ACTIVE" }),
-        user?.agencyId ? getBranches(user.agencyId) : Promise.resolve([]),
+        user?.agencyId ? getBranches(user.agencyId) : user?.role === "SUPER_ADMIN" ? getAgencies().then((rows) => { const values = rows as { id: string; name: string }[]; setAgencies(values); update("agencyId", values[0]?.id ?? ""); return Promise.all(values.map((agency) => getBranches(agency.id))).then((lists) => lists.flat()); }) : Promise.resolve([]),
       ])
         .then(([routePage, busPage, driverPage, branchRows]) => {
           setRoutes(routePage.data);
@@ -78,20 +86,22 @@ export function TripPage() {
         );
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [user?.agencyId]);
+  }, [user?.agencyId, user?.role]);
   async function save() {
     setSaving(true);
     setError("");
     try {
-      await createTrip({
+      const payload = {
         ...form,
-        agencyId: user?.agencyId,
+        agencyId: user?.agencyId ?? form.agencyId,
         travelDate: new Date(`${form.travelDate}T00:00:00.000Z`).toISOString(),
         departureTime: new Date(form.departureTime).toISOString(),
         arrivalTime: new Date(form.arrivalTime).toISOString(),
-      });
+      };
+      if (editingId) await updateTrip(editingId, payload); else await createTrip(payload);
       setForm({});
       setOpen(false);
+      setEditingId(null);
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save trip");
@@ -99,20 +109,27 @@ export function TripPage() {
       setSaving(false);
     }
   }
+  function editTrip(trip: Trip) {
+    setEditingId(trip.id);
+    setForm({ tripCode: trip.tripCode, branchId: trip.branch.id, routeId: trip.route.id, busId: trip.bus.id, driverId: trip.driver.id, travelDate: trip.travelDate.slice(0, 10), departureTime: new Date(trip.departureTime).toISOString().slice(0, 16), arrivalTime: new Date(trip.arrivalTime).toISOString().slice(0, 16), status: trip.status });
+    setOpen(true);
+  }
   return (
     <>
       <PageHeader
         title="Trips"
         description="Schedule reusable routes with active buses and drivers."
-        action={
+        action={can("create") ? (
           <Button onClick={() => setOpen((value) => !value)}>
             <Plus size={16} /> Add trip
           </Button>
-        }
+        ) : undefined}
       />
       {open && (
         <Card className="management-form">
           <div className="form-grid">
+            <div className="card-heading"><div><p className="eyebrow">{editingId ? "Update schedule" : "New schedule"}</p><h2>{editingId ? "Edit trip" : "Create trip"}</h2></div></div>
+            {user?.role === "SUPER_ADMIN" && <label>Agency<select value={form.agencyId ?? ""} onChange={(e) => { update("agencyId", e.target.value); update("branchId", ""); }}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
             <label>
               Trip code
               <input
@@ -120,6 +137,7 @@ export function TripPage() {
                 onChange={(e) => update("tripCode", e.target.value)}
               />
             </label>
+            {editingId && <label>Status<select value={form.status ?? "SCHEDULED"} onChange={(e) => update("status", e.target.value)}><option>SCHEDULED</option><option>IN_PROGRESS</option><option>COMPLETED</option><option>CANCELLED</option></select></label>}
             <label>
               Branch
               <select
@@ -127,7 +145,7 @@ export function TripPage() {
                 onChange={(e) => update("branchId", e.target.value)}
               >
                 <option value="">Select branch</option>
-                {branches.map((branch) => (
+                {branches.filter((branch) => user?.role !== "SUPER_ADMIN" || branch.agencyId === form.agencyId).map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
                   </option>
@@ -141,7 +159,7 @@ export function TripPage() {
                 onChange={(e) => update("routeId", e.target.value)}
               >
                 <option value="">Select route</option>
-                {routes.map((route) => (
+                {routes.filter((route) => user?.role !== "SUPER_ADMIN" || (route as Route & { agencyId?: string }).agencyId === form.agencyId).map((route) => (
                   <option key={route.id} value={route.id}>
                     {route.name}
                   </option>
@@ -157,7 +175,7 @@ export function TripPage() {
                 <option value="">Select active bus</option>
                 {buses
                   .filter(
-                    (bus) => !form.branchId || bus.branch.id === form.branchId,
+                    (bus) => (!form.branchId || bus.branch.id === form.branchId) && (user?.role !== "SUPER_ADMIN" || (bus as Bus & { agencyId?: string }).agencyId === form.agencyId),
                   )
                   .map((bus) => (
                     <option key={bus.id} value={bus.id}>
@@ -176,7 +194,7 @@ export function TripPage() {
                 {drivers
                   .filter(
                     (driver) =>
-                      !form.branchId || driver.branch.id === form.branchId,
+                      (!form.branchId || driver.branch.id === form.branchId) && (user?.role !== "SUPER_ADMIN" || (driver as Driver & { agencyId?: string }).agencyId === form.agencyId),
                   )
                   .map((driver) => (
                     <option key={driver.id} value={driver.id}>
@@ -211,8 +229,9 @@ export function TripPage() {
             </label>
           </div>
           <Button onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving..." : "Save trip"}
+            {saving ? "Saving..." : editingId ? "Save changes" : "Save trip"}
           </Button>
+          <Button variant="secondary" onClick={() => { setOpen(false); setEditingId(null); }}>Cancel</Button>
         </Card>
       )}
       {error && (
@@ -247,7 +266,7 @@ export function TripPage() {
             <option>CANCELLED</option>
           </select>
         </div>
-        {trips.length === 0 ? (
+        {loading ? <div className="state-message">Loading trips...</div> : trips.length === 0 ? (
           <div className="state-message">
             <strong>No trips found</strong>
             <span>Schedule a trip or adjust the filters.</span>
@@ -265,7 +284,7 @@ export function TripPage() {
                   <th>Bus</th>
                   <th>Driver</th>
                   <th>Status</th>
-                  <th />
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,7 +315,8 @@ export function TripPage() {
                       <Badge>{trip.status}</Badge>
                     </td>
                     <td>
-                      <button
+                      {can("update") && <button className="button button-ghost" aria-label="Edit trip" onClick={() => editTrip(trip)}><Pencil size={15} /></button>}
+                      {can("cancel") && <button
                         className="button button-ghost"
                         disabled={trip.status === "CANCELLED"}
                         onClick={() =>
@@ -312,7 +332,7 @@ export function TripPage() {
                         }
                       >
                         Cancel
-                      </button>
+                      </button>}
                     </td>
                   </tr>
                 ))}

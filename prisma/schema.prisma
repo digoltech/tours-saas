@@ -49,12 +49,16 @@ model User {
   branchId     String?
   status       RecordStatus @default(ACTIVE)
   onboardingCompleted Boolean      @default(false)
+  emailVerifiedAt DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   role         Role         @relation(fields: [roleId], references: [id])
   agency       Agency?      @relation(fields: [agencyId], references: [id], onDelete: Restrict)
   branch       Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
   passwordResetOtps PasswordResetOtp[]
+  emailVerificationTokens EmailVerificationToken[]
+  sentInvitations Invitation[] @relation("SentInvitations")
+  receivedInvitation Invitation? @relation("InvitedUser")
 
   @@index([agencyId])
   @@index([branchId])
@@ -79,6 +83,7 @@ model Agency {
   drivers   Driver[]
   routes    Route[]
   trips     Trip[]
+  invitations Invitation[]
 }
 
 model Branch {
@@ -97,6 +102,7 @@ model Branch {
   updatedAt DateTime     @updatedAt
   agency    Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   users     User[]
+  invitations Invitation[]
   buses     Bus[]
   drivers   Driver[]
   trips     Trip[]
@@ -111,6 +117,7 @@ model Role {
   name        String
   users       User[]
   permissions RolePermission[]
+  invitations Invitation[]
 }
 
 model Permission {
@@ -268,4 +275,40 @@ model PasswordResetOtp {
 
   @@index([email, createdAt])
   @@index([userId, expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Invitation {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  agencyId   String
+  branchId   String?
+  roleId     String
+  invitedById String
+  email      String
+  firstName  String
+  lastName   String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
+  agency     Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branch     Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy  User     @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([email, createdAt])
+  @@index([agencyId, createdAt])
 }

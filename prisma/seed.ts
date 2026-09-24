@@ -48,6 +48,7 @@ const permissions = [
   "trip:create",
   "trip:update",
   "trip:delete",
+  "trip:cancel",
 ];
 
 const roleDefinitions: Record<

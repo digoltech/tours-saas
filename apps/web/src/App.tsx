@@ -13,6 +13,7 @@ import {
   Map,
   Menu,
   Settings,
+  Armchair,
   ShieldCheck,
   UserRound,
   Users,
@@ -67,6 +68,7 @@ const navGroups = [
         icon: BarChart3,
         permission: "trip:read",
       },
+      { label: "Seat layouts", path: "/seat-layout", icon: Armchair, permission: "bus:read" },
     ],
   },
 ];
@@ -135,12 +137,9 @@ export function Shell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <Link
-            href="/settings"
-            className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""}`}
-          >
+          <Link href="/settings" className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""}`}>
             <Settings size={18} />
-            <span>Settings</span>
+            <span>Fare & policy settings</span>
           </Link>
           <div className="help-box">
             <CircleHelp size={18} />

@@ -1,8 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Prisma, RecordStatus, RoleCode } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { hashPassword } from "./auth.service.js";
 import type { AuthContext } from "../types/auth.js";
+import { environment } from "../config/env.js";
+import { sendTeamInvitation, sendTeamWelcome } from "./email.service.js";
 
 export type AgencyQuery = {
   page?: number;
@@ -85,11 +87,15 @@ export async function getDashboardSummary(context: AuthContext) {
     throw error;
   }
 
-  const [totalAgencies, activeAgencies, totalBranches, totalAgents] = await Promise.all([
+  const [totalAgencies, activeAgencies, totalBranches, totalAgents, totalBuses, totalDrivers, totalRoutes, totalTrips] = await Promise.all([
     prisma.agency.count(),
     prisma.agency.count({ where: { status: RecordStatus.ACTIVE } }),
     prisma.branch.count(),
     prisma.user.count({ where: { role: { code: RoleCode.AGENT } } }),
+    prisma.bus.count(),
+    prisma.driver.count(),
+    prisma.route.count(),
+    prisma.trip.count(),
   ]);
 
   return {
@@ -99,6 +105,10 @@ export async function getDashboardSummary(context: AuthContext) {
       activeAgencies,
       totalBranches,
       totalAgents,
+      totalBuses,
+      totalDrivers,
+      totalRoutes,
+      totalTrips,
     },
   };
 }
@@ -588,7 +598,8 @@ export async function createAgent(context: AuthContext, agencyId: string, data: 
   }
 
   const email = data.email.trim().toLowerCase();
-  const password = data.password?.trim() || randomBytes(10).toString("hex");
+  const hasExplicitPassword = Boolean(data.password?.trim());
+  const password = data.password?.trim() || randomBytes(24).toString("hex");
   const passwordHash = await hashPassword(password);
 
   try {
@@ -602,11 +613,44 @@ export async function createAgent(context: AuthContext, agencyId: string, data: 
         email,
         phone: data.phone?.trim() || null,
         passwordHash,
+        onboardingCompleted: true,
         status: data.status ?? RecordStatus.ACTIVE,
       },
       include: { role: true, agency: true, branch: true },
     });
-    return { ...user, password };
+    if (!hasExplicitPassword) {
+      const token = randomBytes(32).toString("hex");
+      await prisma.invitation.create({
+        data: {
+          userId: user.id,
+          agencyId,
+          branchId: data.branchId ?? null,
+          roleId: role.id,
+          invitedById: context.userId,
+          email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          tokenHash: createHash("sha256").update(token).digest("hex"),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+      void sendTeamInvitation({
+        email,
+        firstName: user.firstName,
+        inviterName: `${context.firstName} ${context.lastName}`,
+        agencyName: user.agency?.name ?? "your travel team",
+        invitationUrl: `${environment.WEB_URL}/invite/${encodeURIComponent(token)}`,
+      }).catch((error) => console.error("Team invitation email failed", error));
+    } else {
+      void sendTeamWelcome({
+        email,
+        firstName: user.firstName,
+        inviterName: `${context.firstName} ${context.lastName}`,
+        agencyName: user.agency?.name ?? "your travel team",
+        loginUrl: `${environment.WEB_URL}/login`,
+      }).catch((error) => console.error("Team welcome email failed", error));
+    }
+    return { ...user, invitationSent: !hasExplicitPassword };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const duplicate = new Error("Agent email already exists") as Error & { statusCode?: number; code?: string };

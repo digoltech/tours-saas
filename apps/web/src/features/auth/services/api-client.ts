@@ -36,6 +36,15 @@ export function verifyPasswordResetOtp(email: string, otp: string) {
 export function resetPassword(email: string, otp: string, password: string) {
   return request<{ reset: boolean }>("/api/auth/forgot-password/reset", { method: "POST", body: JSON.stringify({ email, otp, password }) });
 }
+export function verifyEmail(token: string) {
+  return request<{ verified: boolean }>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+}
+export function getInvitation(token: string) {
+  return request<{ email: string; firstName: string; lastName: string; agencyName: string }>(`/api/auth/invitations/${encodeURIComponent(token)}`);
+}
+export function acceptInvitation(token: string, password: string) {
+  return request<{ user: AuthUser }>("/api/auth/invitations/accept", { method: "POST", body: JSON.stringify({ token, password }) });
+}
 export function completeOnboarding(data: { agencyName: string; branchName: string; phone?: string }) {
   return request<{ user: AuthUser }>("/api/auth/onboarding", { method: "POST", body: JSON.stringify(data) });
 }
@@ -48,9 +57,9 @@ export function logout() {
   });
 }
 
-export function getAgencies(search = "") {
+export function getAgencies(search = "", status = "") {
   return request<unknown[]>(
-    `/api/agencies?limit=100&search=${encodeURIComponent(search)}`,
+    `/api/agencies?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
   );
 }
 
@@ -60,43 +69,53 @@ export function getDashboardSummary() {
     activeAgencies: number;
     totalBranches: number;
     totalAgents: number;
+    totalBuses: number;
+    totalDrivers: number;
+    totalRoutes: number;
+    totalTrips: number;
   }>("/api/dashboard/summary");
 }
 
-export function createAgency(data: { name: string; slug: string }) {
+export function createAgency(data: { name: string; slug: string; email?: string }) {
   return request<unknown>("/api/agencies", {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+export function updateAgency(id: string, data: Record<string, unknown>) {
+  return request<unknown>(`/api/agencies/${id}`, { method: "PATCH", body: JSON.stringify(data) });
 }
 
 export function deactivateAgency(id: string) {
   return request<unknown>(`/api/agencies/${id}`, { method: "DELETE" });
 }
 
-export function getBranches(agencyId: string, search = "") {
+export function getBranches(agencyId: string, search = "", status = "") {
   return request<unknown[]>(
-    `/api/agencies/${agencyId}/branches?limit=100&search=${encodeURIComponent(search)}`,
+    `/api/agencies/${agencyId}/branches?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
   );
 }
 
 export function createBranch(
   agencyId: string,
-  data: { name: string; code: string },
+  data: { name: string; code: string; email?: string },
 ) {
   return request<unknown>(`/api/agencies/${agencyId}/branches`, {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
+export function updateBranch(id: string, data: Record<string, unknown>) {
+  return request<unknown>(`/api/branches/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
 
 export function deactivateBranch(id: string) {
   return request<unknown>(`/api/branches/${id}`, { method: "DELETE" });
 }
 
-export function getAgents(agencyId: string, search = "") {
+export function getAgents(agencyId: string, search = "", status = "") {
   return request<unknown[]>(
-    `/api/agencies/${agencyId}/agents?limit=100&search=${encodeURIComponent(search)}`,
+    `/api/agencies/${agencyId}/agents?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
   );
 }
 
@@ -114,6 +133,9 @@ export function createAgent(
     body: JSON.stringify(data),
   });
 }
+export function updateAgent(id: string, data: Record<string, unknown>) {
+  return request<unknown>(`/api/agents/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
 
 export function deactivateAgent(id: string) {
   return request<unknown>(`/api/agents/${id}`, { method: "DELETE" });
@@ -123,7 +145,7 @@ export type PageResult<T> = {
   data: T[];
   meta: { page: number; limit: number; total: number; totalPages: number };
 };
-export type Branch = { id: string; name: string; code: string };
+export type Branch = { id: string; name: string; code: string; agencyId?: string };
 export type Bus = {
   id: string;
   busNumber: string;
@@ -257,6 +279,9 @@ export function updateStop(id: string, data: Record<string, unknown>) {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
+export function deactivateStop(id: string) {
+  return request<Stop>(`/api/stops/${id}`, { method: "DELETE" });
 }
 export function configurePoint(stopId: string, data: Record<string, unknown>) {
   return request<unknown>(`/api/stops/${stopId}/point`, {

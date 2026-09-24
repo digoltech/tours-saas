@@ -26,12 +26,14 @@ bun run prisma:seed
 
 Development seed users share the password `AOnePhase2!2026`:
 
-- `super.admin@aone.local`
-- `agency.admin.a@aone.local`
-- `branch.admin.a1@aone.local`
-- `agent.a1@aone.local`
+| Role | Login | Seeded scope |
+|---|---|---|
+| Super Admin | `super.admin@aone.local` | Platform-wide |
+| Agency Admin | `agency.admin.a@aone.local` | Agency A |
+| Branch Admin | `branch.admin.a1@aone.local` | Agency A · Branch A1 |
+| Agent | `agent.a1@aone.local` | Agency A · Branch A1 |
 
-These accounts are for local development only and must never be used in production.
+These accounts are for development only and must never be used in production.
 
 ## Next.js protection
 

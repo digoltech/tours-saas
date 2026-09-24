@@ -1,6 +1,5 @@
-import { PlaceholderPage } from "../../../src/App";
-import { pageConfigs } from "../../../src/page-config";
+import { SettingsWorkspace } from "../../../src/features/management/SettingsWorkspace";
 
 export default function SettingsPage() {
-  return <PlaceholderPage config={pageConfigs["/settings"]} />;
+  return <SettingsWorkspace />;
 }

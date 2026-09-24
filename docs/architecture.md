@@ -1,33 +1,25 @@
 # Architecture
 
-## Phase 1 boundary
+## Applications
 
-Phase 1 establishes the runnable frontend, API, shared package, environment contract, and Prisma datasource. Phase 2 adds authentication, database-backed roles and permissions, agency/branch ownership, and reusable tenant authorization middleware. Business CRUD, booking, payments, notifications, and reporting remain deferred.
+- `apps/web` is a Next.js App Router application. Workspace route files stay thin and use feature components for management flows.
+- `apps/api` is an Express API. Controllers validate HTTP inputs with Zod; services apply authorization, tenant scoping, validation, and Prisma operations.
+- `packages/shared` contains contracts shared between the applications.
+- `prisma` owns the PostgreSQL schema, migrations, and development seed.
 
-## Multi-tenancy approach
+## Tenancy and access
 
-A-One Tours & Travels SaaS uses logical multi-tenancy in one shared PostgreSQL database. Each agency is a tenant workspace, and branches, agents, fleet records, routes, and trips will belong to one tenant.
+The platform uses one PostgreSQL database with logical agency tenancy. Agency-owned records carry `agencyId`; branches and branch-scoped resources carry their parent identifiers. Auth context is loaded from the signed session cookie, and API services check the authenticated role and tenant before accessing records. Client-supplied identifiers do not grant access.
 
-Tenant-owned records should carry a required `tenantId` (or an equivalent foreign key to the agency/tenant table). This makes ownership explicit, supports indexed tenant-scoped queries, and gives the API a consistent authorization boundary. Global records should be deliberately identified as global rather than implicitly shared.
+Super Admin may administer across agencies. Agency Admin is scoped to their agency. Branch Admin and Agent access is further restricted to their assigned branch. Resource permissions are stored in `Permission` and `RolePermission` records and enforced by API middleware.
 
-The application will not use a separate database per tenant. Shared storage simplifies operations and enables platform-wide administration while preserving logical isolation through application authorization and query scoping.
+## Data flow
 
-## Planned request flow
+1. The web app sends credentialed requests to Express.
+2. Authentication middleware verifies the HTTP-only JWT cookie and loads the user and permissions.
+3. Permission middleware guards each protected operation.
+4. Controllers validate request payloads and query parameters.
+5. Services verify resource ownership and execute Prisma operations.
+6. API responses use the shared success/error envelope.
 
-1. Authentication middleware will identify the user and their active tenant.
-2. Authorization middleware will verify the user's role and permissions.
-3. Controllers will validate request input and call a service.
-4. Services will apply business rules and call repositories.
-5. Repositories will use Prisma and require tenant scope for tenant-owned resources.
-6. Responses will use shared API contracts where frontend and backend communicate.
-
-Every tenant-scoped repository method should accept a tenant identifier explicitly. Authorization must never rely on a tenant identifier supplied only by the client. The server should derive the active tenant from the authenticated session and verify branch or resource ownership before reads and writes.
-
-## Package boundaries
-
-- `apps/web` owns presentation, routing, and frontend interactions.
-- `apps/api` owns HTTP, authentication, authorization, business services, and persistence orchestration.
-- `packages/shared` owns small, dependency-light contracts shared by both applications.
-- `prisma` owns the database schema and future migrations.
-
-Business logic should not be placed directly in route registration files. Prisma should not be imported by frontend code or scattered through controllers.
+The settings and seat layout screens are client-side Phase 1 interfaces backed by browser storage; they do not write settings to PostgreSQL yet.

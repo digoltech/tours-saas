@@ -53,6 +53,28 @@ enum TripSeatStatus {
   BOOKED
 }
 
+enum FinanceMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  UPI
+  OTHER
+}
+
+enum SettlementParty {
+  AGENT
+  OPERATOR
+}
+
+enum LedgerType {
+  PAYMENT
+  REFUND
+  COMMISSION
+  COMMISSION_REVERSAL
+  SETTLEMENT
+  OPERATOR_PAYABLE
+}
+
 model User {
   id                      String                   @id @default(cuid())
   email                   String                   @unique
@@ -75,34 +97,42 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   sentInvitations         Invitation[]             @relation("SentInvitations")
   receivedInvitation      Invitation?              @relation("InvitedUser")
+  agentCommissions        AgentCommission[]
 
   @@index([agencyId])
   @@index([branchId])
 }
 
 model Agency {
-  id               String       @id @default(cuid())
-  name             String
-  slug             String       @unique
-  email            String?
-  phone            String?
-  address          String?
-  city             String?
-  state            String?
-  country          String?
-  status           RecordStatus @default(ACTIVE)
-  maxDiscountType  DiscountType @default(PERCENTAGE)
-  maxDiscountValue Decimal      @default(0) @db.Decimal(10, 2)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  users            User[]
-  branches         Branch[]
-  buses            Bus[]
-  drivers          Driver[]
-  routes           Route[]
-  trips            Trip[]
-  invitations      Invitation[]
-  bookings         Booking[]
+  id                String             @id @default(cuid())
+  name              String
+  slug              String             @unique
+  email             String?
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+  status            RecordStatus       @default(ACTIVE)
+  maxDiscountType   DiscountType       @default(PERCENTAGE)
+  maxDiscountValue  Decimal            @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  users             User[]
+  branches          Branch[]
+  buses             Bus[]
+  drivers           Driver[]
+  routes            Route[]
+  trips             Trip[]
+  invitations       Invitation[]
+  bookings          Booking[]
+  financeSettings   FinanceSettings?
+  cancellationTiers CancellationTier[]
+  financeLedgers    FinanceLedger[]
+  settlements       Settlement[]
+  paymentRecords    PaymentRecord[]
+  refundRecords     RefundRecord[]
+  agentCommissions  AgentCommission[]
 }
 
 model Branch {
@@ -332,30 +362,41 @@ model TripSeat {
 }
 
 model Booking {
-  id             String             @id @default(cuid())
-  pnr            String             @unique
-  idempotencyKey String             @unique
-  holdToken      String             @unique
-  agencyId       String
-  branchId       String
-  tripId         String
-  bookedById     String
-  boardingStopId String
-  dropOffStopId  String
-  status         BookingStatus      @default(CONFIRMED)
-  currency       String             @default("INR")
-  baseFare       Decimal            @db.Decimal(10, 2)
-  discountType   DiscountType?
-  discountValue  Decimal            @default(0) @db.Decimal(10, 2)
-  discountAmount Decimal            @default(0) @db.Decimal(10, 2)
-  totalAmount    Decimal            @db.Decimal(10, 2)
-  createdAt      DateTime           @default(now())
-  agency         Agency             @relation(fields: [agencyId], references: [id], onDelete: Restrict)
-  trip           Trip               @relation(fields: [tripId], references: [id], onDelete: Restrict)
-  boardingStop   Stop               @relation("BookingBoardingStop", fields: [boardingStopId], references: [id], onDelete: Restrict)
-  dropOffStop    Stop               @relation("BookingDropOffStop", fields: [dropOffStopId], references: [id], onDelete: Restrict)
-  passengers     BookingPassenger[]
-  seats          TripSeat[]
+  id               String               @id @default(cuid())
+  pnr              String               @unique
+  idempotencyKey   String               @unique
+  holdToken        String               @unique
+  agencyId         String
+  branchId         String
+  tripId           String
+  bookedById       String
+  boardingStopId   String
+  dropOffStopId    String
+  status           BookingStatus        @default(CONFIRMED)
+  currency         String               @default("INR")
+  baseFare         Decimal              @db.Decimal(10, 2)
+  discountType     DiscountType?
+  discountValue    Decimal              @default(0) @db.Decimal(10, 2)
+  discountAmount   Decimal              @default(0) @db.Decimal(10, 2)
+  totalAmount      Decimal              @db.Decimal(10, 2)
+  taxRate          Decimal              @default(0) @db.Decimal(7, 4)
+  taxAmount        Decimal              @default(0) @db.Decimal(10, 2)
+  commissionType   DiscountType?
+  commissionRate   Decimal              @default(0) @db.Decimal(10, 2)
+  commissionAmount Decimal              @default(0) @db.Decimal(10, 2)
+  cancellationFee  Decimal              @default(0) @db.Decimal(10, 2)
+  createdAt        DateTime             @default(now())
+  agency           Agency               @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  trip             Trip                 @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  boardingStop     Stop                 @relation("BookingBoardingStop", fields: [boardingStopId], references: [id], onDelete: Restrict)
+  dropOffStop      Stop                 @relation("BookingDropOffStop", fields: [dropOffStopId], references: [id], onDelete: Restrict)
+  passengers       BookingPassenger[]
+  seats            TripSeat[]
+  payments         PaymentRecord[]
+  refunds          RefundRecord[]
+  commission       AgentCommission?
+  ledgerEntries    FinanceLedger[]
+  cancellation     BookingCancellation?
 
   @@index([agencyId, createdAt])
   @@index([branchId, createdAt])
@@ -414,4 +455,112 @@ model Invitation {
 
   @@index([email, createdAt])
   @@index([agencyId, createdAt])
+}
+
+model FinanceSettings {
+  agencyId         String       @id
+  gstRate          Decimal      @default(0) @db.Decimal(7, 4)
+  gstAfterDiscount Boolean      @default(true)
+  commissionType   DiscountType @default(PERCENTAGE)
+  commissionValue  Decimal      @default(0) @db.Decimal(10, 2)
+  agency           Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  updatedAt        DateTime     @updatedAt
+}
+
+model CancellationTier {
+  id                   String  @id @default(cuid())
+  agencyId             String
+  hoursBeforeDeparture Decimal @db.Decimal(8, 2)
+  feePercent           Decimal @db.Decimal(7, 4)
+  agency               Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, hoursBeforeDeparture])
+  @@index([agencyId, hoursBeforeDeparture])
+}
+
+model PaymentRecord {
+  id           String        @id @default(cuid())
+  bookingId    String
+  agencyId     String
+  amount       Decimal       @db.Decimal(10, 2)
+  method       FinanceMethod
+  reference    String?
+  receivedAt   DateTime      @default(now())
+  recordedById String
+  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, receivedAt])
+  @@index([bookingId, receivedAt])
+}
+
+model RefundRecord {
+  id           String        @id @default(cuid())
+  bookingId    String
+  agencyId     String
+  amount       Decimal       @db.Decimal(10, 2)
+  method       FinanceMethod
+  reference    String?
+  refundedAt   DateTime      @default(now())
+  recordedById String
+  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, refundedAt])
+  @@index([bookingId, refundedAt])
+}
+
+model BookingCancellation {
+  bookingId      String   @id
+  eligibleRefund Decimal  @db.Decimal(10, 2)
+  feeAmount      Decimal  @db.Decimal(10, 2)
+  cancelledById  String
+  cancelledAt    DateTime @default(now())
+  reason         String?
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+}
+
+model AgentCommission {
+  bookingId      String  @id
+  agencyId       String
+  agentId        String
+  amount         Decimal @db.Decimal(10, 2)
+  reversedAmount Decimal @default(0) @db.Decimal(10, 2)
+  agency         Agency  @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  booking        Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  agent          User    @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, agentId])
+}
+
+model Settlement {
+  id           String          @id @default(cuid())
+  agencyId     String
+  party        SettlementParty
+  partyId      String
+  amount       Decimal         @db.Decimal(10, 2)
+  method       FinanceMethod
+  reference    String?
+  settledAt    DateTime        @default(now())
+  recordedById String
+  agency       Agency          @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, party, partyId, settledAt])
+}
+
+model FinanceLedger {
+  id          String           @id @default(cuid())
+  agencyId    String
+  bookingId   String?
+  type        LedgerType
+  party       SettlementParty?
+  partyId     String?
+  amount      Decimal          @db.Decimal(10, 2)
+  description String
+  createdAt   DateTime         @default(now())
+  agency      Agency           @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  booking     Booking?         @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, createdAt])
+  @@index([bookingId, createdAt])
 }

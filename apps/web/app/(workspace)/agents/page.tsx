@@ -1,5 +1,2 @@
-import { ManagementPage } from "../../../src/features/management/ManagementPage";
-
-export default function AgentsPage() {
-  return <ManagementPage resource="agents" />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/agents'); }

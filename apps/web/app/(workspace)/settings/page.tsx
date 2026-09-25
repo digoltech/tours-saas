@@ -1,5 +1,2 @@
-import { SettingsWorkspace } from "../../../src/features/management/SettingsWorkspace";
-
-export default function SettingsPage() {
-  return <SettingsWorkspace />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/settings'); }

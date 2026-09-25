@@ -8,42 +8,42 @@ export type PageConfig = {
 };
 
 export const pageConfigs: Record<string, PageConfig> = {
-  "/agencies": {
+  "/dashboard/agencies": {
     title: "Agencies",
     description: "Tenant workspaces will live here.",
     icon: "shield",
   },
-  "/branches": {
+  "/dashboard/branches": {
     title: "Branches",
     description: "Branch operations will be configured here.",
     icon: "map",
   },
-  "/agents": {
+  "/dashboard/agents": {
     title: "Agents",
     description: "Agent access and assignments will be managed here.",
     icon: "users",
   },
-  "/buses": {
+  "/dashboard/buses": {
     title: "Buses",
     description: "Fleet records will be managed here.",
     icon: "bus",
   },
-  "/drivers": {
+  "/dashboard/drivers": {
     title: "Drivers",
     description: "Driver records will be managed here.",
     icon: "driver",
   },
-  "/routes": {
+  "/dashboard/routes": {
     title: "Routes",
     description: "Route planning will be configured here.",
     icon: "map",
   },
-  "/trips": {
+  "/dashboard/trips": {
     title: "Trips",
     description: "Trip operations will be planned here.",
     icon: "chart",
   },
-  "/settings": {
+  "/dashboard/settings": {
     title: "Settings",
     description: "Workspace preferences will be configured here.",
     icon: "settings",

@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
 import { canAccessTenant } from "../middleware/tenant-policy.js";
+import { calculateCommission, calculateTax, money } from "./finance-calculations.js";
 
 type Err = Error & { statusCode?: number; code?: string };
 function fail(statusCode: number, code: string, message: string): never {
@@ -438,6 +439,13 @@ export async function confirmBooking(
         : 0;
   if (discountAmount > baseFare)
     fail(400, "INVALID_DISCOUNT", "Discount cannot exceed the fare");
+  const financeSettings = await prisma.financeSettings.findUnique({ where: { agencyId: trip.agencyId } });
+  const taxRate = Number(financeSettings?.gstRate ?? 0);
+  const taxAmount = calculateTax(baseFare, discountAmount, taxRate, financeSettings?.gstAfterDiscount !== false);
+  const commissionType = financeSettings?.commissionType ?? "PERCENTAGE";
+  const commissionRate = Number(financeSettings?.commissionValue ?? 0);
+  const commissionAmount = calculateCommission(baseFare, discountAmount, expectedSeats.length, commissionType, commissionRate);
+  const totalAmount = money(baseFare - discountAmount + taxAmount);
   const pnr = `A1${randomBytes(5).toString("hex").toUpperCase()}`;
   const now = new Date();
   try {
@@ -492,7 +500,12 @@ export async function confirmBooking(
             discountType,
             discountValue,
             discountAmount,
-            totalAmount: baseFare - discountAmount,
+            totalAmount,
+            taxRate,
+            taxAmount,
+            commissionType,
+            commissionRate,
+            commissionAmount,
             passengers: {
               create: input.passengers.map((passenger) => ({
                 ...passenger,
@@ -509,6 +522,9 @@ export async function confirmBooking(
             dropOffStop: true,
           },
         });
+        await tx.agentCommission.create({ data: { bookingId: booking.id, agencyId: trip.agencyId, agentId: context.userId, amount: commissionAmount } });
+        await tx.financeLedger.create({ data: { agencyId: trip.agencyId, bookingId: booking.id, type: "COMMISSION", party: "AGENT", partyId: context.userId, amount: commissionAmount, description: `Commission earned for booking ${booking.pnr}` } });
+        await tx.financeLedger.create({ data: { agencyId: trip.agencyId, bookingId: booking.id, type: "OPERATOR_PAYABLE", party: "OPERATOR", partyId: trip.agencyId, amount: Math.max(0, totalAmount - taxAmount - commissionAmount), description: `Operator payable accrued for booking ${booking.pnr}` } });
         await tx.tripSeat.updateMany({
           where: {
             tripId: trip.id,

@@ -1,5 +1,2 @@
-import { TransportPage } from "../../../src/features/transport/TransportPage";
-
-export default function DriversPage() {
-  return <TransportPage resource="drivers" />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/drivers'); }

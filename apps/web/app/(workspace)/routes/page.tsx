@@ -1,5 +1,2 @@
-import { TransportPage } from "../../../src/features/transport/TransportPage";
-
-export default function RoutesPage() {
-  return <TransportPage resource="routes" />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/routes'); }

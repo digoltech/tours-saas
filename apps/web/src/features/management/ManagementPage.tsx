@@ -70,6 +70,15 @@ export function ManagementPage({ resource }: { resource: Resource }) {
     setFormOpen(true);
   }
   async function save() {
+    const requiredFields = resource === "agencies"
+      ? [[form.name, "Agency name"], [form.slug, "Agency slug"]]
+      : resource === "branches"
+        ? [[form.name, "Branch name"], [form.code, "Branch code"]]
+        : [[form.firstName, "First name"], [form.lastName, "Last name"], [form.email, "Email"], [form.phone, "Phone"]];
+    const missing = requiredFields.find(([value]) => !value.trim());
+    if (missing) { setError(`${missing[1]} is required.`); return; }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address."); return; }
+    if (resource === "agents" && !editing && form.password && form.password.length < 8) { setError("Temporary password must be at least 8 characters."); return; }
     setSaving(true); setError("");
     try {
       if (resource === "agencies") {

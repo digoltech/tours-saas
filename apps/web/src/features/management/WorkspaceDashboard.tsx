@@ -24,11 +24,11 @@ export function WorkspaceDashboard() {
   const isAgencyAdmin = user?.role === "AGENCY_ADMIN";
   const title = isAgencyAdmin ? "Agency dashboard" : "Branch dashboard";
   const shortcuts = [
-    ...(user?.permissions.includes("booking:read") ? [["Bookings", "/bookings", Armchair] as const] : []),
-    ...(user?.permissions.includes("trip:read") ? [["Trips", "/trips", CalendarDays] as const] : []),
-    ...(user?.permissions.includes("bus:read") ? [["Buses", "/buses", Bus] as const] : []),
-    ...(user?.permissions.includes("agent:read") ? [["Agents", "/agents", Users] as const] : []),
-    ...(user?.permissions.includes("route:read") ? [["Routes", "/routes", Route] as const] : []),
+    ...(user?.permissions.includes("booking:read") ? [["Bookings", "/dashboard/bookings", Armchair] as const] : []),
+    ...(user?.permissions.includes("trip:read") ? [["Trips", "/dashboard/trips", CalendarDays] as const] : []),
+    ...(user?.permissions.includes("bus:read") ? [["Buses", "/dashboard/buses", Bus] as const] : []),
+    ...(user?.permissions.includes("agent:read") ? [["Agents", "/dashboard/agents", Users] as const] : []),
+    ...(user?.permissions.includes("route:read") ? [["Routes", "/dashboard/routes", Route] as const] : []),
   ];
   const metrics: { label: string; value: string | number | undefined; detail: string; icon: LucideIcon }[] = [
     { label: "Bookings today", value: summary?.todayBookings, detail: "Confirmed bookings", icon: Armchair },

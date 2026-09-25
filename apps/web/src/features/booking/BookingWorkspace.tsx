@@ -792,7 +792,7 @@ export function AgentBookingsDashboard() {
         title="Agent dashboard"
         description="Find a scheduled trip and create a confirmed passenger booking."
         action={
-          <Link className="button button-primary" href="/bookings">
+          <Link className="button button-primary" href="/dashboard/bookings">
             New booking <ArrowRight size={16} />
           </Link>
         }
@@ -827,7 +827,7 @@ export function AgentBookingsDashboard() {
             Search live scheduled trips, lock seats while you enter passenger
             details, and print the ticket with its PNR.
           </p>
-          <Link className="button button-primary" href="/bookings">
+          <Link className="button button-primary" href="/dashboard/bookings">
             Start booking <ArrowRight size={16} />
           </Link>
         </Card>

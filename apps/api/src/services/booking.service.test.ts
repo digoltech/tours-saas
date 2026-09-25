@@ -63,6 +63,8 @@ const matches = (
 
 const tx = {
   $queryRaw: async () => [],
+  agentCommission: { create: async () => ({}) },
+  financeLedger: { create: async () => ({}) },
   tripSeat: {
     createMany: async ({
       data,
@@ -120,6 +122,7 @@ const tx = {
   },
 };
 const prisma = {
+  financeSettings: { findUnique: async () => null },
   trip: { findUnique: async () => trip },
   tripSeat: {
     updateMany: tx.tripSeat.updateMany,

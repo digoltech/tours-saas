@@ -27,7 +27,7 @@ export default function OnboardingPage() {
 
   async function finish() {
     setSaving(true); setError("");
-    try { await completeOnboarding(form); router.push("/dashboard"); router.refresh(); }
+    try { await completeOnboarding(form); router.push("/dashboard/home"); router.refresh(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to finish setup"); }
     finally { setSaving(false); }
   }

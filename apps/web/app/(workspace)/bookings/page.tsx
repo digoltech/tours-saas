@@ -1,5 +1,2 @@
-import { BookingWorkspace } from "../../../src/features/booking/BookingWorkspace";
-
-export default function BookingsRoute() {
-  return <BookingWorkspace />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/bookings'); }

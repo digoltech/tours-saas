@@ -1,5 +1,2 @@
-import { SeatLayoutBuilder } from "../../../src/features/transport/SeatLayoutBuilder";
-
-export default function SeatLayoutPage() {
-  return <SeatLayoutBuilder />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/seat-layout'); }

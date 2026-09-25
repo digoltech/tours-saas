@@ -2,20 +2,25 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  Search,
   BarChart3,
+  Bell,
   Bus,
+  CalendarDays,
   ChevronDown,
-  CircleHelp,
+  CircleDollarSign,
+  ClipboardList,
   ChevronsLeft,
   ChevronsRight,
+  GitBranch,
   LayoutDashboard,
   Map,
   Menu,
+  Building2,
   Settings,
-  Armchair,
   ShieldCheck,
   UserRound,
   Users,
@@ -24,64 +29,28 @@ import {
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
-import { PageHeader } from "./ui/PageHeader";
+import { PageHeader, WorkspaceHeadingContext, type WorkspaceHeading } from "./ui/PageHeader";
 import type { PageConfig } from "./page-config";
 import { useAuth } from "./features/auth/components/AuthProvider";
+import { getAgencies, getAgents, getBookings, getBranches, getBuses, getRoutes, getTrips } from "./features/auth/services/api-client";
+import type { AuthUser } from "./features/auth/types";
 
 const navGroups = [
   {
-    label: "Workspace",
+    label: "",
     items: [
-      { label: "Overview", path: "/dashboard", icon: LayoutDashboard },
-      {
-        label: "Bookings",
-        path: "/bookings",
-        icon: Armchair,
-        permission: "booking:read",
-      },
-      {
-        label: "Agencies",
-        path: "/agencies",
-        icon: ShieldCheck,
-        permission: "agency:read",
-      },
-      {
-        label: "Branches",
-        path: "/branches",
-        icon: Map,
-        permission: "branch:read",
-      },
-      {
-        label: "Agents",
-        path: "/agents",
-        icon: Users,
-        permission: "agent:read",
-      },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { label: "Buses", path: "/buses", icon: Bus, permission: "bus:read" },
-      {
-        label: "Drivers",
-        path: "/drivers",
-        icon: UserRound,
-        permission: "driver:read",
-      },
-      { label: "Routes", path: "/routes", icon: Map, permission: "route:read" },
-      {
-        label: "Trips",
-        path: "/trips",
-        icon: BarChart3,
-        permission: "trip:read",
-      },
-      {
-        label: "Seat layouts",
-        path: "/seat-layout",
-        icon: Armchair,
-        permission: "bus:read",
-      },
+      { label: "Dashboard", path: "/dashboard/home", icon: LayoutDashboard },
+      { label: "Bookings", path: "/dashboard/bookings", icon: ClipboardList, permission: "booking:read" },
+      { label: "Trips", path: "/dashboard/trips", icon: CalendarDays, permission: "trip:read" },
+      { label: "Buses", path: "/dashboard/buses", icon: Bus, permission: "bus:read" },
+      { label: "Routes & Stops", path: "/dashboard/routes", icon: Map, permission: "route:read" },
+      { label: "Operators", path: "/dashboard/operators", icon: Building2, permission: "bus:read" },
+      { label: "Branches", path: "/dashboard/branches", icon: GitBranch, permission: "branch:read" },
+      { label: "Agents", path: "/dashboard/agents", icon: Users, permission: "agent:read" },
+      { label: "Finance", path: "/dashboard/finance", icon: CircleDollarSign, permission: "finance:read" },
+      { label: "Reports", path: "/dashboard/finance#finance-bookings", icon: BarChart3, permission: "finance:read" },
+      { label: "Notifications", path: "/dashboard/notifications", icon: Bell },
+      { label: "Settings", path: "/dashboard/settings", icon: Settings },
     ],
   },
 ];
@@ -95,24 +64,104 @@ const pageIcons = {
   settings: Settings,
 };
 
+type HeaderSearchItem = { id: string; title: string; detail: string; kind: string; href: string };
+
+function HeaderSearch({ user }: { user: AuthUser | null }) {
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<HeaderSearchItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const normalized = query.trim();
+  const can = (permission: string) => user?.role === "SUPER_ADMIN" || !!user?.permissions.includes(permission);
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault(); inputRef.current?.focus(); setOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
+
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !searchRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, []);
+
+  useEffect(() => {
+    if (normalized.length < 2) { setResults([]); setLoading(false); return; }
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      const tasks: Promise<HeaderSearchItem[]>[] = [];
+      if (can("trip:read")) tasks.push(getTrips({ search: normalized, limit: "5" }).then((page) => page.data.map((trip) => ({ id: trip.id, title: trip.tripCode, detail: `${trip.route.source} → ${trip.route.destination} · ${new Date(trip.travelDate).toLocaleDateString()}`, kind: "Trip", href: `/dashboard/trips/${trip.id}` }))));
+      if (can("bus:read")) tasks.push(getBuses({ search: normalized, limit: "5" }).then((page) => page.data.map((bus) => ({ id: bus.id, title: bus.busNumber, detail: `${bus.registrationNumber} · ${bus.operatorName || "No operator"}`, kind: "Bus", href: "/dashboard/buses" }))));
+      if (can("route:read")) tasks.push(getRoutes({ search: normalized, limit: "5" }).then((page) => page.data.map((route) => ({ id: route.id, title: route.name, detail: `${route.source} → ${route.destination}`, kind: "Route", href: `/dashboard/routes/${route.id}` }))));
+      if (can("agency:read")) tasks.push(getAgencies(normalized).then((rows) => (rows as { id: string; name: string }[]).slice(0, 5).map((agency) => ({ id: agency.id, title: agency.name, detail: "Agency workspace", kind: "Agency", href: "/dashboard/agencies" }))));
+      if (user?.agencyId && can("branch:read")) tasks.push(getBranches(user.agencyId, normalized).then((rows) => (rows as { id: string; name: string; code: string }[]).slice(0, 5).map((branch) => ({ id: branch.id, title: branch.name, detail: `Branch · ${branch.code}`, kind: "Branch", href: "/dashboard/branches" }))));
+      if (user?.agencyId && can("agent:read")) tasks.push(getAgents(user.agencyId, normalized).then((rows) => (rows as { id: string; firstName: string; lastName: string; email: string }[]).slice(0, 5).map((agent) => ({ id: agent.id, title: `${agent.firstName} ${agent.lastName}`, detail: agent.email, kind: "Agent", href: "/dashboard/agents" }))));
+      if (can("booking:read")) {
+        tasks.push(getBookings({ pnr: normalized, limit: "5" }).then((page) => page.data.map((booking) => ({ id: booking.id, title: booking.pnr, detail: `${booking.trip.route.source} → ${booking.trip.route.destination} · ${moneySearch(booking.totalAmount)}`, kind: "Booking", href: "/dashboard/bookings" }))));
+        tasks.push(getBookings({ tripCode: normalized, limit: "5" }).then((page) => page.data.map((booking) => ({ id: booking.id, title: booking.pnr, detail: `${booking.trip.tripCode} · ${booking.trip.route.name}`, kind: "Booking", href: "/dashboard/bookings" }))));
+      }
+      const values = await Promise.all(tasks.map((task) => task.catch(() => [] as HeaderSearchItem[])));
+      if (active) { setResults(values.flat().slice(0, 10)); setLoading(false); }
+    }, 280);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [normalized, user]);
+
+  return <div className={`header-search ${open ? "search-open" : ""}`} ref={searchRef}>
+    <Search size={17} aria-hidden="true" />
+    <input ref={inputRef} aria-label="Search workspace" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setQuery(""); } }} placeholder="Search bookings, trips, buses…" />
+    {query ? <button type="button" className="header-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setResults([]); inputRef.current?.focus(); }}><X size={15} /></button> : <kbd>Ctrl K</kbd>}
+    {open && normalized.length >= 2 && <div className="header-search-results" role="region" aria-label="Search results">
+      <div className="header-search-caption">{loading ? "Searching workspace…" : results.length ? `${results.length} matching records` : "No matching records"}</div>
+      {results.map((item) => <Link className="header-search-result" href={item.href} key={`${item.kind}-${item.id}`} onClick={() => { setOpen(false); setQuery(""); }}><span className="header-search-kind">{item.kind}</span><span className="header-search-result-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><ArrowRight size={15} /></Link>)}
+    </div>}
+  </div>;
+}
+
+function moneySearch(value: number | string) {
+  return `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [workspaceHeading, setWorkspaceHeading] = useState<WorkspaceHeading | null>(null);
+  const [activeHash, setActiveHash] = useState("");
   const pathname = usePathname();
   const { user, status, logout } = useAuth();
+  useEffect(() => {
+    const updateHash = () => setActiveHash(window.location.hash);
+    updateHash();
+    window.addEventListener("hashchange", updateHash);
+    return () => window.removeEventListener("hashchange", updateHash);
+  }, [pathname]);
   const pageLabels: Record<string, string> = {
-    dashboard: "Dashboard", superadmin: "Super Admin", bookings: "Bookings",
+    dashboard: "Dashboard", home: "Home", superadmin: "Super Admin", bookings: "Bookings",
+    finance: "Finance", reports: "Reports", operators: "Operators", notifications: "Notifications",
     agencies: "Agencies", branches: "Branches", agents: "Agents", buses: "Buses",
-    drivers: "Drivers", routes: "Routes", trips: "Trips", "seat-layout": "Seat layouts",
+    drivers: "Drivers", routes: "Routes & Stops", trips: "Trips", "seat-layout": "Seat layouts",
     settings: "Settings", profile: "Profile",
   };
   const pathParts = pathname.split("/").filter(Boolean);
-  const breadcrumbItems = pathParts.map((part, index) => ({
-    label: pageLabels[part] ?? (index === pathParts.length - 1 ? "Details" : part),
+  const breadcrumbParts = pathParts.map((part, index) => ({
     href: `/${pathParts.slice(0, index + 1).join("/")}`,
+    label: index === pathParts.length - 1 && workspaceHeading
+      ? workspaceHeading.title
+      : pageLabels[part] ?? (index === pathParts.length - 1 ? "Details" : part),
+    current: index === pathParts.length - 1,
   }));
-  const dashboardPath = user?.role === "SUPER_ADMIN" ? "/superadmin" : "/dashboard";
+  const dashboardPath = user?.role === "SUPER_ADMIN" ? "/dashboard/superadmin" : "/dashboard/home";
   return (
+    <WorkspaceHeadingContext.Provider value={setWorkspaceHeading}>
     <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
@@ -143,7 +192,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <nav className="navigation" aria-label="Primary navigation">
           {navGroups.map((group) => (
             <div className="nav-group" key={group.label}>
-              <p className="nav-label">{group.label}</p>
+              {group.label && <p className="nav-label">{group.label}</p>}
               {group.items
                 .filter(
                   (item) =>
@@ -152,37 +201,32 @@ export function Shell({ children }: { children: ReactNode }) {
                     user?.permissions.includes(item.permission),
                 )
                 .map((item) => (
+                  (() => {
+                    const destination = item.label === "Dashboard" ? dashboardPath : item.path;
+                    const active = item.label === "Dashboard"
+                      ? pathname === dashboardPath
+                      : item.label === "Reports"
+                        ? pathname === "/dashboard/finance" && activeHash === "#finance-bookings"
+                        : item.label === "Finance"
+                          ? pathname === "/dashboard/finance" && activeHash !== "#finance-bookings"
+                          : pathname === item.path || pathname.startsWith(`${item.path}/`);
+                    return (
                   <Link
                     key={item.path}
                     onClick={() => setMobileOpen(false)}
-                    href={item.label === "Overview" ? dashboardPath : item.path}
-                    className={`nav-item ${pathname === (item.label === "Overview" ? dashboardPath : item.path) ? "nav-item-active" : ""}`}
+                    href={destination}
+                    className={`nav-item ${active ? "nav-item-active" : ""}`}
                     title={sidebarCollapsed ? item.label : undefined}
                   >
                     <item.icon size={18} />
                     <span>{item.label}</span>
                   </Link>
+                    );
+                  })()
                 ))}
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <Link
-            href="/settings"
-            className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""}`}
-          >
-            <Settings size={18} />
-            <span>Fare & policy settings</span>
-          </Link>
-          <div className="help-box">
-            <CircleHelp size={18} />
-            <div>
-              <strong>Need a hand?</strong>
-              <span>Read the platform guide</span>
-            </div>
-            <ArrowRight size={16} />
-          </div>
-        </div>
       </aside>
       {mobileOpen && (
         <button
@@ -200,24 +244,27 @@ export function Shell({ children }: { children: ReactNode }) {
           >
             <Menu size={21} />
           </button>
-          <div className="breadcrumb" aria-label="Breadcrumb">
-            <Link href={dashboardPath}>Workspace</Link>
-            {breadcrumbItems.map((item, index) => (
-              <span className="breadcrumb-part" key={item.href}>
-                <span aria-hidden="true">/</span>
-                {index === breadcrumbItems.length - 1 ? <strong aria-current="page">{item.label}</strong> : <Link href={item.href}>{item.label}</Link>}
-              </span>
-            ))}
+          <div className="topbar-page-meta" aria-live="polite">
+            <nav className="breadcrumb" aria-label="Breadcrumb">
+              <Link href={dashboardPath}>Workspace</Link>
+              {breadcrumbParts.map((part) => (
+                <span className="breadcrumb-part" key={part.href}>
+                  <span aria-hidden="true">/</span>
+                  {part.current ? <strong aria-current="page">{part.label}</strong> : <Link href={part.href}>{part.label}</Link>}
+                </span>
+              ))}
+            </nav>
+            {workspaceHeading?.description && <p className="topbar-subtitle">{workspaceHeading.description}</p>}
           </div>
+          {workspaceHeading?.action && <div className="topbar-page-action">{workspaceHeading.action}</div>}
           <div className="topbar-actions">
-            <button className="icon-button" aria-label="Help">
-              <CircleHelp size={20} />
-            </button>
+            <HeaderSearch user={user} />
+            <Link className="icon-button notification-button" href="/dashboard/notifications" aria-label="Notifications" title="Notifications">
+              <Bell size={19} />
+            </Link>
             <details className="profile-menu">
-              <summary className="profile">
-              <div className="profile-avatar">
-                {user ? `${user.firstName[0]}${user.lastName[0]}` : ".."}
-              </div>
+              <summary className="profile profile-compact">
+              <span className="profile-symbol"><UserRound size={17} /></span>
               <div className="profile-info">
                 <strong>
                   {status === "loading"
@@ -226,14 +273,14 @@ export function Shell({ children }: { children: ReactNode }) {
                       ? `${user.firstName} ${user.lastName}`
                       : "Unauthenticated"}
                 </strong>
-                <span>{user?.email ?? "Sign in required"}</span>
+                <span>{user?.role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()) ?? "Sign in required"}</span>
               </div>
               <ChevronDown size={16} />
               </summary>
               {user && <div className="profile-dropdown">
                 <div className="profile-dropdown-identity"><strong>{user.firstName} {user.lastName}</strong><span>{user.email}</span><span>{user.agencyName ?? "A-One Tours"}</span></div>
-                <Link href="/profile">Profile</Link>
-                <Link href="/settings">Settings</Link>
+                <Link href="/dashboard/profile">Profile</Link>
+                <Link href="/dashboard/settings">Settings</Link>
                 <button type="button" onClick={() => { if (window.confirm("Are you sure you want to log out?")) void logout(); }}>Log out</button>
               </div>}
             </details>
@@ -242,6 +289,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="content">{children}</div>
       </main>
     </div>
+    </WorkspaceHeadingContext.Provider>
   );
 }
 function Metric({

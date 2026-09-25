@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { transportRouter } from "./routes/transport.routes.js";
 import { bookingRouter } from "./routes/booking.routes.js";
+import { financeRouter } from "./routes/finance.routes.js";
 
 export const app = express();
 
@@ -23,5 +24,6 @@ app.use("/api/tenants", tenantRouter);
 app.use("/api", managementRouter);
 app.use("/api", transportRouter);
 app.use("/api", bookingRouter);
+app.use("/api", financeRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);

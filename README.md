@@ -1,6 +1,6 @@
 # A-One Tours & Travels SaaS
 
-A multi-tenant bus, tour, and travel management platform. The repository contains the Phase 1 foundation and Stage 2 agent booking flow, including organization, fleet, route, stop, boarding/drop-off, trip, authentication, RBAC, tenant management, seat inventory, temporary seat holds, and ticket issuance.
+A multi-tenant bus, tour, and travel management platform. The repository contains the Phase 1 foundation, Stage 2 booking flow, and Stage 3 finance features, including organization, fleet, route, stop, boarding/drop-off, trip, authentication, RBAC, tenant management, seat inventory, payments, cancellations, refunds, settlements, ledgers, reports, and exports.
 
 ## Tech stack
 
@@ -47,7 +47,7 @@ When a database is configured and a migration is needed:
 bun run prisma:migrate
 ```
 
-The Prisma schema and migrations include the current tenant and transport models. With a configured database, run `bun run prisma:migrate` followed by `bun run prisma:seed`. See [docs/authentication.md](docs/authentication.md) for development accounts and authorization rules.
+The Prisma schema and migrations include the current tenant, transport, booking, and finance models. With a configured database, run `bun run prisma:migrate` followed by `bun run prisma:seed`. See [docs/authentication.md](docs/authentication.md) for development accounts and authorization rules and [docs/finance.md](docs/finance.md) for Stage 3 behavior and API routes.
 
 ## Running the applications
 
@@ -63,7 +63,7 @@ The frontend design system uses shadcn/ui conventions with `class-variance-autho
 
 The API health endpoint is `GET http://localhost:4000/api/health` and returns `{ "success": true, "message": "API is running" }`. The Super Admin dashboard summarizes agencies, branches, agents, buses, drivers, routes, and trips.
 
-Bus seat layouts, trip fares, and agency discount caps are stored in PostgreSQL and shared across authorized users. Commission, tax, and cancellation settings remain browser-local. Stage 2 bookings are confirmed without payment collection.
+Bus seat layouts, trip fares, agency discount caps, finance settings, payments, cancellations, refunds, commissions, settlements, and ledger entries are stored in PostgreSQL and shared across authorized users. Payments and refunds are recorded manually; no payment gateway is configured. Cancellation requires agency-configured tiers. Finance reports include tenant-scoped revenue, occupancy, cancellation, refund, commission, settlement, and ledger data, with CSV and PDF downloads.
 
 ## Quality commands
 
@@ -76,6 +76,6 @@ bun run build
 
 ## Development conventions
 
-Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on tenant-owned records. Payments and reporting remain outside the current implementation target.
+Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on tenant-owned records. Finance changes belong in the finance service; posted payment, refund, and ledger history is retained as records.
 
 See [docs/phase-1-audit.md](docs/phase-1-audit.md) for checklist status and evidence.

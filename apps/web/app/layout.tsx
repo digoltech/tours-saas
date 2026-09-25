@@ -5,7 +5,7 @@ import "../src/App.css";
 export const metadata: Metadata = {
   title: "A-One Tours & Travels",
   description:
-    "Travel operations management foundation for A-One Tours & Travels.",
+    "One clear workspace for travel teams to manage routes, trips, bookings, payments, cancellations, and reports.",
 };
 
 export default function RootLayout({

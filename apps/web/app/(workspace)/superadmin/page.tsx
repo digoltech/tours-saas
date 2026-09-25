@@ -9,7 +9,7 @@ export default function SuperAdminDashboardRoute() {
   const { user, status } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (status === "authenticated" && user?.role !== "SUPER_ADMIN") router.replace("/dashboard");
+    if (status === "authenticated" && user?.role !== "SUPER_ADMIN") router.replace("/dashboard/home");
   }, [router, status, user?.role]);
   if (status !== "authenticated" || user?.role !== "SUPER_ADMIN") return null;
   return <DashboardOverview />;

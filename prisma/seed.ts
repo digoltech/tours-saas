@@ -51,6 +51,12 @@ const permissions = [
   "trip:cancel",
   "booking:read",
   "booking:create",
+  "finance:read",
+  "finance:payment",
+  "finance:refund",
+  "finance:cancel",
+  "finance:settlement",
+  "finance:settings",
 ];
 
 const roleDefinitions: Record<
@@ -71,7 +77,8 @@ const roleDefinitions: Record<
         code.startsWith("stop:") ||
         code.startsWith("boarding_point:") ||
         code.startsWith("trip:") ||
-        code.startsWith("booking:"),
+        code.startsWith("booking:") ||
+        code.startsWith("finance:"),
     ),
   },
   BRANCH_ADMIN: {
@@ -80,13 +87,14 @@ const roleDefinitions: Record<
       (code) =>
         code.endsWith(":read") ||
         code.startsWith("agent:") ||
-        code.startsWith("booking:"),
+        code.startsWith("booking:") ||
+        ["finance:read", "finance:payment", "finance:refund", "finance:cancel"].includes(code),
     ),
   },
   AGENT: {
     name: "Agent",
     permissions: permissions.filter(
-      (code) => code.endsWith(":read") || code.startsWith("booking:"),
+      (code) => code.endsWith(":read") || code.startsWith("booking:") || ["finance:read", "finance:payment", "finance:cancel"].includes(code),
     ),
   },
 };

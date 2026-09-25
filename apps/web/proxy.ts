@@ -2,13 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPaths = [
   "/dashboard",
-  "/agencies",
-  "/branches",
-  "/agents",
-  "/buses",
-  "/drivers",
-  "/routes",
-  "/trips",
   "/onboarding",
 ];
 
@@ -34,7 +27,7 @@ export async function proxy(request: NextRequest) {
         authenticated = true;
         const onboardingDone = payload.data?.onboardingCompleted === true;
         if (request.nextUrl.pathname === "/onboarding" && onboardingDone)
-          return NextResponse.redirect(new URL("/dashboard", request.url));
+          return NextResponse.redirect(new URL("/dashboard/home", request.url));
         if (request.nextUrl.pathname !== "/onboarding" && !onboardingDone)
           return NextResponse.redirect(new URL("/onboarding", request.url));
       }
@@ -53,13 +46,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/agencies/:path*",
-    "/branches/:path*",
-    "/agents/:path*",
-    "/buses/:path*",
-    "/drivers/:path*",
-    "/routes/:path*",
-    "/trips/:path*",
     "/onboarding",
   ],
 };

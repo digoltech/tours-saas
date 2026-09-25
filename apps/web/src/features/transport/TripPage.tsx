@@ -103,6 +103,12 @@ export function TripPage() {
     return () => window.clearTimeout(timer);
   }, [user?.agencyId, user?.role]);
   async function save() {
+    const required = [[form.tripCode, "Trip code"], [form.branchId, "Branch"], [form.routeId, "Route"], [form.busId, "Bus"], [form.driverId, "Driver"], [form.travelDate, "Travel date"], [form.departureTime, "Departure"], [form.arrivalTime, "Arrival"]] as const;
+    const missing = required.find(([value]) => !value.trim());
+    if (missing) { setError(`${missing[1]} is required.`); return; }
+    if (user?.role === "SUPER_ADMIN" && !form.agencyId) { setError("Agency is required."); return; }
+    if (!Number.isFinite(Number(form.fare ?? "0")) || Number(form.fare ?? "0") < 0) { setError("Fare must be zero or greater."); return; }
+    if (new Date(form.arrivalTime) <= new Date(form.departureTime)) { setError("Arrival must be after departure."); return; }
     setSaving(true);
     setError("");
     try {
@@ -156,15 +162,15 @@ export function TripPage() {
       />
       {open && (
         <Card className="management-form">
-          <div className="form-grid">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">
-                  {editingId ? "Update schedule" : "New schedule"}
-                </p>
-                <h2>{editingId ? "Edit trip" : "Create trip"}</h2>
-              </div>
+          <div className="card-heading">
+            <div>
+              <p className="eyebrow">
+                {editingId ? "Update schedule" : "New schedule"}
+              </p>
+              <h2>{editingId ? "Edit trip" : "Create trip"}</h2>
             </div>
+          </div>
+          <div className="form-grid">
             {user?.role === "SUPER_ADMIN" && (
               <label>
                 Agency

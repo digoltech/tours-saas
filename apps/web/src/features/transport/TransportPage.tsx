@@ -112,6 +112,15 @@ export function TransportPage({ resource }: { resource: Resource }) {
   const update = (key: string, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   async function save() {
+    const requiredFields = resource === "buses"
+      ? [[form.busNumber, "Bus number"], [form.registrationNumber, "Registration number"], [form.busType, "Bus type"], [form.totalSeats, "Seat count"], [form.branchId, "Branch"]]
+      : resource === "drivers"
+        ? [[form.firstName, "First name"], [form.lastName, "Last name"], [form.phone, "Phone"], [form.licenseNumber, "License number"], [form.branchId, "Branch"]]
+        : [[form.name, "Route name"], [form.code, "Route code"], [form.source, "Source"], [form.destination, "Destination"]];
+    const missing = requiredFields.find(([value]) => !value?.trim());
+    if (missing) { setError(`${missing[1]} is required.`); return; }
+    if (resource === "buses" && Number(form.totalSeats) < 1) { setError("Seat count must be at least 1."); return; }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address."); return; }
     setSaving(true);
     setError("");
     try {

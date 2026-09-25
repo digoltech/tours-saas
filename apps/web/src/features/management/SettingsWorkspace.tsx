@@ -11,22 +11,10 @@ import { useAuth } from "../auth/components/AuthProvider";
 type SettingValues = {
   currency: string;
   baseFare: string;
-  commissionType: string;
-  commissionValue: string;
-  taxName: string;
-  taxRate: string;
-  cancellationWindowHours: string;
-  cancellationFeePercent: string;
 };
 const defaults: SettingValues = {
   currency: "INR",
   baseFare: "",
-  commissionType: "PERCENTAGE",
-  commissionValue: "",
-  taxName: "GST",
-  taxRate: "",
-  cancellationWindowHours: "24",
-  cancellationFeePercent: "0",
 };
 const storageKey = "aone-workspace-settings-v1";
 
@@ -65,6 +53,16 @@ export function SettingsWorkspace() {
   }
   async function save() {
     setError("");
+    const baseFare = Number(values.baseFare);
+    const discountValue = Number(discountCap.value);
+    if (values.baseFare !== "" && (!Number.isFinite(baseFare) || baseFare < 0)) {
+      setError("Default fare must be a valid amount of zero or greater.");
+      return;
+    }
+    if (!Number.isFinite(discountValue) || discountValue < 0 || (discountCap.type === "PERCENTAGE" && discountValue > 100)) {
+      setError("Discount must be zero or greater, and a percentage cannot exceed 100%.");
+      return;
+    }
     try {
       localStorage.setItem(storageKey, JSON.stringify(values));
       if (user?.role === "AGENCY_ADMIN")
@@ -83,7 +81,7 @@ export function SettingsWorkspace() {
     <>
       <PageHeader
         title="Fare and policy settings"
-        description="Set the default fare, commission, tax, and cancellation values for this browser workspace."
+        description="Set booking defaults and agency discount limits. Tax, commission, and cancellation policy live in Finance & reports."
         action={
           <Button onClick={save}>
             <Save size={16} /> Save settings
@@ -115,33 +113,6 @@ export function SettingsWorkspace() {
               value={values.baseFare}
               onChange={(e) => update("baseFare", e.target.value)}
               placeholder="0.00"
-            />
-          </label>
-        </Card>
-        <Card className="settings-card">
-          <p className="eyebrow">Commission settings</p>
-          <h2>Agent commission</h2>
-          <label>
-            Commission type
-            <select
-              value={values.commissionType}
-              onChange={(e) => update("commissionType", e.target.value)}
-            >
-              <option value="PERCENTAGE">Percentage</option>
-              <option value="FIXED">Fixed amount</option>
-            </select>
-          </label>
-          <label>
-            {values.commissionType === "PERCENTAGE"
-              ? "Commission rate (%)"
-              : `Commission amount (${values.currency})`}
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={values.commissionValue}
-              onChange={(e) => update("commissionValue", e.target.value)}
-              placeholder="0"
             />
           </label>
         </Card>
@@ -180,56 +151,6 @@ export function SettingsWorkspace() {
             </label>
           </Card>
         )}
-        <Card className="settings-card">
-          <p className="eyebrow">Tax settings</p>
-          <h2>Fare tax</h2>
-          <label>
-            Tax name
-            <input
-              value={values.taxName}
-              onChange={(e) => update("taxName", e.target.value)}
-            />
-          </label>
-          <label>
-            Tax rate (%)
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={values.taxRate}
-              onChange={(e) => update("taxRate", e.target.value)}
-              placeholder="0"
-            />
-          </label>
-        </Card>
-        <Card className="settings-card">
-          <p className="eyebrow">Cancellation settings</p>
-          <h2>Cancellation policy</h2>
-          <label>
-            Free cancellation window (hours)
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={values.cancellationWindowHours}
-              onChange={(e) =>
-                update("cancellationWindowHours", e.target.value)
-              }
-            />
-          </label>
-          <label>
-            Cancellation fee after window (%)
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={values.cancellationFeePercent}
-              onChange={(e) => update("cancellationFeePercent", e.target.value)}
-            />
-          </label>
-        </Card>
       </div>
       {error && (
         <div className="state-message state-error" role="alert">
@@ -242,8 +163,8 @@ export function SettingsWorkspace() {
         </p>
       )}
       <p className="muted settings-note">
-        Fare, commission, tax, and cancellation settings remain local to this
-        browser. The agent discount cap is shared with the agency.
+        The fare default is local to this browser. Discount limits are shared
+        with the agency; finance policies are managed in Finance &amp; reports.
       </p>
     </>
   );

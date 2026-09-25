@@ -1,4 +1,5 @@
 import type { AuthUser } from "../types";
+import type { FinanceMethod, FinanceReportFilters, FinanceReportResponse, FinanceSettingsContract, SettlementParty } from "@a-one-tours/shared";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -329,6 +330,19 @@ export function getBookingDashboardSummary() {
     upcomingTrips: number;
   }>("/api/bookings/summary");
 }
+export type FinanceSettingsData = Omit<FinanceSettingsContract, "agencyId">;
+export function getFinanceSettings(agencyId?: string) { return request<{ settings: Omit<FinanceSettingsContract, "tiers"> | null; tiers: FinanceSettingsContract["tiers"] }>(`/api/finance/settings${agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : ""}`); }
+export function saveFinanceSettings(data: Omit<FinanceSettingsContract, "gstRate" | "commissionValue" | "tiers"> & { gstRate: number; commissionValue: number; tiers: { hoursBeforeDeparture: number; feePercent: number }[] }) { return request<FinanceSettingsData>("/api/finance/settings", { method: "PUT", body: JSON.stringify(data) }); }
+export type FinanceFilters = FinanceReportFilters;
+function financeQuery(filters: FinanceFilters = {}) { const query = new URLSearchParams(); for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value); return query; }
+export function getFinanceReports(from?: string, to?: string, scope: Omit<FinanceFilters, "from" | "to"> = {}) { const query = financeQuery({ ...scope, from, to }); return request<FinanceReportResponse & { ledger: Record<string, unknown>[] }>(`/api/finance/reports?${query}`); }
+export function getFinanceLedger() { return request<Record<string, unknown>[]>("/api/finance/ledger"); }
+export function getBookingFinanceByPnr(pnr: string) { return request<{ id: string; pnr: string; status: string; totalAmount: number | string; taxAmount: number | string; payments: { id: string; amount: number | string; method: string; reference: string | null; receivedAt: string }[]; refunds: { id: string; amount: number | string; method: string; reference: string | null; refundedAt: string }[]; cancellation: { eligibleRefund: number | string; feeAmount: number | string } | null }>(`/api/finance/bookings/pnr/${encodeURIComponent(pnr)}`); }
+export function recordBookingPayment(id: string, data: { amount: number; method: FinanceMethod; reference?: string }) { return request<unknown>(`/api/bookings/${id}/payments`, { method: "POST", body: JSON.stringify(data) }); }
+export function cancelBookingFinance(id: string, reason?: string) { return request<{ eligibleRefund: number; feeAmount: number; feePercent: number }>(`/api/bookings/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }); }
+export function recordBookingRefund(id: string, data: { amount: number; method: FinanceMethod; reference?: string }) { return request<unknown>(`/api/bookings/${id}/refunds`, { method: "POST", body: JSON.stringify(data) }); }
+export function postFinanceSettlement(data: { party: SettlementParty; partyId: string; amount: number; method: FinanceMethod; reference?: string }) { return request<unknown>("/api/finance/settlements", { method: "POST", body: JSON.stringify(data) }); }
+export function financeExportUrl(format: "excel" | "pdf", from?: string, to?: string, scope: Omit<FinanceFilters, "from" | "to"> = {}) { const query = financeQuery({ ...scope, from, to }); return `${apiUrl}/api/finance/reports/export/${format}?${query}`; }
 export type BookingRecord = {
   id: string;
   pnr: string;

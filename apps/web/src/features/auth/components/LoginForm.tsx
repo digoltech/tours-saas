@@ -32,7 +32,7 @@ export function LoginForm() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      router.push(result.user.onboardingCompleted ? (result.user.role === "SUPER_ADMIN" ? "/superadmin" : "/dashboard") : "/onboarding");
+      router.push(result.user.onboardingCompleted ? (result.user.role === "SUPER_ADMIN" ? "/dashboard/superadmin" : "/dashboard/home") : "/onboarding");
       router.refresh();
     } catch (requestError) {
       setError(

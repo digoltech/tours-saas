@@ -1,5 +1,2 @@
-import { TripPage } from "../../../src/features/transport/TripPage";
-
-export default function TripsPage() {
-  return <TripPage />;
-}
+import { redirect } from 'next/navigation';
+export default function LegacyPage(){ redirect('/dashboard/trips'); }

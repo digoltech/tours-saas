@@ -127,6 +127,7 @@ export const saveLayout = (r: Request, s: Response) =>
           rows: z.number().int().min(1).max(26),
           columns: z.number().int().min(1).max(8),
           disabledSeats: z.array(z.string()),
+          seatDetails: z.record(z.string(), z.object({ type: z.string(), restriction: z.string() })).optional(),
         })
         .parse(r.body),
     ),

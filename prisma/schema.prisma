@@ -308,6 +308,7 @@ model BusSeatLayout {
   rows          Int
   columns       Int
   disabledSeats String[] @default([])
+  seatDetails   Json     @default("{}")
   updatedAt     DateTime @updatedAt
   bus           Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
 }

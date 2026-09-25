@@ -258,7 +258,7 @@ export type SeatAvailability = {
   trip: Trip & { route: Route & { stops: Stop[] }; bus: Bus };
   rows: number;
   columns: number;
-  seats: { name: string; status: string; holdExpiresAt: string | null }[];
+  seats: { name: string; type: string; restriction: string; status: string; holdExpiresAt: string | null }[];
   discountCap: { type: "FIXED" | "PERCENTAGE"; value: number };
 };
 export type BookingPassengerInput = {
@@ -342,15 +342,15 @@ export type BookingRecord = {
   dropOffStop: { id: string; name: string };
 };
 export function getSeatLayout(busId: string) {
-  return request<{ rows: number; columns: number; disabledSeats: string[] }>(
+  return request<{ rows: number; columns: number; disabledSeats: string[]; seatDetails?: Record<string, {type:string;restriction:string}> }>(
     `/api/buses/${busId}/seat-layout`,
   );
 }
 export function saveSeatLayout(
   busId: string,
-  data: { rows: number; columns: number; disabledSeats: string[] },
+  data: { rows: number; columns: number; disabledSeats: string[]; seatDetails: Record<string, {type:string;restriction:string}> },
 ) {
-  return request<{ rows: number; columns: number; disabledSeats: string[] }>(
+  return request<{ rows: number; columns: number; disabledSeats: string[]; seatDetails?: Record<string, {type:string;restriction:string}> }>(
     `/api/buses/${busId}/seat-layout`,
     { method: "PUT", body: JSON.stringify(data) },
   );

@@ -1,0 +1,1 @@
+ALTER TABLE "BusSeatLayout" ADD COLUMN "seatDetails" JSONB NOT NULL DEFAULT '{}';

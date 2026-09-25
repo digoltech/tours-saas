@@ -58,7 +58,7 @@ async function loadTrip(context: AuthContext, tripId: string) {
 }
 function seatsFor(bus: {
   totalSeats: number;
-  seatLayout: { columns: number; rows: number; disabledSeats: string[] } | null;
+  seatLayout: { columns: number; rows: number; disabledSeats: string[]; seatDetails?: Prisma.JsonValue } | null;
 }) {
   const columns = bus.seatLayout?.columns ?? 4;
   const names = Array.from({ length: bus.totalSeats }, (_, i) =>
@@ -70,6 +70,9 @@ function seatsFor(bus: {
     ),
     columns,
     rows: bus.seatLayout?.rows ?? Math.ceil(bus.totalSeats / columns),
+    seatDetails: bus.seatLayout?.seatDetails && typeof bus.seatLayout.seatDetails === "object" && !Array.isArray(bus.seatLayout.seatDetails)
+      ? bus.seatLayout.seatDetails as Record<string, { type?: string; restriction?: string }>
+      : {},
   };
 }
 async function ensureInventory(
@@ -146,7 +149,7 @@ export async function searchTrips(
 
 export async function tripAvailability(context: AuthContext, tripId: string) {
   const trip = await loadTrip(context, tripId);
-  const { names, rows, columns } = seatsFor(trip.bus);
+  const { names, rows, columns, seatDetails } = seatsFor(trip.bus);
   const now = new Date();
   await prisma.tripSeat.updateMany({
     where: { tripId, status: "HELD", holdExpiresAt: { lte: now } },
@@ -170,6 +173,8 @@ export async function tripAvailability(context: AuthContext, tripId: string) {
       const item = inventory.find((entry) => entry.seatName === name);
       return {
         name,
+        type: seatDetails[name]?.type ?? "SINGLE",
+        restriction: seatDetails[name]?.restriction ?? "ALL",
         status: item?.status ?? "AVAILABLE",
         holdExpiresAt: item?.holdExpiresAt ?? null,
       };
@@ -184,7 +189,7 @@ export async function tripAvailability(context: AuthContext, tripId: string) {
 export async function saveSeatLayout(
   context: AuthContext,
   busId: string,
-  input: { rows: number; columns: number; disabledSeats: string[] },
+  input: { rows: number; columns: number; disabledSeats: string[]; seatDetails?: Record<string, { type: string; restriction: string }> },
 ) {
   const bus = await prisma.bus.findUnique({ where: { id: busId } });
   if (!bus) fail(404, "NOT_FOUND", "Bus not found");
@@ -223,6 +228,7 @@ export async function getSeatLayout(context: AuthContext, busId: string) {
       rows: Math.ceil(bus.totalSeats / 4),
       columns: 4,
       disabledSeats: [],
+      seatDetails: {},
     }
   );
 }

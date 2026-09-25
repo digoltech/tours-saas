@@ -445,6 +445,7 @@ export function BookingWorkspace() {
             </div>
             <Badge>{availability.trip.bus.busType}</Badge>
           </div>
+          <p className="muted booking-seat-help">Seat labels show the berth type and any passenger eligibility. Check these before assigning passengers.</p>
           <div
             className="seat-grid"
             role="group"
@@ -474,10 +475,12 @@ export function BookingWorkspace() {
                         ? "selected"
                         : "available")
                   }
-                  className={`seat-button ${unavailable ? "seat-unavailable" : ""} ${selected ? "seat-selected" : ""}`}
+                  className={`seat-button seat-${seat.type.toLowerCase().replaceAll("_", "-")} ${unavailable ? "seat-unavailable" : ""} ${selected ? "seat-selected" : ""}`}
                   onClick={() => toggleSeat(seat.name)}
                 >
-                  {unavailable ? "×" : selected ? "✓" : seat.name}
+                  <b>{unavailable ? "×" : selected ? "✓" : seat.name}</b>
+                  <small>{seat.type.replaceAll("_", " ").toLowerCase().replace(/^\w/, c => c.toUpperCase())}</small>
+                  {seat.restriction !== "ALL" && <small className="booking-seat-restriction">{seat.restriction === "SENIOR" ? "Senior only" : `${seat.restriction.toLowerCase()} only`}</small>}
                 </button>
               );
             })}
@@ -489,6 +492,7 @@ export function BookingWorkspace() {
             <span>
               <i className="seat-legend-unavailable" /> Held or booked
             </span>
+            <span className="booking-seat-restriction">Female only</span><span className="booking-seat-restriction booking-senior">Senior only</span>
             <span>Selected: {selectedSeats.join(", ") || "none"}</span>
           </div>
           {!hold && (

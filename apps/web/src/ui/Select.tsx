@@ -1,3 +1,4 @@
+import { cn } from "../lib/utils";
 import type { SelectHTMLAttributes } from "react";
 
 export function Select({
@@ -7,7 +8,7 @@ export function Select({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement> & { label: string }) {
   return (
-    <label className="field-label" htmlFor={id}>
+    <label className={cn("field-label")} htmlFor={id}>
       {label}
       <select id={id} {...props}>
         {children}

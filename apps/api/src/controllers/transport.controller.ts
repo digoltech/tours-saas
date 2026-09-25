@@ -17,6 +17,7 @@ const list = z.object({
   busId: z.string().optional(),
   driverId: z.string().optional(),
   travelDate: z.string().optional(),
+  departureAfter: z.string().datetime().optional(),
 });
 const agency = z.string().min(1).optional();
 const status = z.enum(["ACTIVE", "INACTIVE"]).optional();
@@ -75,6 +76,13 @@ const busPayload = z.object({
   operatorName: z.string().optional(),
   busType: z.enum(["SEATER", "SLEEPER", "SEATER_SLEEPER"]),
   totalSeats: z.coerce.number().int().min(1).max(1000),
+  make: z.string().max(80).optional().nullable(),
+  model: z.string().max(80).optional().nullable(),
+  year: z.coerce.number().int().min(1950).max(2100).optional().nullable(),
+  color: z.string().max(60).optional().nullable(),
+  description: z.string().max(2000).optional().nullable(),
+  amenities: z.array(z.string().max(60)).max(30).optional(),
+  photos: z.array(z.string().url()).max(12).optional(),
 });
 export const listBusesController = wrap(async (r) => {
   const q = list.parse(r.query);

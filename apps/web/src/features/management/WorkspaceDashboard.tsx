@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "../../lib/utils";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Armchair, Bus, CalendarDays, CircleDollarSign, Route, Users } from "lucide-react";
@@ -8,6 +9,7 @@ import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
 import { useAuth } from "../auth/components/AuthProvider";
 import { getBookingDashboardSummary } from "../auth/services/api-client";
+import { UpcomingTrips } from "./UpcomingTrips";
 
 type Summary = { todayBookings: number; todaySales: number; upcomingTrips: number };
 
@@ -38,9 +40,10 @@ export function WorkspaceDashboard() {
 
   return <>
     <PageHeader title={title} description={`A live overview of ${isAgencyAdmin ? "your agency" : "your branch"} operations.`} />
-    {error ? <div className="state-message state-error" role="alert"><strong>{error}</strong></div> : <div className="metric-grid metric-grid-three">
-      {metrics.map(({ label, value, detail, icon: Icon }) => <Card className="metric-card" key={label}><Icon size={18} /><p>{label}</p><strong>{value ?? "…"}</strong><span>{detail}</span></Card>)}
+    {error ? <div className={cn("state-message state-error")} role="alert"><strong>{error}</strong></div> : <div className={cn("metric-grid metric-grid-three")}>
+      {metrics.map(({ label, value, detail, icon: Icon }) => <Card className={cn("metric-card")} key={label}><Icon size={18} /><p>{label}</p><strong>{value ?? "…"}</strong><span>{detail}</span></Card>)}
     </div>}
-    <Card className="workspace-shortcuts"><div className="card-heading"><div><p className="eyebrow">Workspace</p><h2>Manage your operations</h2></div></div><div className="workspace-shortcut-list">{shortcuts.map(([label, href, Icon]) => <Link className="setup-row" href={href} key={href}><Icon size={18} /><strong>{label}</strong><ArrowRight size={17} /></Link>)}</div></Card>
+    <UpcomingTrips />
+    <Card className={cn("workspace-shortcuts")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>Workspace</p><h2>Manage your operations</h2></div></div><div className={cn("workspace-shortcut-list")}>{shortcuts.map(([label, href, Icon]) => <Link className={cn("setup-row")} href={href} key={href}><Icon size={18} /><strong>{label}</strong><ArrowRight size={17} /></Link>)}</div></Card>
   </>;
 }

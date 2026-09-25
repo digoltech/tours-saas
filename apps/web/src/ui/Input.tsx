@@ -1,3 +1,4 @@
+import { cn } from "../lib/utils";
 import type { InputHTMLAttributes } from "react";
 
 export function Input({
@@ -6,7 +7,7 @@ export function Input({
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
-    <label className="field-label" htmlFor={id}>
+    <label className={cn("field-label")} htmlFor={id}>
       {label}
       <input id={id} {...props} />
     </label>

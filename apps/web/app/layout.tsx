@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "../src/index.css";
-import "../src/App.css";
 
 export const metadata: Metadata = {
   title: "A-One Tours & Travels",

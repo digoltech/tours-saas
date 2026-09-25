@@ -13,6 +13,7 @@ export type ListQuery = {
   busId?: string;
   driverId?: string;
   travelDate?: string;
+  departureAfter?: string;
 };
 
 type ServiceError = Error & { statusCode?: number; code?: string };
@@ -159,6 +160,13 @@ export async function createBus(
     operatorName?: string;
     busType: "SEATER" | "SLEEPER" | "SEATER_SLEEPER";
     totalSeats: number;
+    make?: string | null;
+    model?: string | null;
+    year?: number | null;
+    color?: string | null;
+    description?: string | null;
+    amenities?: string[];
+    photos?: string[];
   },
 ) {
   const agencyId = scopedAgency(context, input.agencyId);
@@ -188,6 +196,13 @@ export async function updateBus(
     busType: "SEATER" | "SLEEPER" | "SEATER_SLEEPER";
     totalSeats: number;
     status: RecordStatus;
+    make: string | null;
+    model: string | null;
+    year: number | null;
+    color: string | null;
+    description: string | null;
+    amenities: string[];
+    photos: string[];
   }>,
 ) {
   const current = await getBus(context, id);
@@ -636,6 +651,9 @@ export async function listTrips(context: AuthContext, query: ListQuery) {
     ...(query.driverId ? { driverId: query.driverId } : {}),
     ...(query.branchId ? { branchId: query.branchId } : {}),
     ...(query.travelDate ? { travelDate: new Date(query.travelDate) } : {}),
+    ...(query.departureAfter
+      ? { departureTime: { gte: new Date(query.departureAfter) } }
+      : {}),
     ...(query.search
       ? {
           OR: [

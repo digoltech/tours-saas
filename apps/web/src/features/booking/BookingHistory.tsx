@@ -1,7 +1,8 @@
 "use client";
 
+import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
@@ -54,17 +55,17 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
         compact ? "recent-bookings-title" : "booking-history-title"
       }
     >
-      <div className="card-heading">
+      <div className={cn("card-heading")}>
         <div>
-          <p className="eyebrow">Operations</p>
+          <p className={cn("eyebrow")}>Operations</p>
           <h2 id={compact ? "recent-bookings-title" : "booking-history-title"}>
             {compact ? "Recent bookings" : "Booking history"}
           </h2>
         </div>
       </div>
       {!compact && (
-        <Card className="management-form">
-          <div className="form-grid">
+        <Card className={cn("management-form")}>
+          <div className={cn("form-grid")}>
             <label>
               PNR
               <input
@@ -109,24 +110,24 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
         </Card>
       )}
       {error && (
-        <div className="state-message state-error" role="alert">
+        <div className={cn("state-message state-error")} role="alert">
           {error}
         </div>
       )}
-      <Card className="management-card">
+      <Card className={cn("management-card")}>
         {loading ? (
-          <div className="state-message" role="status">
+          <div className={cn("state-message")} role="status">
             Loading bookings…
           </div>
         ) : rows.length === 0 ? (
-          <div className="state-message">
+          <div className={cn("state-message")}>
             <strong>No bookings found</strong>
             <span>Bookings you create will appear here.</span>
           </div>
         ) : (
-          <div className="table-wrapper">
+          <div className={cn("table-wrapper")}>
             <table>
-              <caption className="visually-hidden">
+              <caption className={cn("visually-hidden")}>
                 {compact ? "Recent bookings" : "Booking history"}
               </caption>
               <thead>
@@ -163,7 +164,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                     </td>
                     <td>
                       <button
-                        className="text-link"
+                        className={cn("text-link")}
                         type="button"
                         aria-label={`Open ticket for PNR ${row.pnr}`}
                         onClick={() => void openTicket(row)}
@@ -178,24 +179,24 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
           </div>
         )}
         {!compact && rows.length > 0 && (
-          <div className="management-toolbar">
+          <div className={cn("management-toolbar")}>
             <span>
               Page {page} of {pages}
             </span>
-            <div>
+            <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 disabled={page <= 1 || loading}
                 onClick={() => setPage((current) => current - 1)}
               >
-                Previous
+                <ChevronLeft size={15} /> Previous
               </Button>
               <Button
                 variant="secondary"
                 disabled={page >= pages || loading}
                 onClick={() => setPage((current) => current + 1)}
               >
-                Next
+                Next <ChevronRight size={15} />
               </Button>
             </div>
           </div>

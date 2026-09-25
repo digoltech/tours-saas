@@ -1,4 +1,6 @@
+import { cn } from "../lib/utils";
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 
 export function Dialog({
   open,
@@ -13,9 +15,9 @@ export function Dialog({
 }) {
   if (!open) return null;
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+    <div className={cn("dialog-backdrop")} role="presentation" onClick={onClose}>
       <dialog
-        className="dialog"
+        className={cn("dialog")}
         open
         aria-labelledby="dialog-title"
         onClick={(event) => event.stopPropagation()}
@@ -23,11 +25,11 @@ export function Dialog({
         <h2 id="dialog-title">{title}</h2>
         {children}
         <button
-          className="button button-secondary"
+          className={cn("button button-secondary")}
           type="button"
           onClick={onClose}
         >
-          Close
+          <X size={15} /> Close
         </button>
       </dialog>
     </div>

@@ -1,3 +1,4 @@
+import { cn } from "../lib/utils";
 import type { ReactNode } from "react";
 
 export function Table({
@@ -8,7 +9,7 @@ export function Table({
   children: ReactNode;
 }) {
   return (
-    <div className="table-wrapper">
+    <div className={cn("table-wrapper")}>
       <table>
         <thead>
           <tr>

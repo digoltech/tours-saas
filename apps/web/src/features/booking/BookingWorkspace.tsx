@@ -1,12 +1,14 @@
 "use client";
 
+import { cn } from "../../lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Bus, Clock3, Printer, Search } from "lucide-react";
+import { ArrowRight, Bus, Clock3, Lock, Plus, Printer, Search, Ticket, Unlock } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
+import { UpcomingTrips } from "../management/UpcomingTrips";
 import {
   BookingPassengerInput,
   BookingRecord,
@@ -254,16 +256,11 @@ export function BookingWorkspace() {
         <PageHeader
           title="Booking confirmed"
           description="The seats are booked and the ticket is ready to print."
-          action={
-            <Button onClick={() => window.print()}>
-              <Printer size={16} /> Print ticket
-            </Button>
-          }
         />
         <div id="printable-ticket">
-          <Card className="ticket-card">
-            <p className="eyebrow">A-One Tours & Travels · E-ticket</p>
-            <div className="card-heading">
+          <Card className={cn("ticket-card")}>
+            <p className={cn("eyebrow")}>A-One Tours & Travels · E-ticket</p>
+            <div className={cn("card-heading")}>
               <div>
                 <h2>PNR {booking.pnr}</h2>
                 <p>
@@ -273,7 +270,7 @@ export function BookingWorkspace() {
               </div>
               <Badge>CONFIRMED</Badge>
             </div>
-            <div className="form-grid">
+            <div className={cn("form-grid")}>
               <p>
                 <strong>Travel date</strong>
                 <br />
@@ -311,9 +308,10 @@ export function BookingWorkspace() {
                 {p.firstName} {p.lastName} · Seat {p.seatName} · {p.phone}
               </p>
             ))}
-            <p className="muted">Present this PNR at boarding.</p>
+            <p className={cn("muted")}>Present this PNR at boarding.</p>
           </Card>
         </div>
+        <div className="mt-4 flex flex-wrap justify-end gap-2"><Button onClick={() => window.print()}><Printer size={16} /> Print ticket</Button>
         <Button
           variant="secondary"
           onClick={() => {
@@ -322,8 +320,9 @@ export function BookingWorkspace() {
             setTrips([]);
           }}
         >
-          Create another booking
+          <Plus size={15} /> Create another booking
         </Button>
+        </div>
       </>
     );
 
@@ -334,18 +333,18 @@ export function BookingWorkspace() {
         description="Search scheduled trips, reserve seats, and issue a passenger ticket."
       />
       {error && (
-        <div className="state-message state-error" role="alert">
+        <div className={cn("state-message state-error")} role="alert">
           {error}
         </div>
       )}
-      <Card className="management-form">
+      <Card className={cn("management-form")}>
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void lookupTicket();
           }}
         >
-          <div className="form-grid">
+          <div className={cn("form-grid")}>
             <label>
               Look up an existing PNR
               <input
@@ -360,18 +359,18 @@ export function BookingWorkspace() {
             disabled={!lookupPnr.trim()}
             type="submit"
           >
-            Find ticket
+            <Ticket size={15} /> Find ticket
           </Button>
         </form>
       </Card>
-      <Card className="management-form">
+      <Card className={cn("management-form")}>
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void search();
           }}
         >
-          <div className="form-grid">
+          <div className={cn("form-grid")}>
             <label>
               From
               <input
@@ -410,10 +409,10 @@ export function BookingWorkspace() {
         </form>
       </Card>
       {trips.length > 0 && (
-        <Card className="management-card">
+        <Card className={cn("management-card")}>
           <h2>Available buses</h2>
           {trips.map((trip) => (
-            <div className="setup-row" key={trip.id}>
+            <div className={cn("setup-row")} key={trip.id}>
               <Bus size={19} />
               <div>
                 <strong>
@@ -437,17 +436,17 @@ export function BookingWorkspace() {
         </Card>
       )}
       {availability && (
-        <Card className="seat-layout-card">
-          <div className="card-heading">
+        <Card className={cn("seat-layout-card")}>
+          <div className={cn("card-heading")}>
             <div>
-              <p className="eyebrow">{availability.trip.tripCode}</p>
+              <p className={cn("eyebrow")}>{availability.trip.tripCode}</p>
               <h2>Select seats</h2>
             </div>
             <Badge>{availability.trip.bus.busType}</Badge>
           </div>
-          <p className="muted booking-seat-help">Seat labels show the berth type and any passenger eligibility. Check these before assigning passengers.</p>
+          <p className={cn("muted booking-seat-help")}>Seat labels show the berth type and any passenger eligibility. Check these before assigning passengers.</p>
           <div
-            className="seat-grid"
+            className={cn("seat-grid")}
             role="group"
             aria-label={"Seat selection for " + availability.trip.tripCode}
             style={{
@@ -475,24 +474,24 @@ export function BookingWorkspace() {
                         ? "selected"
                         : "available")
                   }
-                  className={`seat-button seat-${seat.type.toLowerCase().replaceAll("_", "-")} ${unavailable ? "seat-unavailable" : ""} ${selected ? "seat-selected" : ""}`}
+                  className={cn(`seat-button seat-${seat.type.toLowerCase().replaceAll("_", "-")} ${unavailable ? "seat-unavailable" : ""} ${selected ? "seat-selected" : ""}`)}
                   onClick={() => toggleSeat(seat.name)}
                 >
                   <b>{unavailable ? "×" : selected ? "✓" : seat.name}</b>
                   <small>{seat.type.replaceAll("_", " ").toLowerCase().replace(/^\w/, c => c.toUpperCase())}</small>
-                  {seat.restriction !== "ALL" && <small className="booking-seat-restriction">{seat.restriction === "SENIOR" ? "Senior only" : `${seat.restriction.toLowerCase()} only`}</small>}
+                  {seat.restriction !== "ALL" && <small className={cn("booking-seat-restriction")}>{seat.restriction === "SENIOR" ? "Senior only" : `${seat.restriction.toLowerCase()} only`}</small>}
                 </button>
               );
             })}
           </div>
-          <div className="seat-legend">
+          <div className={cn("seat-legend")}>
             <span>
               <i /> Available
             </span>
             <span>
-              <i className="seat-legend-unavailable" /> Held or booked
+              <i className={cn("seat-legend-unavailable")} /> Held or booked
             </span>
-            <span className="booking-seat-restriction">Female only</span><span className="booking-seat-restriction booking-senior">Senior only</span>
+            <span className={cn("booking-seat-restriction")}>Female only</span><span className={cn("booking-seat-restriction booking-senior")}>Senior only</span>
             <span>Selected: {selectedSeats.join(", ") || "none"}</span>
           </div>
           {!hold && (
@@ -500,7 +499,7 @@ export function BookingWorkspace() {
               onClick={() => void lockSeats()}
               disabled={!selectedSeats.length || saving}
             >
-              {saving
+              <Lock size={15} /> {saving
                 ? "Locking seats..."
                 : "Lock selected seats for 10 minutes"}
             </Button>
@@ -508,16 +507,16 @@ export function BookingWorkspace() {
         </Card>
       )}
       {hold && availability && (
-        <Card className="management-form">
+        <Card className={cn("management-form")}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void submit();
             }}
           >
-            <div className="card-heading">
+            <div className={cn("card-heading")}>
               <div>
-                <p className="eyebrow">Seat hold active</p>
+                <p className={cn("eyebrow")}>Seat hold active</p>
                 <h2>
                   <Clock3 size={18} />{" "}
                   <span role="timer" aria-live="off">
@@ -528,10 +527,10 @@ export function BookingWorkspace() {
                 </h2>
               </div>
               <Button variant="secondary" onClick={() => void cancelHold()}>
-                Release seats
+                <Unlock size={15} /> Release seats
               </Button>
             </div>
-            <div className="form-grid">
+            <div className={cn("form-grid")}>
               <label>
                 Boarding point
                 <select
@@ -600,7 +599,7 @@ export function BookingWorkspace() {
             <h3>Passenger details</h3>
             {passengers.map((passenger, index) => (
               <div
-                className="form-grid passenger-form"
+                className={cn("form-grid passenger-form")}
                 key={passenger.seatName}
               >
                 <strong>Seat {passenger.seatName}</strong>
@@ -711,7 +710,7 @@ export function BookingWorkspace() {
                 ))}
               </div>
             ))}
-            <div className="form-grid">
+            <div className={cn("form-grid")}>
               <label>
                 Discount type
                 <select
@@ -751,13 +750,13 @@ export function BookingWorkspace() {
                 discountValue > (cap?.type === discountType ? cap.value : 0)
               }
             >
-              {saving ? "Confirming..." : "Confirm booking and issue ticket"}
+              {saving ? "Confirming..." : <><Ticket size={15} /> Confirm booking and issue ticket</>}
             </Button>
           </form>
         </Card>
       )}
       {trips.length === 0 && !loading && (
-        <p className="muted">
+        <p className={cn("muted")}>
           Search by source, destination, and date to view available trips.
         </p>
       )}
@@ -791,43 +790,39 @@ export function AgentBookingsDashboard() {
       <PageHeader
         title="Agent dashboard"
         description="Find a scheduled trip and create a confirmed passenger booking."
-        action={
-          <Link className="button button-primary" href="/dashboard/bookings">
-            New booking <ArrowRight size={16} />
-          </Link>
-        }
       />
       {dashboardError && (
-        <div className="state-message state-error" role="alert">
+        <div className={cn("state-message state-error")} role="alert">
           {dashboardError}
         </div>
       )}
-      <div className="metric-grid metric-grid-three">
-        <Card className="metric-card">
+      <div className={cn("metric-grid metric-grid-three")}>
+        <Card className={cn("metric-card")}>
           <p>Bookings today</p>
           <strong>{todayBookings}</strong>
           <span>Confirmed passenger bookings</span>
         </Card>
-        <Card className="metric-card">
+        <Card className={cn("metric-card")}>
           <p>Sales today</p>
           <strong>₹{todayValue.toFixed(2)}</strong>
           <span>Confirmed booking value</span>
         </Card>
-        <Card className="metric-card">
+        <Card className={cn("metric-card")}>
           <p>Upcoming trips</p>
           <strong>{upcomingTrips}</strong>
           <span>Scheduled departures ahead</span>
         </Card>
       </div>
-      <div className="dashboard-grid">
-        <Card className="setup-card">
-          <p className="eyebrow">Booking desk</p>
+      <UpcomingTrips />
+      <div className={cn("dashboard-grid")}>
+        <Card className={cn("setup-card")}>
+          <p className={cn("eyebrow")}>Booking desk</p>
           <h2>Ready to book a trip?</h2>
-          <p className="muted">
+          <p className={cn("muted")}>
             Search live scheduled trips, lock seats while you enter passenger
             details, and print the ticket with its PNR.
           </p>
-          <Link className="button button-primary" href="/dashboard/bookings">
+          <Link className={cn("button button-primary")} href="/dashboard/bookings">
             Start booking <ArrowRight size={16} />
           </Link>
         </Card>

@@ -1,8 +1,9 @@
+import { cn } from "../lib/utils";
 import type { ReactNode } from "react";
 
 export function LoadingState({ label = "Loading" }: { label?: string }) {
   return (
-    <div className="state-message" role="status">
+    <div className={cn("state-message")} role="status">
       {label}...
     </div>
   );
@@ -15,7 +16,7 @@ export function EmptyState({
   children: ReactNode;
 }) {
   return (
-    <div className="state-message">
+    <div className={cn("state-message")}>
       <strong>{title}</strong>
       <span>{children}</span>
     </div>
@@ -27,7 +28,7 @@ export function ErrorState({
   message?: string;
 }) {
   return (
-    <div className="state-message state-error" role="alert">
+    <div className={cn("state-message state-error")} role="alert">
       {message}
     </div>
   );

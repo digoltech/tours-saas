@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "../../../../../src/lib/utils";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "../../../../../src/ui/Badge";
@@ -40,20 +41,20 @@ export default function TripDetailPage() {
             : "Loading trip"
         }
       />
-      {error && <div className="state-message state-error">{error}</div>}
+      {error && <div className={cn("state-message state-error")}>{error}</div>}
       {trip && (
         <>
           <Card>
-            <div className="card-heading">
+            <div className={cn("card-heading")}>
               <div>
-                <p className="eyebrow">Scheduled operation</p>
+                <p className={cn("eyebrow")}>Scheduled operation</p>
                 <h2>
                   {trip.route.source} to {trip.route.destination}
                 </h2>
               </div>
               <Badge>{trip.status}</Badge>
             </div>
-            <div className="form-grid">
+            <div className={cn("form-grid")}>
               <p>
                 <strong>Bus</strong>
                 <br />
@@ -78,14 +79,14 @@ export default function TripDetailPage() {
             </div>
           </Card>
           <Card>
-            <div className="card-heading">
+            <div className={cn("card-heading")}>
               <div>
-                <p className="eyebrow">Route sequence</p>
+                <p className={cn("eyebrow")}>Route sequence</p>
                 <h2>Stops</h2>
               </div>
             </div>
             {trip.route.stops.length === 0 ? (
-              <div className="state-message">No stops configured.</div>
+              <div className={cn("state-message")}>No stops configured.</div>
             ) : (
               <ol>
                 {trip.route.stops.map((stop) => (

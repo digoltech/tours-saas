@@ -195,6 +195,13 @@ model Bus {
   operatorName       String?
   busType            BusType
   totalSeats         Int
+  make               String?
+  model              String?
+  year               Int?
+  color              String?
+  description        String?
+  amenities          String[]       @default([])
+  photos             String[]       @default([])
   status             RecordStatus   @default(ACTIVE)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "../lib/utils";
 import { createContext, useContext, useEffect, type Dispatch, type ReactNode, type SetStateAction } from "react";
 
 export type WorkspaceHeading = { title: string; description: string; action?: ReactNode };
@@ -31,10 +32,10 @@ export function PageHeader({
   }, [setWorkspaceHeading, title, description, action]);
   if (setWorkspaceHeading) return null;
   return (
-    <div className="page-header">
+    <div className={cn("page-header")}>
       <div>
         <h1>{title}</h1>
-        <p className="page-description">{description}</p>
+        <p className={cn("page-description")}>{description}</p>
       </div>
       {action}
     </div>

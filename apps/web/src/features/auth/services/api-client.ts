@@ -208,6 +208,13 @@ export type Bus = {
   operatorName?: string | null;
   busType: string;
   totalSeats: number;
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  color?: string | null;
+  description?: string | null;
+  amenities?: string[];
+  photos?: string[];
   status: string;
   branch: Branch;
 };
@@ -392,6 +399,9 @@ export function getBuses(params: Record<string, string | undefined> = {}) {
   return request<PageResult<Bus>>(
     `/api/buses?${transportQuery({ limit: "20", ...params })}`,
   );
+}
+export function getBusById(id: string) {
+  return request<Bus>(`/api/buses/${id}`);
 }
 export function createBus(data: Record<string, unknown>) {
   return request<Bus>("/api/buses", {

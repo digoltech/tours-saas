@@ -1,8 +1,9 @@
 "use client";
 
+import { cn } from "../../lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, Search } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Pencil, Plus, Search, Save, X } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
@@ -152,25 +153,18 @@ export function TripPage() {
       <PageHeader
         title="Trips"
         description="Schedule reusable routes with active buses and drivers."
-        action={
-          can("create") ? (
-            <Button onClick={() => setOpen((value) => !value)}>
-              <Plus size={16} /> Add trip
-            </Button>
-          ) : undefined
-        }
       />
       {open && (
-        <Card className="management-form">
-          <div className="card-heading">
+        <Card className={cn("management-form")}>
+          <div className={cn("card-heading")}>
             <div>
-              <p className="eyebrow">
+              <p className={cn("eyebrow")}>
                 {editingId ? "Update schedule" : "New schedule"}
               </p>
               <h2>{editingId ? "Edit trip" : "Create trip"}</h2>
             </div>
           </div>
-          <div className="form-grid">
+          <div className={cn("form-grid")}>
             {user?.role === "SUPER_ADMIN" && (
               <label>
                 Agency
@@ -331,28 +325,31 @@ export function TripPage() {
               />
             </label>
           </div>
-          <Button onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving..." : editingId ? "Save changes" : "Save trip"}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setOpen(false);
-              setEditingId(null);
-            }}
-          >
-            Cancel
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => void save()} disabled={saving}>
+              <Save size={15} />
+              {saving ? "Saving..." : editingId ? "Save changes" : "Save trip"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setOpen(false);
+                setEditingId(null);
+              }}
+            >
+              <X size={15} /> Cancel
+            </Button>
+          </div>
         </Card>
       )}
       {error && (
-        <div className="state-message state-error">
+        <div className={cn("state-message state-error")}>
           <strong>{error}</strong>
         </div>
       )}
-      <Card className="management-card">
-        <div className="management-toolbar">
-          <label className="search-field">
+      <Card className={cn("management-card")}>
+        <div className={cn("management-toolbar")}>
+          <label className={cn("search-field")}>
             <Search size={16} />
             <input
               value={search}
@@ -376,16 +373,17 @@ export function TripPage() {
             <option>COMPLETED</option>
             <option>CANCELLED</option>
           </select>
+          {can("create") && <Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> Add trip</Button>}
         </div>
         {loading ? (
-          <div className="state-message">Loading trips...</div>
+          <div className={cn("state-message")}>Loading trips...</div>
         ) : trips.length === 0 ? (
-          <div className="state-message">
+          <div className={cn("state-message")}>
             <strong>No trips found</strong>
             <span>Schedule a trip or adjust the filters.</span>
           </div>
         ) : (
-          <div className="table-wrapper">
+          <div className={cn("table-wrapper")}>
             <table>
               <thead>
                 <tr>
@@ -428,18 +426,19 @@ export function TripPage() {
                       <Badge>{trip.status}</Badge>
                     </td>
                     <td>
-                      {can("update") && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {can("update") && (
                         <button
-                          className="button button-ghost"
+                          className={cn("button button-ghost")}
                           aria-label="Edit trip"
                           onClick={() => editTrip(trip)}
                         >
                           <Pencil size={15} />
                         </button>
-                      )}
-                      {can("cancel") && (
+                        )}
+                        {can("cancel") && (
                         <button
-                          className="button button-ghost"
+                          className={cn("button button-ghost")}
                           disabled={trip.status === "CANCELLED"}
                           onClick={() =>
                             void cancelTrip(trip.id)
@@ -453,9 +452,10 @@ export function TripPage() {
                               )
                           }
                         >
-                          Cancel
+                          <Ban size={15} /> Cancel trip
                         </button>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -463,22 +463,24 @@ export function TripPage() {
             </table>
           </div>
         )}
-        <div className="management-toolbar">
+        <div className={cn("management-toolbar")}>
           <span>
             Page {page} of {pages}
           </span>
-          <div>
+          <div className="flex items-center gap-2">
             <Button
+              variant="secondary"
               disabled={page <= 1}
               onClick={() => setPage((value) => value - 1)}
             >
-              Previous
+              <ChevronLeft size={15} /> Previous
             </Button>
             <Button
+              variant="secondary"
               disabled={page >= pages}
               onClick={() => setPage((value) => value + 1)}
             >
-              Next
+              Next <ChevronRight size={15} />
             </Button>
           </div>
         </div>

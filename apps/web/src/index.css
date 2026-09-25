@@ -1,67 +1,94 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(0 0% 94%);
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-ring: hsl(var(--ring));
+  --font-sans: "Manrope", sans-serif;
+}
+
 :root {
+  color-scheme: light;
   font-family: "Manrope", sans-serif;
-  color: #111111;
-  background: #fafafa;
+  color: #15212b;
+  background: #f5f7f6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
   --background: 0 0% 98%;
   --foreground: 0 0% 7%;
   --card: 0 0% 100%;
   --card-foreground: 0 0% 7%;
   --primary: 0 72% 46%;
   --primary-foreground: 0 0% 100%;
-  --muted: 0 0% 94%;
   --muted-foreground: 0 0% 39%;
   --border: 0 0% 87%;
   --ring: 0 72% 46%;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
+  --ink: #15212b;
+  --muted: #64727c;
+  --line: #e5e9e8;
+  --navy: #102a36;
+  --teal: #c62828;
+  --pale: #fbeaea;
+  --canvas: #f5f7f6;
+  --shadow-soft: 0 18px 45px rgba(16, 42, 54, 0.07);
+  --landing-ink: #202322;
+  --landing-muted: #656b68;
+  --landing-red: #c62828;
+  --landing-cream: #f3efe7;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
+
 body {
-  margin: 0;
   min-width: 320px;
+  margin: 0;
 }
+
 button,
 input {
-  font: inherit;
+  font-family: inherit;
 }
+
 button {
   cursor: pointer;
 }
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+
+:focus-visible {
   outline: 2px solid #c62828;
   outline-offset: 3px;
 }
-.seat-button.seat-selected {
-  background: #1f2937;
-  color: #fff;
-  border-color: #1f2937;
+
+@keyframes finance-spin {
+  to { transform: rotate(360deg); }
 }
-.ticket-card {
-  max-width: 860px;
+
+@keyframes search-pop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.passenger-form {
-  border-top: 1px solid #e5e7eb;
-  padding: 16px 0;
-  margin: 12px 0;
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
 }
+
 @media print {
-  body * {
-    visibility: hidden;
-  }
+  body * { visibility: hidden; }
   #printable-ticket,
-  #printable-ticket * {
-    visibility: visible;
-  }
+  #printable-ticket * { visibility: visible; }
   #printable-ticket {
     position: absolute;
     inset: 0;
@@ -71,7 +98,14 @@ select:focus-visible {
   }
   button,
   aside,
-  header {
-    display: none !important;
+  header { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "../../lib/utils";
 import { useEffect, useState } from "react";
 import { Check, Save } from "lucide-react";
 import { Button } from "../../ui/Button";
@@ -82,15 +83,10 @@ export function SettingsWorkspace() {
       <PageHeader
         title="Fare and policy settings"
         description="Set booking defaults and agency discount limits. Tax, commission, and cancellation policy live in Finance & reports."
-        action={
-          <Button onClick={save}>
-            <Save size={16} /> Save settings
-          </Button>
-        }
       />
-      <div className="settings-grid">
-        <Card className="settings-card">
-          <p className="eyebrow">Fare settings</p>
+      <div className={cn("settings-grid")}>
+        <Card className={cn("settings-card")}>
+          <p className={cn("eyebrow")}>Fare settings</p>
           <h2>Default fare</h2>
           <label>
             Currency
@@ -117,8 +113,8 @@ export function SettingsWorkspace() {
           </label>
         </Card>
         {user?.role === "AGENCY_ADMIN" && (
-          <Card className="settings-card">
-            <p className="eyebrow">Booking controls</p>
+          <Card className={cn("settings-card")}>
+            <p className={cn("eyebrow")}>Booking controls</p>
             <h2>Maximum agent discount</h2>
             <label>
               Discount type
@@ -153,16 +149,17 @@ export function SettingsWorkspace() {
         )}
       </div>
       {error && (
-        <div className="state-message state-error" role="alert">
+        <div className={cn("state-message state-error")} role="alert">
           {error}
         </div>
       )}
       {saved && (
-        <p className="save-confirmation" role="status">
+        <p className={cn("save-confirmation")} role="status">
           <Check size={16} /> Settings saved.
         </p>
       )}
-      <p className="muted settings-note">
+      <div className="mt-4 flex justify-end"><Button onClick={save}><Save size={16} /> Save settings</Button></div>
+      <p className={cn("muted settings-note")}>
         The fare default is local to this browser. Discount limits are shared
         with the agency; finance policies are managed in Finance &amp; reports.
       </p>

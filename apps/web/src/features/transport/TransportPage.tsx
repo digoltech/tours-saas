@@ -1,8 +1,9 @@
 "use client";
 
+import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus, Search } from "lucide-react";
+import { Armchair, Ban, ChevronLeft, ChevronRight, Pencil, Plus, Search, Save, X } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
@@ -191,66 +192,12 @@ export function TransportPage({ resource }: { resource: Resource }) {
       <PageHeader
         title={copy[resource][0]}
         description={copy[resource][1]}
-        action={
-          canCreate ? (
-            <Button onClick={() => setOpen((value) => !value)}>
-              <Plus size={16} /> Add {resource.slice(0, -1)}
-            </Button>
-          ) : undefined
-        }
       />
-      {open && (
-        <Card className="management-form">
-          <div className="card-heading"><div><p className="eyebrow">{editing ? "Update record" : "New record"}</p><h2>{editing ? "Edit" : "Add"} {resource.slice(0, -1)}</h2></div></div>
-          <div className="form-grid">
+      {open && resource !== "buses" && (
+        <Card className={cn("management-form")}>
+          <div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{editing ? "Update record" : "New record"}</p><h2>{editing ? "Edit" : "Add"} {resource.slice(0, -1)}</h2></div></div>
+          <div className={cn("form-grid")}>
             {user?.role === "SUPER_ADMIN" && <label>Agency<select value={selectedAgencyId} onChange={(e) => { setSelectedAgencyId(e.target.value); update("branchId", ""); }}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
-            {resource === "buses" && (
-              <>
-                <label>
-                  Bus number
-                  <input
-                    value={form.busNumber ?? ""}
-                    onChange={(e) => update("busNumber", e.target.value)}
-                  />
-                </label>
-                <label>
-                  Registration number
-                  <input
-                    value={form.registrationNumber ?? ""}
-                    onChange={(e) =>
-                      update("registrationNumber", e.target.value)
-                    }
-                  />
-                </label>
-                <label>
-                  Operator
-                  <input
-                    value={form.operatorName ?? ""}
-                    onChange={(e) => update("operatorName", e.target.value)}
-                  />
-                </label>
-                <label>
-                  Type
-                  <select
-                    value={form.busType ?? "SEATER"}
-                    onChange={(e) => update("busType", e.target.value)}
-                  >
-                    <option>SEATER</option>
-                    <option>SLEEPER</option>
-                    <option>SEATER_SLEEPER</option>
-                  </select>
-                </label>
-                <label>
-                  Total seats
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.totalSeats ?? ""}
-                    onChange={(e) => update("totalSeats", e.target.value)}
-                  />
-                </label>
-              </>
-            )}
             {resource === "drivers" && (
               <>
                 <label>
@@ -361,21 +308,24 @@ export function TransportPage({ resource }: { resource: Resource }) {
             )}
             {editing && <label>Status<select value={form.status ?? "ACTIVE"} onChange={(e) => update("status", e.target.value)}><option>ACTIVE</option><option>INACTIVE</option></select></label>}
           </div>
-          <Button onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving..." : editing ? "Save changes" : "Save record"}
-          </Button>
-          <Button variant="secondary" onClick={() => { setOpen(false); setEditing(null); }}>Cancel</Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => void save()} disabled={saving}>
+              <Save size={15} />
+              {saving ? "Saving..." : editing ? "Save changes" : "Save record"}
+            </Button>
+            <Button variant="secondary" onClick={() => { setOpen(false); setEditing(null); }}><X size={15} /> Cancel</Button>
+          </div>
         </Card>
       )}
       {error && (
-        <div className="state-message state-error">
+        <div className={cn("state-message state-error")}>
           <strong>{error}</strong>
         </div>
       )}
-      {selected && <Card className="management-form"><div className="card-heading"><div><p className="eyebrow">{resource.slice(0, -1)} details</p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> Edit</Button><Button variant="secondary" onClick={() => setSelected(null)}>Close</Button></Card>}
-      <Card className="management-card">
-        <div className="management-toolbar">
-          <label className="search-field">
+      {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{resource.slice(0, -1)} details</p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> Edit</Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> Close</Button></div></Card>}
+      <Card className={cn("management-card")}>
+        <div className={cn("management-toolbar")}>
+          <label className={cn("search-field")}>
             <Search size={16} />
             <input
               value={search}
@@ -397,16 +347,21 @@ export function TransportPage({ resource }: { resource: Resource }) {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
+          {canCreate && (resource === "buses" ? (
+            <Link href="/dashboard/buses/new" className={cn("button button-primary")}><Plus size={16} /> Add bus</Link>
+          ) : (
+            <Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> Add {resource.slice(0, -1)}</Button>
+          ))}
         </div>
         {loading ? (
-          <div className="state-message">Loading records...</div>
+          <div className={cn("state-message")}>Loading records...</div>
         ) : rows.length === 0 ? (
-          <div className="state-message">
+          <div className={cn("state-message")}>
             <strong>No {resource} found</strong>
             <span>Adjust your filters or add a record.</span>
           </div>
         ) : (
-          <div className="table-wrapper">
+          <div className={cn("table-wrapper")}>
             <table>
               <thead>
                 <tr>
@@ -443,7 +398,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
                   <tr key={row.id}>
                     {resource === "buses" ? (
                       <>
-                        <td><button className="text-link" onClick={() => showDetails(row)}>{(row as Bus).busNumber}</button></td>
+                        <td><button className={cn("text-link")} onClick={() => showDetails(row)}>{(row as Bus).busNumber}</button></td>
                         <td>{(row as Bus).registrationNumber}</td>
                         <td>{(row as Bus).busType}</td>
                         <td>{(row as Bus).totalSeats}</td>
@@ -452,7 +407,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
                     ) : resource === "drivers" ? (
                       <>
                         <td>
-                          <button className="text-link" onClick={() => showDetails(row)}>{(row as Driver).firstName} {(row as Driver).lastName}</button>
+                          <button className={cn("text-link")} onClick={() => showDetails(row)}>{(row as Driver).firstName} {(row as Driver).lastName}</button>
                         </td>
                         <td>{(row as Driver).phone}</td>
                         <td>{(row as Driver).licenseNumber}</td>
@@ -470,15 +425,19 @@ export function TransportPage({ resource }: { resource: Resource }) {
                     <td>
                       <Badge>{row.status}</Badge>
                     </td>
-                    <td>
-                      <button className="button button-ghost" onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /></button>
-                      <button
-                        className="button button-ghost"
-                        disabled={row.status === "INACTIVE" || !can("delete")}
-                        onClick={() => void deactivate(row.id)}
-                      >
-                        Deactivate
-                      </button>
+                    <td className={cn("table-actions")}>
+                      {resource === "buses" ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {can("update") && <>
+                            <Link className={cn("button button-secondary")} href={`/dashboard/buses/${row.id}/edit`} aria-label={`Edit bus ${(row as Bus).busNumber}`}><Pencil size={15} /> Edit</Link>
+                            <Link className={cn("button button-ghost")} href={`/dashboard/buses/${row.id}/edit?step=layout`} aria-label={`Edit seat layout for ${(row as Bus).busNumber}`}><Armchair size={15} /> Seat layout</Link>
+                          </>}
+                          <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> Deactivate</button>
+                        </div>
+                      ) : <div className="flex flex-wrap items-center gap-2">
+                        <button className={cn("button button-ghost")} onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /><span className="sr-only">Edit</span></button>
+                        <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> Deactivate</button>
+                      </div>}
                     </td>
                   </tr>
                 ))}
@@ -486,22 +445,24 @@ export function TransportPage({ resource }: { resource: Resource }) {
             </table>
           </div>
         )}
-        <div className="management-toolbar">
+        <div className={cn("management-toolbar")}>
           <span>
             Page {page} of {pages}
           </span>
-          <div>
+          <div className="flex items-center gap-2">
             <Button
+              variant="secondary"
               disabled={page <= 1}
               onClick={() => setPage((value) => value - 1)}
             >
-              Previous
+              <ChevronLeft size={15} /> Previous
             </Button>
             <Button
+              variant="secondary"
               disabled={page >= pages}
               onClick={() => setPage((value) => value + 1)}
             >
-              Next
+              Next <ChevronRight size={15} />
             </Button>
           </div>
         </div>

@@ -1,8 +1,10 @@
 "use client";
 
+import { cn } from "../../../lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { Building2 } from "lucide-react";
 import { register } from "../services/api-client";
 import { Button } from "../../../ui/Button";
 import { Input } from "../../../ui/Input";
@@ -31,5 +33,5 @@ export function RegisterForm() {
     setError(""); setLoading(true);
     try { await register(result.data); router.push("/onboarding"); router.refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create account"); } finally { setLoading(false); }
   }
-  return <Card className="login-card"><form onSubmit={submit}><div className="form-grid"><Input label="First name" id="firstName" autoComplete="given-name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} disabled={loading} /><Input label="Last name" id="lastName" autoComplete="family-name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} disabled={loading} /></div><Input label="Work email" id="email" type="email" autoComplete="email" value={form.email} onChange={(e) => update("email", e.target.value)} disabled={loading} /><PasswordInput label="Password" id="password" autoComplete="new-password" value={form.password} onChange={(e) => update("password", e.target.value)} disabled={loading} /><p className="password-hint">Use at least 8 characters.</p><Input label="Agency name" id="agencyName" autoComplete="organization" value={form.agencyName} onChange={(e) => update("agencyName", e.target.value)} disabled={loading} placeholder="A-One Tours" /><Input label="First branch" id="branchName" value={form.branchName} onChange={(e) => update("branchName", e.target.value)} disabled={loading} />{error && <p className="form-error" role="alert">{error}</p>}<Button type="submit" disabled={loading}>{loading ? "Creating workspace..." : "Create workspace"}</Button></form></Card>;
+  return <Card className={cn("login-card")}><form onSubmit={submit}><div className={cn("form-grid")}><Input label="First name" id="firstName" autoComplete="given-name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} disabled={loading} /><Input label="Last name" id="lastName" autoComplete="family-name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} disabled={loading} /></div><Input label="Work email" id="email" type="email" autoComplete="email" value={form.email} onChange={(e) => update("email", e.target.value)} disabled={loading} /><PasswordInput label="Password" id="password" autoComplete="new-password" value={form.password} onChange={(e) => update("password", e.target.value)} disabled={loading} /><p className={cn("password-hint")}>Use at least 8 characters.</p><Input label="Agency name" id="agencyName" autoComplete="organization" value={form.agencyName} onChange={(e) => update("agencyName", e.target.value)} disabled={loading} placeholder="A-One Tours" /><Input label="First branch" id="branchName" value={form.branchName} onChange={(e) => update("branchName", e.target.value)} disabled={loading} />{error && <p className={cn("form-error")} role="alert">{error}</p>}<Button type="submit" disabled={loading}><Building2 size={15} />{loading ? "Creating workspace..." : "Create workspace"}</Button></form></Card>;
 }

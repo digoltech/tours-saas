@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "../../../../../src/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
@@ -90,13 +91,13 @@ export default function RouteDetailPage() {
             : "Loading route"
         }
       />
-      {error && <div className="state-message state-error">{error}</div>}
+      {error && <div className={cn("state-message state-error")}>{error}</div>}
       {route && (
         <>
           <Card>
-            <div className="card-heading">
+            <div className={cn("card-heading")}>
               <div>
-                <p className="eyebrow">Route profile</p>
+                <p className={cn("eyebrow")}>Route profile</p>
                 <h2>
                   {route.source} to {route.destination}
                 </h2>
@@ -104,17 +105,17 @@ export default function RouteDetailPage() {
               <Badge>{route.status}</Badge>
               <Button variant="secondary" onClick={() => setRouteFormOpen((open) => !open)}><Pencil size={15} /> Edit route</Button>
             </div>
-            {routeFormOpen && <div className="form-grid route-edit-form">{(["name", "code", "source", "destination", "description"] as const).map((field) => <label key={field}>{field}<input value={routeForm[field]} onChange={(e) => setRouteForm({ ...routeForm, [field]: e.target.value })} /></label>)}<label>Status<select value={routeForm.status} onChange={(e) => setRouteForm({ ...routeForm, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></label><Button disabled={saving} onClick={() => void saveRoute()}>Save route</Button></div>}
+            {routeFormOpen && <div className={cn("form-grid route-edit-form")}>{(["name", "code", "source", "destination", "description"] as const).map((field) => <label key={field}>{field}<input value={routeForm[field]} onChange={(e) => setRouteForm({ ...routeForm, [field]: e.target.value })} /></label>)}<label>Status<select value={routeForm.status} onChange={(e) => setRouteForm({ ...routeForm, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></label><Button disabled={saving} onClick={() => void saveRoute()}>Save route</Button></div>}
             <p>{route.description || "No description provided."}</p>
           </Card>
-          <Card className="management-card">
-            <div className="card-heading">
+          <Card className={cn("management-card")}>
+            <div className={cn("card-heading")}>
               <div>
-                <p className="eyebrow">Ordered stops</p>
+                <p className={cn("eyebrow")}>Ordered stops</p>
                 <h2>Stops</h2>
               </div>
             </div>
-            <div className="form-grid">
+            <div className={cn("form-grid")}>
               <label>
                 Stop name
                 <input
@@ -145,9 +146,9 @@ export default function RouteDetailPage() {
               </Button>
             </div>
             {route.stops.length === 0 ? (
-              <div className="state-message">No stops configured.</div>
+              <div className={cn("state-message")}>No stops configured.</div>
             ) : (
-              <div className="table-wrapper">
+              <div className={cn("table-wrapper")}>
                 <table>
                   <thead>
                     <tr>
@@ -174,14 +175,14 @@ export default function RouteDetailPage() {
                             ))
                           )}
                         </td>
-                        <td className="table-actions"><button className="button button-ghost" onClick={() => { setEditingStop(stop.id); setForm({ name: stop.name, city: stop.city ?? "", sequence: String(stop.sequence) }); }}>Edit</button><button className="button button-ghost" disabled={stop.status === "INACTIVE" || saving} onClick={() => void deactivateStop(stop.id).then(load).catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to deactivate stop"))}>Deactivate</button></td>
+                        <td className={cn("table-actions")}><button className={cn("button button-ghost")} onClick={() => { setEditingStop(stop.id); setForm({ name: stop.name, city: stop.city ?? "", sequence: String(stop.sequence) }); }}>Edit</button><button className={cn("button button-ghost")} disabled={stop.status === "INACTIVE" || saving} onClick={() => void deactivateStop(stop.id).then(load).catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to deactivate stop"))}>Deactivate</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-            {route.stops.filter((stop) => stop.status === "ACTIVE").map((stop) => <div className="point-editor" key={`point-${stop.id}`}><strong>{stop.sequence}. {stop.name}</strong><label>Point type<select value={pointType} onChange={(e) => setPointType(e.target.value)}><option>BOARDING</option><option>DROP_OFF</option><option>BOTH</option></select></label><label>Minutes from route origin<input type="number" min="0" value={timeOffset} onChange={(e) => setTimeOffset(e.target.value)} /></label><Button variant="secondary" disabled={saving} onClick={() => void savePoint(stop.id)}>Configure point</Button></div>)}
+            {route.stops.filter((stop) => stop.status === "ACTIVE").map((stop) => <div className={cn("point-editor")} key={`point-${stop.id}`}><strong>{stop.sequence}. {stop.name}</strong><label>Point type<select value={pointType} onChange={(e) => setPointType(e.target.value)}><option>BOARDING</option><option>DROP_OFF</option><option>BOTH</option></select></label><label>Minutes from route origin<input type="number" min="0" value={timeOffset} onChange={(e) => setTimeOffset(e.target.value)} /></label><Button variant="secondary" disabled={saving} onClick={() => void savePoint(stop.id)}>Configure point</Button></div>)}
           </Card>
         </>
       )}

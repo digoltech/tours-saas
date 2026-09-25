@@ -1,0 +1,8 @@
+ALTER TABLE "Bus"
+  ADD COLUMN "make" TEXT,
+  ADD COLUMN "model" TEXT,
+  ADD COLUMN "year" INTEGER,
+  ADD COLUMN "color" TEXT,
+  ADD COLUMN "description" TEXT,
+  ADD COLUMN "amenities" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN "photos" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

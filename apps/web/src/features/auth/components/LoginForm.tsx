@@ -1,8 +1,10 @@
 "use client";
 
+import { cn } from "../../../lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { LogIn } from "lucide-react";
 import { login } from "../services/api-client";
 import { Button } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
@@ -46,7 +48,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="login-card">
+    <Card className={cn("login-card")}>
       <form onSubmit={handleSubmit}>
         <Input
           label="Email address"
@@ -68,11 +70,12 @@ export function LoginForm() {
           disabled={loading}
         />
         {error && (
-          <p className="form-error" role="alert">
+          <p className={cn("form-error")} role="alert">
             {error}
           </p>
         )}
         <Button type="submit" disabled={loading}>
+          <LogIn size={15} />
           {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>

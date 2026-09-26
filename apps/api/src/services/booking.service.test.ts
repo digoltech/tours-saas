@@ -65,6 +65,7 @@ const tx = {
   $queryRaw: async () => [],
   agentCommission: { create: async () => ({}) },
   financeLedger: { create: async () => ({}) },
+  auditLog: { create: async () => ({}) },
   tripSeat: {
     createMany: async ({
       data,

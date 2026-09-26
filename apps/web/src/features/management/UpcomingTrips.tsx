@@ -8,12 +8,19 @@ import { Card } from "../../ui/Card";
 import { cn } from "../../lib/utils";
 import { getTrips, type Trip } from "../auth/services/api-client";
 
-export function UpcomingTrips() {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export function UpcomingTrips({
+  initialTrips,
+  initialError = "",
+}: {
+  initialTrips?: Trip[];
+  initialError?: string;
+}) {
+  const [trips, setTrips] = useState<Trip[]>(initialTrips ?? []);
+  const [loading, setLoading] = useState(initialTrips === undefined);
+  const [error, setError] = useState(initialError);
 
   useEffect(() => {
+    if (initialTrips !== undefined) return;
     getTrips({
       status: "SCHEDULED",
       departureAfter: new Date().toISOString(),
@@ -22,7 +29,7 @@ export function UpcomingTrips() {
       .then((result) => setTrips(result.data))
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load upcoming trips"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialTrips]);
 
   return (
     <Card className="mt-6 overflow-hidden">
@@ -53,12 +60,12 @@ export function UpcomingTrips() {
             <Link key={trip.id} href={`/dashboard/trips/${trip.id}`} className="flex flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4 transition-colors hover:bg-slate-50 sm:px-6">
               <div className="min-w-28">
                 <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{trip.tripCode}</span>
-                <strong className="mt-1 block text-sm text-slate-900">{new Date(trip.travelDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</strong>
+                <strong className="mt-1 block text-sm text-slate-900">{new Date(trip.travelDate).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Kolkata" })}</strong>
               </div>
               <div className="min-w-48 flex-1">
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800"><MapPin size={14} className="shrink-0 text-slate-400" />{trip.route.source} <span aria-hidden="true">→</span> {trip.route.destination}</span>
                 <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1"><Clock3 size={13} />{new Date(trip.departureTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+                  <span className="inline-flex items-center gap-1"><Clock3 size={13} />{new Date(trip.departureTime).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</span>
                   <span className="inline-flex items-center gap-1"><Bus size={13} />{trip.bus.busNumber}</span>
                 </span>
               </div>

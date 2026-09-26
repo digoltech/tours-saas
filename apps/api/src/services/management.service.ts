@@ -42,7 +42,9 @@ export function canManageBranch(
 
 function ensureAgencyAccess(context: AuthContext, agencyId: string | null) {
   if (!canManageAgency(context, agencyId)) {
-    const error = new Error("You do not have access to this agency") as Error & {
+    const error = new Error(
+      "You do not have access to this agency",
+    ) as Error & {
       statusCode?: number;
       code?: string;
     };
@@ -52,9 +54,15 @@ function ensureAgencyAccess(context: AuthContext, agencyId: string | null) {
   }
 }
 
-function ensureBranchAccess(context: AuthContext, agencyId: string | null, branchId: string | null) {
+function ensureBranchAccess(
+  context: AuthContext,
+  agencyId: string | null,
+  branchId: string | null,
+) {
   if (!canManageBranch(context, agencyId, branchId)) {
-    const error = new Error("You do not have access to this branch") as Error & {
+    const error = new Error(
+      "You do not have access to this branch",
+    ) as Error & {
       statusCode?: number;
       code?: string;
     };
@@ -64,7 +72,12 @@ function ensureBranchAccess(context: AuthContext, agencyId: string | null, branc
   }
 }
 
-function parseListResponse<T>(items: T[], page: number, limit: number, total: number) {
+function parseListResponse<T>(
+  items: T[],
+  page: number,
+  limit: number,
+  total: number,
+) {
   return {
     data: items,
     meta: {
@@ -78,7 +91,9 @@ function parseListResponse<T>(items: T[], page: number, limit: number, total: nu
 
 export async function getDashboardSummary(context: AuthContext) {
   if (context.role !== "SUPER_ADMIN") {
-    const error = new Error("Platform-wide dashboard stats are restricted to Super Admin") as Error & {
+    const error = new Error(
+      "Platform-wide dashboard stats are restricted to Super Admin",
+    ) as Error & {
       statusCode?: number;
       code?: string;
     };
@@ -87,7 +102,16 @@ export async function getDashboardSummary(context: AuthContext) {
     throw error;
   }
 
-  const [totalAgencies, activeAgencies, totalBranches, totalAgents, totalBuses, totalDrivers, totalRoutes, totalTrips] = await Promise.all([
+  const [
+    totalAgencies,
+    activeAgencies,
+    totalBranches,
+    totalAgents,
+    totalBuses,
+    totalDrivers,
+    totalRoutes,
+    totalTrips,
+  ] = await Promise.all([
     prisma.agency.count(),
     prisma.agency.count({ where: { status: RecordStatus.ACTIVE } }),
     prisma.branch.count(),
@@ -132,7 +156,9 @@ export async function listAgencies(context: AuthContext, query: AgencyQuery) {
   const where: Prisma.AgencyWhereInput = {
     ...(status && status !== "ALL" ? { status } : {}),
     ...searchClause,
-    ...(context.role !== "SUPER_ADMIN" ? { id: context.agencyId ?? "__missing__" } : {}),
+    ...(context.role !== "SUPER_ADMIN"
+      ? { id: context.agencyId ?? "__missing__" }
+      : {}),
   };
 
   const [total, agencies] = await Promise.all([
@@ -181,7 +207,10 @@ export async function getAgency(context: AuthContext, agencyId: string) {
     },
   });
   if (!agency) {
-    const error = new Error("Agency not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agency not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
@@ -194,19 +223,25 @@ export async function getAgency(context: AuthContext, agencyId: string) {
   };
 }
 
-export async function createAgency(context: AuthContext, data: {
-  name: string;
-  slug: string;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  status?: RecordStatus;
-}) {
+export async function createAgency(
+  context: AuthContext,
+  data: {
+    name: string;
+    slug: string;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    status?: RecordStatus;
+  },
+) {
   if (context.role !== "SUPER_ADMIN") {
-    const error = new Error("Only Super Admin can create agencies") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Only Super Admin can create agencies") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 403;
     error.code = "FORBIDDEN";
     throw error;
@@ -215,29 +250,47 @@ export async function createAgency(context: AuthContext, data: {
   const name = data.name?.trim();
   const slug = data.slug?.trim();
   if (!name || !slug) {
-    const error = new Error("Agency name and slug are required") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agency name and slug are required") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_REQUEST";
     throw error;
   }
 
   try {
-    return await prisma.agency.create({
-      data: {
-        name,
-        slug: slug.toLowerCase(),
-        email: data.email?.trim() || null,
-        phone: data.phone?.trim() || null,
-        address: data.address?.trim() || null,
-        city: data.city?.trim() || null,
-        state: data.state?.trim() || null,
-        country: data.country?.trim() || null,
-        status: data.status ?? RecordStatus.ACTIVE,
-      },
+    return await prisma.$transaction(async (tx) => {
+      const agency = await tx.agency.create({
+        data: {
+          name,
+          slug: slug.toLowerCase(),
+          email: data.email?.trim() || null,
+          phone: data.phone?.trim() || null,
+          address: data.address?.trim() || null,
+          city: data.city?.trim() || null,
+          state: data.state?.trim() || null,
+          country: data.country?.trim() || null,
+          status: data.status ?? RecordStatus.ACTIVE,
+        },
+      });
+      await tx.subscription.create({
+        data: {
+          agencyId: agency.id,
+          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+      });
+      return agency;
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const duplicate = new Error("Agency code already exists") as Error & { statusCode?: number; code?: string };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const duplicate = new Error("Agency code already exists") as Error & {
+        statusCode?: number;
+        code?: string;
+      };
       duplicate.statusCode = 409;
       duplicate.code = "CONFLICT";
       throw duplicate;
@@ -246,20 +299,27 @@ export async function createAgency(context: AuthContext, data: {
   }
 }
 
-export async function updateAgency(context: AuthContext, agencyId: string, data: Partial<{
-  name: string;
-  slug: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  status: RecordStatus;
-}>) {
+export async function updateAgency(
+  context: AuthContext,
+  agencyId: string,
+  data: Partial<{
+    name: string;
+    slug: string;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    status: RecordStatus;
+  }>,
+) {
   const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
   if (!agency) {
-    const error = new Error("Agency not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agency not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
@@ -278,10 +338,19 @@ export async function updateAgency(context: AuthContext, agencyId: string, data:
   if (data.status !== undefined) nextData.status = data.status;
 
   try {
-    return await prisma.agency.update({ where: { id: agencyId }, data: nextData });
+    return await prisma.agency.update({
+      where: { id: agencyId },
+      data: nextData,
+    });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const duplicate = new Error("Agency code already exists") as Error & { statusCode?: number; code?: string };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const duplicate = new Error("Agency code already exists") as Error & {
+        statusCode?: number;
+        code?: string;
+      };
       duplicate.statusCode = 409;
       duplicate.code = "CONFLICT";
       throw duplicate;
@@ -293,7 +362,10 @@ export async function updateAgency(context: AuthContext, agencyId: string, data:
 export async function deactivateAgency(context: AuthContext, agencyId: string) {
   const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
   if (!agency) {
-    const error = new Error("Agency not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agency not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
@@ -305,11 +377,17 @@ export async function deactivateAgency(context: AuthContext, agencyId: string) {
   });
 }
 
-export async function listBranches(context: AuthContext, agencyId: string, query: AgencyQuery & { branchStatus?: RecordStatus | "ALL" }) {
+export async function listBranches(
+  context: AuthContext,
+  agencyId: string,
+  query: AgencyQuery & { branchStatus?: RecordStatus | "ALL" },
+) {
   const page = Number(query.page ?? 1);
   const limit = Number(query.limit ?? 20);
   const search = (query.search ?? "").trim();
-  const status = normalizeStatus((query.branchStatus ?? query.status) as string | undefined);
+  const status = normalizeStatus(
+    (query.branchStatus ?? query.status) as string | undefined,
+  );
   const searchClause: Prisma.BranchWhereInput = search
     ? {
         OR: [
@@ -356,7 +434,10 @@ export async function getBranch(context: AuthContext, branchId: string) {
     include: { agency: true, _count: { select: { users: true } } },
   });
   if (!branch) {
-    const error = new Error("Branch not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Branch not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
@@ -365,21 +446,28 @@ export async function getBranch(context: AuthContext, branchId: string) {
   return branch;
 }
 
-export async function createBranch(context: AuthContext, agencyId: string, data: {
-  name: string;
-  code: string;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  status?: RecordStatus;
-}) {
+export async function createBranch(
+  context: AuthContext,
+  agencyId: string,
+  data: {
+    name: string;
+    code: string;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    status?: RecordStatus;
+  },
+) {
   ensureAgencyAccess(context, agencyId);
   const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
   if (!agency) {
-    const error = new Error("Agency not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agency not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
@@ -388,7 +476,10 @@ export async function createBranch(context: AuthContext, agencyId: string, data:
   const name = data.name?.trim();
   const code = data.code?.trim();
   if (!name || !code) {
-    const error = new Error("Branch name and code are required") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Branch name and code are required") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_REQUEST";
     throw error;
@@ -410,8 +501,13 @@ export async function createBranch(context: AuthContext, agencyId: string, data:
       },
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const duplicate = new Error("Branch code already exists for this agency") as Error & { statusCode?: number; code?: string };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const duplicate = new Error(
+        "Branch code already exists for this agency",
+      ) as Error & { statusCode?: number; code?: string };
       duplicate.statusCode = 409;
       duplicate.code = "CONFLICT";
       throw duplicate;
@@ -420,20 +516,27 @@ export async function createBranch(context: AuthContext, agencyId: string, data:
   }
 }
 
-export async function updateBranch(context: AuthContext, branchId: string, data: Partial<{
-  name: string;
-  code: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  status: RecordStatus;
-}>) {
+export async function updateBranch(
+  context: AuthContext,
+  branchId: string,
+  data: Partial<{
+    name: string;
+    code: string;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    status: RecordStatus;
+  }>,
+) {
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (!branch) {
-    const error = new Error("Branch not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Branch not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
@@ -454,8 +557,13 @@ export async function updateBranch(context: AuthContext, branchId: string, data:
   try {
     return prisma.branch.update({ where: { id: branchId }, data: nextData });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const duplicate = new Error("Branch code already exists for this agency") as Error & { statusCode?: number; code?: string };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const duplicate = new Error(
+        "Branch code already exists for this agency",
+      ) as Error & { statusCode?: number; code?: string };
       duplicate.statusCode = 409;
       duplicate.code = "CONFLICT";
       throw duplicate;
@@ -467,24 +575,36 @@ export async function updateBranch(context: AuthContext, branchId: string, data:
 export async function deactivateBranch(context: AuthContext, branchId: string) {
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (!branch) {
-    const error = new Error("Branch not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Branch not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
   }
   ensureBranchAccess(context, branch.agencyId, branch.id);
-  return prisma.branch.update({ where: { id: branchId }, data: { status: RecordStatus.INACTIVE } });
+  return prisma.branch.update({
+    where: { id: branchId },
+    data: { status: RecordStatus.INACTIVE },
+  });
 }
 
 export async function listAgents(
   context: AuthContext,
   agencyId: string,
-  query: AgencyQuery & { branchId?: string; status?: RecordStatus | "ALL"; branchStatus?: RecordStatus | "ALL" },
+  query: AgencyQuery & {
+    branchId?: string;
+    status?: RecordStatus | "ALL";
+    branchStatus?: RecordStatus | "ALL";
+  },
 ) {
   const page = Number(query.page ?? 1);
   const limit = Number(query.limit ?? 20);
   const search = (query.search ?? "").trim();
-  const status = normalizeStatus((query.status ?? query.branchStatus) as string | undefined);
+  const status = normalizeStatus(
+    (query.status ?? query.branchStatus) as string | undefined,
+  );
   const branchId = query.branchId;
 
   ensureAgencyAccess(context, agencyId);
@@ -547,13 +667,19 @@ export async function getAgent(context: AuthContext, agentId: string) {
     include: { agency: true, branch: true, role: true },
   });
   if (!agent) {
-    const error = new Error("Agent not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
   }
   if (!agent.agencyId) {
-    const error = new Error("Agent does not belong to an agency") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent does not belong to an agency") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_REQUEST";
     throw error;
@@ -562,36 +688,52 @@ export async function getAgent(context: AuthContext, agentId: string) {
   return agent;
 }
 
-export async function createAgent(context: AuthContext, agencyId: string, data: {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string | null;
-  branchId?: string | null;
-  password?: string;
-  status?: RecordStatus;
-}) {
+export async function createAgent(
+  context: AuthContext,
+  agencyId: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    branchId?: string | null;
+    password?: string;
+    status?: RecordStatus;
+  },
+) {
   ensureAgencyAccess(context, agencyId);
   if (!data.firstName || !data.lastName || !data.email) {
-    const error = new Error("Agent name and email are required") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent name and email are required") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_REQUEST";
     throw error;
   }
 
   if (data.branchId) {
-    const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
+    const branch = await prisma.branch.findUnique({
+      where: { id: data.branchId },
+    });
     if (!branch || branch.agencyId !== agencyId) {
-      const error = new Error("Branch does not belong to this agency") as Error & { statusCode?: number; code?: string };
+      const error = new Error(
+        "Branch does not belong to this agency",
+      ) as Error & { statusCode?: number; code?: string };
       error.statusCode = 400;
       error.code = "INVALID_REQUEST";
       throw error;
     }
   }
 
-  const role = await prisma.role.findUnique({ where: { code: RoleCode.AGENT } });
+  const role = await prisma.role.findUnique({
+    where: { code: RoleCode.AGENT },
+  });
   if (!role) {
-    const error = new Error("Agent role is not configured") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent role is not configured") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 500;
     error.code = "INTERNAL_SERVER_ERROR";
     throw error;
@@ -652,8 +794,14 @@ export async function createAgent(context: AuthContext, agencyId: string, data: 
     }
     return { ...user, invitationSent: !hasExplicitPassword };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const duplicate = new Error("Agent email already exists") as Error & { statusCode?: number; code?: string };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const duplicate = new Error("Agent email already exists") as Error & {
+        statusCode?: number;
+        code?: string;
+      };
       duplicate.statusCode = 409;
       duplicate.code = "CONFLICT";
       throw duplicate;
@@ -662,22 +810,35 @@ export async function createAgent(context: AuthContext, agencyId: string, data: 
   }
 }
 
-export async function updateAgent(context: AuthContext, agentId: string, data: Partial<{
-  firstName: string;
-  lastName: string;
-  phone: string | null;
-  branchId: string | null;
-  status: RecordStatus;
-}>) {
-  const agent = await prisma.user.findUnique({ where: { id: agentId }, include: { agency: true, branch: true } });
+export async function updateAgent(
+  context: AuthContext,
+  agentId: string,
+  data: Partial<{
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    branchId: string | null;
+    status: RecordStatus;
+  }>,
+) {
+  const agent = await prisma.user.findUnique({
+    where: { id: agentId },
+    include: { agency: true, branch: true },
+  });
   if (!agent) {
-    const error = new Error("Agent not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
   }
   if (!agent.agencyId) {
-    const error = new Error("Agent is not assigned to an agency") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent is not assigned to an agency") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_REQUEST";
     throw error;
@@ -685,9 +846,13 @@ export async function updateAgent(context: AuthContext, agentId: string, data: P
   ensureAgencyAccess(context, agent.agencyId);
 
   if (data.branchId !== undefined && data.branchId !== null) {
-    const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
+    const branch = await prisma.branch.findUnique({
+      where: { id: data.branchId },
+    });
     if (!branch || branch.agencyId !== agent.agencyId) {
-      const error = new Error("Branch does not belong to this agency") as Error & { statusCode?: number; code?: string };
+      const error = new Error(
+        "Branch does not belong to this agency",
+      ) as Error & { statusCode?: number; code?: string };
       error.statusCode = 400;
       error.code = "INVALID_REQUEST";
       throw error;
@@ -697,10 +862,18 @@ export async function updateAgent(context: AuthContext, agentId: string, data: P
   return prisma.user.update({
     where: { id: agentId },
     data: {
-      ...(data.firstName !== undefined ? { firstName: data.firstName.trim() } : {}),
-      ...(data.lastName !== undefined ? { lastName: data.lastName.trim() } : {}),
-      ...(data.phone !== undefined ? { phone: data.phone?.trim() || null } : {}),
-      ...(data.branchId !== undefined ? { branchId: data.branchId ?? null } : {}),
+      ...(data.firstName !== undefined
+        ? { firstName: data.firstName.trim() }
+        : {}),
+      ...(data.lastName !== undefined
+        ? { lastName: data.lastName.trim() }
+        : {}),
+      ...(data.phone !== undefined
+        ? { phone: data.phone?.trim() || null }
+        : {}),
+      ...(data.branchId !== undefined
+        ? { branchId: data.branchId ?? null }
+        : {}),
       ...(data.status !== undefined ? { status: data.status } : {}),
     },
     include: { agency: true, branch: true, role: true },
@@ -710,13 +883,19 @@ export async function updateAgent(context: AuthContext, agentId: string, data: P
 export async function deactivateAgent(context: AuthContext, agentId: string) {
   const agent = await prisma.user.findUnique({ where: { id: agentId } });
   if (!agent) {
-    const error = new Error("Agent not found") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 404;
     error.code = "NOT_FOUND";
     throw error;
   }
   if (!agent.agencyId) {
-    const error = new Error("Agent is not assigned to an agency") as Error & { statusCode?: number; code?: string };
+    const error = new Error("Agent is not assigned to an agency") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_REQUEST";
     throw error;

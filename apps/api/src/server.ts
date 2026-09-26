@@ -17,7 +17,12 @@ async function startServer() {
         ('TripSeat'),
         ('Booking'),
         ('BookingPassenger'),
-        ('BusSeatLayout')
+        ('BusSeatLayout'),
+        ('Notification'),
+        ('CancellationRequest'),
+        ('AuditLog'),
+        ('Subscription'),
+        ('SubscriptionInvoice')
       ) AS required(table_name)
     `;
     const missingTables = requiredTables
@@ -26,7 +31,7 @@ async function startServer() {
 
     if (missingTables.length > 0) {
       throw new Error(
-        `Database connection succeeded, but the booking schema is incomplete (missing ${missingTables.join(", ")}). Apply migrations with: bunx prisma migrate deploy --config prisma.config.ts`,
+        `Database connection succeeded, but the application schema is incomplete (missing ${missingTables.join(", ")}). Apply migrations with: bunx prisma migrate deploy --config prisma.config.ts`,
       );
     }
 

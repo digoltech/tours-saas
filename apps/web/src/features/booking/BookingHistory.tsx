@@ -6,7 +6,11 @@ import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
-import { BookingRecord, getBookings } from "../auth/services/api-client";
+import {
+  BookingRecord,
+  getBookings,
+  requestBookingCancellation,
+} from "../auth/services/api-client";
 
 export function BookingHistory({ compact = false }: { compact?: boolean }) {
   const [pnr, setPnr] = useState("");
@@ -17,6 +21,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
   const [rows, setRows] = useState<BookingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +52,24 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
 
   async function openTicket(row: BookingRecord) {
     window.location.assign(`/bookings?pnr=${encodeURIComponent(row.pnr)}`);
+  }
+  async function requestCancellation(row: BookingRecord) {
+    const input = window.prompt(
+      `Reason for cancelling booking ${row.pnr} (optional):`,
+    );
+    if (input === null) return;
+    const reason = input;
+    try {
+      await requestBookingCancellation(row.id, reason);
+      setNotice(`Cancellation request for ${row.pnr} sent for agency review.`);
+      await load();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to request cancellation",
+      );
+    }
   }
 
   return (
@@ -114,6 +137,11 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
           {error}
         </div>
       )}
+      {notice && (
+        <div className={cn("state-message")} role="status">
+          {notice}
+        </div>
+      )}
       <Card className={cn("management-card")}>
         {loading ? (
           <div className={cn("state-message")} role="status">
@@ -160,7 +188,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                       {row.currency} {Number(row.totalAmount).toFixed(2)}
                     </td>
                     <td>
-                      <Badge>CONFIRMED</Badge>
+                      <Badge>{row.status}</Badge>
                     </td>
                     <td>
                       <button
@@ -171,6 +199,20 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                       >
                         View <ArrowRight size={14} />
                       </button>
+                      {!compact && row.status === "CONFIRMED" && (
+                        <button
+                          className={cn("text-link", "ml-3")}
+                          type="button"
+                          disabled={
+                            row.cancellationRequest?.status === "PENDING"
+                          }
+                          onClick={() => void requestCancellation(row)}
+                        >
+                          {row.cancellationRequest?.status === "PENDING"
+                            ? "Cancellation pending"
+                            : "Request cancellation"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

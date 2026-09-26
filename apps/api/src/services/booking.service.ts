@@ -3,7 +3,12 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
 import { canAccessTenant } from "../middleware/tenant-policy.js";
-import { calculateCommission, calculateTax, money } from "./finance-calculations.js";
+import {
+  calculateCommission,
+  calculateTax,
+  money,
+} from "./finance-calculations.js";
+import { sendBookingNotifications } from "./stage4.service.js";
 
 type Err = Error & { statusCode?: number; code?: string };
 function fail(statusCode: number, code: string, message: string): never {
@@ -59,7 +64,12 @@ async function loadTrip(context: AuthContext, tripId: string) {
 }
 function seatsFor(bus: {
   totalSeats: number;
-  seatLayout: { columns: number; rows: number; disabledSeats: string[]; seatDetails?: Prisma.JsonValue } | null;
+  seatLayout: {
+    columns: number;
+    rows: number;
+    disabledSeats: string[];
+    seatDetails?: Prisma.JsonValue;
+  } | null;
 }) {
   const columns = bus.seatLayout?.columns ?? 4;
   const names = Array.from({ length: bus.totalSeats }, (_, i) =>
@@ -71,9 +81,15 @@ function seatsFor(bus: {
     ),
     columns,
     rows: bus.seatLayout?.rows ?? Math.ceil(bus.totalSeats / columns),
-    seatDetails: bus.seatLayout?.seatDetails && typeof bus.seatLayout.seatDetails === "object" && !Array.isArray(bus.seatLayout.seatDetails)
-      ? bus.seatLayout.seatDetails as Record<string, { type?: string; restriction?: string }>
-      : {},
+    seatDetails:
+      bus.seatLayout?.seatDetails &&
+      typeof bus.seatLayout.seatDetails === "object" &&
+      !Array.isArray(bus.seatLayout.seatDetails)
+        ? (bus.seatLayout.seatDetails as Record<
+            string,
+            { type?: string; restriction?: string }
+          >)
+        : {},
   };
 }
 async function ensureInventory(
@@ -190,7 +206,12 @@ export async function tripAvailability(context: AuthContext, tripId: string) {
 export async function saveSeatLayout(
   context: AuthContext,
   busId: string,
-  input: { rows: number; columns: number; disabledSeats: string[]; seatDetails?: Record<string, { type: string; restriction: string }> },
+  input: {
+    rows: number;
+    columns: number;
+    disabledSeats: string[];
+    seatDetails?: Record<string, { type: string; restriction: string }>;
+  },
 ) {
   const bus = await prisma.bus.findUnique({ where: { id: busId } });
   if (!bus) fail(404, "NOT_FOUND", "Bus not found");
@@ -439,17 +460,30 @@ export async function confirmBooking(
         : 0;
   if (discountAmount > baseFare)
     fail(400, "INVALID_DISCOUNT", "Discount cannot exceed the fare");
-  const financeSettings = await prisma.financeSettings.findUnique({ where: { agencyId: trip.agencyId } });
+  const financeSettings = await prisma.financeSettings.findUnique({
+    where: { agencyId: trip.agencyId },
+  });
   const taxRate = Number(financeSettings?.gstRate ?? 0);
-  const taxAmount = calculateTax(baseFare, discountAmount, taxRate, financeSettings?.gstAfterDiscount !== false);
+  const taxAmount = calculateTax(
+    baseFare,
+    discountAmount,
+    taxRate,
+    financeSettings?.gstAfterDiscount !== false,
+  );
   const commissionType = financeSettings?.commissionType ?? "PERCENTAGE";
   const commissionRate = Number(financeSettings?.commissionValue ?? 0);
-  const commissionAmount = calculateCommission(baseFare, discountAmount, expectedSeats.length, commissionType, commissionRate);
+  const commissionAmount = calculateCommission(
+    baseFare,
+    discountAmount,
+    expectedSeats.length,
+    commissionType,
+    commissionRate,
+  );
   const totalAmount = money(baseFare - discountAmount + taxAmount);
   const pnr = `A1${randomBytes(5).toString("hex").toUpperCase()}`;
   const now = new Date();
   try {
-    return await prisma.$transaction(
+    const created = await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM "TripSeat" WHERE "tripId" = ${trip.id} AND "seatName" IN (${Prisma.join(expectedSeats)}) FOR UPDATE`;
         const seats = await tx.tripSeat.findMany({
@@ -522,9 +556,46 @@ export async function confirmBooking(
             dropOffStop: true,
           },
         });
-        await tx.agentCommission.create({ data: { bookingId: booking.id, agencyId: trip.agencyId, agentId: context.userId, amount: commissionAmount } });
-        await tx.financeLedger.create({ data: { agencyId: trip.agencyId, bookingId: booking.id, type: "COMMISSION", party: "AGENT", partyId: context.userId, amount: commissionAmount, description: `Commission earned for booking ${booking.pnr}` } });
-        await tx.financeLedger.create({ data: { agencyId: trip.agencyId, bookingId: booking.id, type: "OPERATOR_PAYABLE", party: "OPERATOR", partyId: trip.agencyId, amount: Math.max(0, totalAmount - taxAmount - commissionAmount), description: `Operator payable accrued for booking ${booking.pnr}` } });
+        await tx.agentCommission.create({
+          data: {
+            bookingId: booking.id,
+            agencyId: trip.agencyId,
+            agentId: context.userId,
+            amount: commissionAmount,
+          },
+        });
+        await tx.financeLedger.create({
+          data: {
+            agencyId: trip.agencyId,
+            bookingId: booking.id,
+            type: "COMMISSION",
+            party: "AGENT",
+            partyId: context.userId,
+            amount: commissionAmount,
+            description: `Commission earned for booking ${booking.pnr}`,
+          },
+        });
+        await tx.financeLedger.create({
+          data: {
+            agencyId: trip.agencyId,
+            bookingId: booking.id,
+            type: "OPERATOR_PAYABLE",
+            party: "OPERATOR",
+            partyId: trip.agencyId,
+            amount: Math.max(0, totalAmount - taxAmount - commissionAmount),
+            description: `Operator payable accrued for booking ${booking.pnr}`,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            agencyId: trip.agencyId,
+            actorId: context.userId,
+            action: "BOOKING_CONFIRMED",
+            entityType: "Booking",
+            entityId: booking.id,
+            details: { pnr: booking.pnr },
+          },
+        });
         await tx.tripSeat.updateMany({
           where: {
             tripId: trip.id,
@@ -541,6 +612,10 @@ export async function confirmBooking(
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+    void sendBookingNotifications(created.id, "BOOKING_CONFIRMED").catch(
+      (error) => console.error("Booking notification failed", error),
+    );
+    return created;
   } catch (error) {
     if ((error as Err).statusCode) throw error;
     if (
@@ -579,6 +654,7 @@ export async function getBookingByPnr(context: AuthContext, pnr: string) {
       trip: { include: { route: true, bus: true, branch: true } },
       boardingStop: true,
       dropOffStop: true,
+      cancellationRequest: true,
     },
   });
   if (!booking) fail(404, "NOT_FOUND", "Booking not found");
@@ -651,6 +727,7 @@ export async function listBookings(
         trip: { include: { route: true, bus: true, branch: true } },
         boardingStop: true,
         dropOffStop: true,
+        cancellationRequest: true,
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,

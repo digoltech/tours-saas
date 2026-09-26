@@ -65,6 +65,8 @@ The API health endpoint is `GET http://localhost:4000/api/health` and returns `{
 
 Bus seat layouts, trip fares, agency discount caps, finance settings, payments, cancellations, refunds, commissions, settlements, and ledger entries are stored in PostgreSQL and shared across authorized users. Payments and refunds are recorded manually; no payment gateway is configured. Cancellation requires agency-configured tiers. Finance reports include tenant-scoped revenue, occupancy, cancellation, refund, commission, settlement, and ledger data, with CSV and PDF downloads.
 
+Stage 4 adds persisted notification preferences/history, provider-neutral SMS and WhatsApp delivery, agency ticket branding, cancellation request review, trial and plan tracking, manual subscription invoices, and audit history. Booking and subscription payments remain offline. See [docs/stage-4-launch.md](docs/stage-4-launch.md) for production environment setup, migration, and release checks.
+
 ## Quality commands
 
 ```bash

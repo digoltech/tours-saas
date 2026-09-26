@@ -1,76 +1,111 @@
 "use client";
 
-import { cn } from "../../lib/utils";
 import { useEffect, useState } from "react";
 import { Check, Save } from "lucide-react";
+import { cn } from "../../lib/utils";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
-import { getDiscountCap, updateDiscountCap } from "../auth/services/api-client";
+import {
+  getAgencySettings,
+  getSubscription,
+  getSubscriptionInvoices,
+  markSubscriptionInvoicePaid,
+  requestSubscriptionPlan,
+  saveAgencySettings,
+} from "../auth/services/api-client";
 import { useAuth } from "../auth/components/AuthProvider";
+import type { AgencyBranding, SubscriptionContract } from "@a-one-tours/shared";
+import { SubscriptionAdmin } from "./SubscriptionAdmin";
 
-type SettingValues = {
+type Values = {
+  name: string;
+  email: string;
+  phone: string;
+  brandColor: string;
+  logoUrl: string;
   currency: string;
-  baseFare: string;
+  defaultFare: string;
 };
-const defaults: SettingValues = {
+const empty: Values = {
+  name: "",
+  email: "",
+  phone: "",
+  brandColor: "#c62828",
+  logoUrl: "",
   currency: "INR",
-  baseFare: "",
+  defaultFare: "0",
 };
-const storageKey = "aone-workspace-settings-v1";
-
 export function SettingsWorkspace() {
   const { user } = useAuth();
-  const [values, setValues] = useState(defaults);
-  const [discountCap, setDiscountCap] = useState({
-    type: "PERCENTAGE" as "FIXED" | "PERCENTAGE",
-    value: "0",
-  });
-  const [saved, setSaved] = useState(false);
+  const [values, setValues] = useState(empty);
+  const [subscription, setSubscription] = useState<SubscriptionContract | null>(
+    null,
+  );
+  const [invoices, setInvoices] = useState<
+    Awaited<ReturnType<typeof getSubscriptionInvoices>>
+  >([]);
+  const [planName, setPlanName] = useState("Starter");
+  const [price, setPrice] = useState("0");
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER"
+  >("CASH");
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const raw = localStorage.getItem(storageKey);
-        if (raw)
+    let active = true;
+    const agencyRequest =
+      user?.role === "AGENCY_ADMIN"
+        ? getAgencySettings()
+        : Promise.resolve(null);
+    Promise.all([
+      agencyRequest,
+      user?.role === "SUPER_ADMIN" ? Promise.resolve(null) : getSubscription(),
+      user?.role === "SUPER_ADMIN"
+        ? Promise.resolve([])
+        : getSubscriptionInvoices(),
+    ])
+      .then(([agency, sub, bills]) => {
+        if (!active) return;
+        if (agency)
           setValues({
-            ...defaults,
-            ...(JSON.parse(raw) as Partial<SettingValues>),
+            name: agency.name,
+            email: agency.email ?? "",
+            phone: agency.phone ?? "",
+            brandColor: agency.brandColor,
+            logoUrl: agency.logoUrl ?? "",
+            currency: agency.currency,
+            defaultFare: String(agency.defaultFare),
           });
-      } catch {
-        localStorage.removeItem(storageKey);
-      }
-      void getDiscountCap()
-        .then((cap) =>
-          setDiscountCap({ type: cap.type, value: String(cap.value) }),
-        )
-        .catch(() => undefined);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-  function update(key: keyof SettingValues, value: string) {
-    setValues((current) => ({ ...current, [key]: value }));
-    setSaved(false);
-  }
+        setSubscription(sub);
+        if (sub) {
+          setPlanName(sub.requestedPlanName ?? sub.planName);
+          setPrice(String(sub.requestedPrice ?? sub.price));
+        }
+        setInvoices(bills);
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error ? cause.message : "Unable to load settings",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.role]);
   async function save() {
     setError("");
-    const baseFare = Number(values.baseFare);
-    const discountValue = Number(discountCap.value);
-    if (values.baseFare !== "" && (!Number.isFinite(baseFare) || baseFare < 0)) {
-      setError("Default fare must be a valid amount of zero or greater.");
-      return;
-    }
-    if (!Number.isFinite(discountValue) || discountValue < 0 || (discountCap.type === "PERCENTAGE" && discountValue > 100)) {
-      setError("Discount must be zero or greater, and a percentage cannot exceed 100%.");
-      return;
-    }
+    setSaved(false);
     try {
-      localStorage.setItem(storageKey, JSON.stringify(values));
-      if (user?.role === "AGENCY_ADMIN")
-        await updateDiscountCap({
-          type: discountCap.type,
-          value: Number(discountCap.value),
-        });
+      const result: AgencyBranding = await saveAgencySettings({
+        ...values,
+        logoUrl: values.logoUrl || null,
+        email: values.email || null,
+        phone: values.phone || null,
+        defaultFare: Number(values.defaultFare),
+      });
+      setValues((v) => ({ ...v, name: result.name }));
       setSaved(true);
     } catch (cause) {
       setError(
@@ -78,91 +113,189 @@ export function SettingsWorkspace() {
       );
     }
   }
+  async function requestPlan() {
+    setError("");
+    try {
+      setSubscription(await requestSubscriptionPlan(planName, Number(price)));
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to request plan",
+      );
+    }
+  }
+  async function markPaid(id: string) {
+    const reference = window.prompt("Offline payment reference (optional):");
+    if (reference === null) return;
+    try {
+      await markSubscriptionInvoicePaid(id, paymentMethod, reference);
+      setInvoices(await getSubscriptionInvoices());
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to record invoice payment",
+      );
+    }
+  }
+  const field = (key: keyof Values, label: string, type = "text") => (
+    <label>
+      {label}
+      <input
+        type={type}
+        value={values[key]}
+        onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+      />
+    </label>
+  );
   return (
     <>
       <PageHeader
-        title="Fare and policy settings"
-        description="Set booking defaults and agency discount limits. Tax, commission, and cancellation policy live in Finance & reports."
+        title="Workspace settings"
+        description="Manage your agency profile, ticket branding, and subscription."
       />
-      <div className={cn("settings-grid")}>
-        <Card className={cn("settings-card")}>
-          <p className={cn("eyebrow")}>Fare settings</p>
-          <h2>Default fare</h2>
-          <label>
-            Currency
-            <select
-              value={values.currency}
-              onChange={(e) => update("currency", e.target.value)}
-            >
-              <option value="INR">INR · Indian rupee</option>
-              <option value="USD">USD · US dollar</option>
-              <option value="EUR">EUR · Euro</option>
-              <option value="GBP">GBP · Pound sterling</option>
-            </select>
-          </label>
-          <label>
-            Default one-way fare
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={values.baseFare}
-              onChange={(e) => update("baseFare", e.target.value)}
-              placeholder="0.00"
-            />
-          </label>
-        </Card>
-        {user?.role === "AGENCY_ADMIN" && (
-          <Card className={cn("settings-card")}>
-            <p className={cn("eyebrow")}>Booking controls</p>
-            <h2>Maximum agent discount</h2>
-            <label>
-              Discount type
-              <select
-                value={discountCap.type}
-                onChange={(e) =>
-                  setDiscountCap((v) => ({
-                    ...v,
-                    type: e.target.value as "FIXED" | "PERCENTAGE",
-                  }))
-                }
-              >
-                <option value="PERCENTAGE">Percentage</option>
-                <option value="FIXED">Fixed amount (INR)</option>
-              </select>
-            </label>
-            <label>
-              Maximum discount{" "}
-              {discountCap.type === "PERCENTAGE" ? "(%)" : "(INR)"}
-              <input
-                type="number"
-                min="0"
-                max={discountCap.type === "PERCENTAGE" ? 100 : 100000}
-                step="0.01"
-                value={discountCap.value}
-                onChange={(e) =>
-                  setDiscountCap((v) => ({ ...v, value: e.target.value }))
-                }
-              />
-            </label>
-          </Card>
-        )}
-      </div>
       {error && (
         <div className={cn("state-message state-error")} role="alert">
           {error}
         </div>
       )}
-      {saved && (
-        <p className={cn("save-confirmation")} role="status">
-          <Check size={16} /> Settings saved.
-        </p>
+      {user?.role === "AGENCY_ADMIN" && (
+        <Card className={cn("settings-card")}>
+          <p className={cn("eyebrow")}>AGENCY BRANDING</p>
+          <h2>Workspace and ticket details</h2>
+          {field("name", "Agency name")}
+          {field("email", "Contact email", "email")}
+          {field("phone", "Contact phone", "tel")}
+          {field("logoUrl", "Logo image URL", "url")}
+          <div className="grid grid-cols-2 gap-3">
+            {field("brandColor", "Brand color", "color")}
+            <label>
+              Currency
+              <select
+                value={values.currency}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, currency: e.target.value }))
+                }
+              >
+                <option>INR</option>
+                <option>USD</option>
+                <option>EUR</option>
+                <option>GBP</option>
+              </select>
+            </label>
+          </div>
+          {field("defaultFare", "Default one-way fare", "number")}
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => void save()}>
+              <Save size={15} /> Save settings
+            </Button>
+          </div>
+          {saved && (
+            <p role="status">
+              <Check size={15} /> Settings saved.
+            </p>
+          )}
+        </Card>
       )}
-      <div className="mt-4 flex justify-end"><Button onClick={save}><Save size={16} /> Save settings</Button></div>
-      <p className={cn("muted settings-note")}>
-        The fare default is local to this browser. Discount limits are shared
-        with the agency; finance policies are managed in Finance &amp; reports.
-      </p>
+      {user?.role === "SUPER_ADMIN" ? (
+        <SubscriptionAdmin />
+      ) : (
+        <>
+          <Card className={cn("settings-card", "mt-5")}>
+            <p className={cn("eyebrow")}>SUBSCRIPTION</p>
+            <h2>
+              {subscription?.planName ?? "Plan"} ·{" "}
+              {subscription?.status ?? "Loading"}
+            </h2>
+            <p>
+              {subscription?.status === "TRIAL" && subscription.trialEndsAt
+                ? `Trial ends ${new Date(subscription.trialEndsAt).toLocaleDateString()}.`
+                : "Plan activation and payment are handled by your account administrator."}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label>
+                Requested plan
+                <input
+                  value={planName}
+                  onChange={(e) => setPlanName(e.target.value)}
+                  maxLength={80}
+                />
+              </label>
+              <label>
+                Monthly price (INR)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button variant="secondary" onClick={() => void requestPlan()}>
+                Request plan
+              </Button>
+            </div>
+          </Card>
+          <section className="mt-5">
+            {user?.role === "AGENCY_ADMIN" && (
+              <label>
+                Offline payment method
+                <select
+                  value={paymentMethod}
+                  onChange={(event) =>
+                    setPaymentMethod(event.target.value as typeof paymentMethod)
+                  }
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="BANK_TRANSFER">Bank transfer</option>
+                  <option value="CARD">Card (offline)</option>
+                  <option value="UPI">UPI (offline)</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
+            )}
+            <div className={cn("card-heading")}>
+              <div>
+                <p className={cn("eyebrow")}>MANUAL BILLING</p>
+                <h2>Invoices</h2>
+              </div>
+            </div>
+            {invoices.length ? (
+              <div className="grid gap-3">
+                {invoices.map((bill) => (
+                  <Card key={bill.id}>
+                    <strong>{bill.number}</strong>
+                    <p>
+                      {bill.description} · {bill.currency}{" "}
+                      {Number(bill.amount).toFixed(2)}
+                    </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span>
+                        {bill.status}
+                        {bill.dueAt
+                          ? ` · Due ${new Date(bill.dueAt).toLocaleDateString()}`
+                          : ""}
+                      </span>
+                      {user?.role === "AGENCY_ADMIN" &&
+                        bill.status === "OPEN" && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => void markPaid(bill.id)}
+                          >
+                            Record offline payment
+                          </Button>
+                        )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>No invoices yet.</Card>
+            )}
+          </section>
+        </>
+      )}
     </>
   );
 }

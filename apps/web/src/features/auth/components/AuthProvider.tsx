@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   getCurrentUser,
   logout as requestLogout,
@@ -22,14 +22,22 @@ type AuthContextValue = {
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [status, setStatus] = useState<AuthStatus>("loading");
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: ReactNode;
+  initialUser?: AuthUser | null;
+}) {
+  const [user, setUser] = useState<AuthUser | null>(initialUser);
+  const [status, setStatus] = useState<AuthStatus>(
+    initialUser ? "authenticated" : "loading",
+  );
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
+    if (initialUser) return;
     let active = true;
     getCurrentUser()
       .then((nextUser) => {
@@ -47,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [pathname]);
+  }, [initialUser]);
 
   async function logout() {
     await requestLogout();

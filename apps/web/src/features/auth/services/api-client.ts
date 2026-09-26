@@ -1,5 +1,16 @@
 import type { AuthUser } from "../types";
-import type { FinanceMethod, FinanceReportFilters, FinanceReportResponse, FinanceSettingsContract, SettlementParty } from "@a-one-tours/shared";
+import type {
+  FinanceMethod,
+  FinanceReportFilters,
+  FinanceReportResponse,
+  FinanceSettingsContract,
+  SettlementParty,
+} from "@a-one-tours/shared";
+import type {
+  AgencyBranding,
+  NotificationPreferences,
+  SubscriptionContract,
+} from "@a-one-tours/shared";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -87,6 +98,150 @@ export function completeOnboarding(data: {
 }
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
+}
+export function getNotifications() {
+  return request<
+    {
+      id: string;
+      subject: string;
+      message: string;
+      status: string;
+      createdAt: string;
+      readAt: string | null;
+    }[]
+  >("/api/notifications");
+}
+export function getNotificationPreferences() {
+  return request<NotificationPreferences>("/api/notifications/preferences");
+}
+export function saveNotificationPreferences(input: NotificationPreferences) {
+  return request<NotificationPreferences>("/api/notifications/preferences", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+export function markNotificationRead(id: string) {
+  return request<unknown>(`/api/notifications/${encodeURIComponent(id)}/read`, {
+    method: "POST",
+  });
+}
+export function getAgencySettings() {
+  return request<AgencyBranding>("/api/agency/settings");
+}
+export function saveAgencySettings(input: Omit<AgencyBranding, "id">) {
+  return request<AgencyBranding>("/api/agency/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+export function requestBookingCancellation(id: string, reason: string) {
+  return request<{ id: string; status: string }>(
+    `/api/bookings/${encodeURIComponent(id)}/cancellation-request`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+  );
+}
+export function getCancellationRequests() {
+  return request<
+    {
+      id: string;
+      reason: string | null;
+      createdAt: string;
+      booking: {
+        id: string;
+        pnr: string;
+        totalAmount: number | string;
+        trip: { route: { source: string; destination: string } };
+      };
+    }[]
+  >("/api/cancellation-requests");
+}
+export function reviewCancellationRequest(
+  id: string,
+  approve: boolean,
+  note = "",
+) {
+  return request<{ status: string }>(
+    `/api/cancellation-requests/${encodeURIComponent(id)}/review`,
+    { method: "POST", body: JSON.stringify({ approve, note }) },
+  );
+}
+export function getSubscription() {
+  return request<SubscriptionContract>("/api/subscription");
+}
+export function requestSubscriptionPlan(planName: string, price: number) {
+  return request<SubscriptionContract>("/api/subscription", {
+    method: "PUT",
+    body: JSON.stringify({ planName, price }),
+  });
+}
+export function getAdminSubscription(agencyId: string) {
+  return request<SubscriptionContract | null>(
+    `/api/admin/agencies/${encodeURIComponent(agencyId)}/subscription`,
+  );
+}
+export function updateAdminSubscription(
+  agencyId: string,
+  data: {
+    planName: string;
+    price: number;
+    status: SubscriptionContract["status"];
+    trialEndsAt?: string | null;
+    periodEndsAt?: string | null;
+  },
+) {
+  return request<SubscriptionContract>(
+    `/api/admin/agencies/${encodeURIComponent(agencyId)}/subscription`,
+    { method: "PUT", body: JSON.stringify(data) },
+  );
+}
+export function getSubscriptionInvoices(agencyId?: string) {
+  return request<
+    {
+      id: string;
+      number: string;
+      description: string;
+      amount: number | string;
+      currency: string;
+      status: string;
+      dueAt: string | null;
+      reference: string | null;
+    }[]
+  >(
+    `/api/subscription/invoices${agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : ""}`,
+  );
+}
+export function createSubscriptionInvoice(data: {
+  agencyId: string;
+  description: string;
+  amount: number;
+  dueAt?: string;
+}) {
+  return request<unknown>("/api/subscription/invoices", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function markSubscriptionInvoicePaid(
+  id: string,
+  method: FinanceMethod,
+  reference: string,
+) {
+  return request<unknown>(
+    `/api/subscription/invoices/${encodeURIComponent(id)}/paid`,
+    { method: "POST", body: JSON.stringify({ method, reference }) },
+  );
+}
+export function getAuditLogs() {
+  return request<
+    {
+      id: string;
+      action: string;
+      entityType: string;
+      entityId: string | null;
+      createdAt: string;
+      actor: { firstName: string; lastName: string; email: string } | null;
+    }[]
+  >("/api/audit-logs");
 }
 export function logout() {
   return request<{ loggedOut: boolean }>("/api/auth/logout", {
@@ -266,7 +421,13 @@ export type SeatAvailability = {
   trip: Trip & { route: Route & { stops: Stop[] }; bus: Bus };
   rows: number;
   columns: number;
-  seats: { name: string; type: string; restriction: string; status: string; holdExpiresAt: string | null }[];
+  seats: {
+    name: string;
+    type: string;
+    restriction: string;
+    status: string;
+    holdExpiresAt: string | null;
+  }[];
   discountCap: { type: "FIXED" | "PERCENTAGE"; value: number };
 };
 export type BookingPassengerInput = {
@@ -338,21 +499,130 @@ export function getBookingDashboardSummary() {
   }>("/api/bookings/summary");
 }
 export type FinanceSettingsData = Omit<FinanceSettingsContract, "agencyId">;
-export function getFinanceSettings(agencyId?: string) { return request<{ settings: Omit<FinanceSettingsContract, "tiers"> | null; tiers: FinanceSettingsContract["tiers"] }>(`/api/finance/settings${agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : ""}`); }
-export function saveFinanceSettings(data: Omit<FinanceSettingsContract, "gstRate" | "commissionValue" | "tiers"> & { gstRate: number; commissionValue: number; tiers: { hoursBeforeDeparture: number; feePercent: number }[] }) { return request<FinanceSettingsData>("/api/finance/settings", { method: "PUT", body: JSON.stringify(data) }); }
+export function getFinanceSettings(agencyId?: string) {
+  return request<{
+    settings: Omit<FinanceSettingsContract, "tiers"> | null;
+    tiers: FinanceSettingsContract["tiers"];
+  }>(
+    `/api/finance/settings${agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : ""}`,
+  );
+}
+export function saveFinanceSettings(
+  data: Omit<
+    FinanceSettingsContract,
+    "gstRate" | "commissionValue" | "tiers"
+  > & {
+    gstRate: number;
+    commissionValue: number;
+    tiers: { hoursBeforeDeparture: number; feePercent: number }[];
+  },
+) {
+  return request<FinanceSettingsData>("/api/finance/settings", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
 export type FinanceFilters = FinanceReportFilters;
-function financeQuery(filters: FinanceFilters = {}) { const query = new URLSearchParams(); for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value); return query; }
-export function getFinanceReports(from?: string, to?: string, scope: Omit<FinanceFilters, "from" | "to"> = {}) { const query = financeQuery({ ...scope, from, to }); return request<FinanceReportResponse & { ledger: Record<string, unknown>[] }>(`/api/finance/reports?${query}`); }
-export function getFinanceLedger() { return request<Record<string, unknown>[]>("/api/finance/ledger"); }
-export function getBookingFinanceByPnr(pnr: string) { return request<{ id: string; pnr: string; status: string; totalAmount: number | string; taxAmount: number | string; payments: { id: string; amount: number | string; method: string; reference: string | null; receivedAt: string }[]; refunds: { id: string; amount: number | string; method: string; reference: string | null; refundedAt: string }[]; cancellation: { eligibleRefund: number | string; feeAmount: number | string } | null }>(`/api/finance/bookings/pnr/${encodeURIComponent(pnr)}`); }
-export function recordBookingPayment(id: string, data: { amount: number; method: FinanceMethod; reference?: string }) { return request<unknown>(`/api/bookings/${id}/payments`, { method: "POST", body: JSON.stringify(data) }); }
-export function cancelBookingFinance(id: string, reason?: string) { return request<{ eligibleRefund: number; feeAmount: number; feePercent: number }>(`/api/bookings/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }); }
-export function recordBookingRefund(id: string, data: { amount: number; method: FinanceMethod; reference?: string }) { return request<unknown>(`/api/bookings/${id}/refunds`, { method: "POST", body: JSON.stringify(data) }); }
-export function postFinanceSettlement(data: { party: SettlementParty; partyId: string; amount: number; method: FinanceMethod; reference?: string }) { return request<unknown>("/api/finance/settlements", { method: "POST", body: JSON.stringify(data) }); }
-export function financeExportUrl(format: "excel" | "pdf", from?: string, to?: string, scope: Omit<FinanceFilters, "from" | "to"> = {}) { const query = financeQuery({ ...scope, from, to }); return `${apiUrl}/api/finance/reports/export/${format}?${query}`; }
+function financeQuery(filters: FinanceFilters = {}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters))
+    if (value) query.set(key, value);
+  return query;
+}
+export function getFinanceReports(
+  from?: string,
+  to?: string,
+  scope: Omit<FinanceFilters, "from" | "to"> = {},
+) {
+  const query = financeQuery({ ...scope, from, to });
+  return request<FinanceReportResponse & { ledger: Record<string, unknown>[] }>(
+    `/api/finance/reports?${query}`,
+  );
+}
+export function getFinanceLedger() {
+  return request<Record<string, unknown>[]>("/api/finance/ledger");
+}
+export function getBookingFinanceByPnr(pnr: string) {
+  return request<{
+    id: string;
+    pnr: string;
+    status: string;
+    totalAmount: number | string;
+    taxAmount: number | string;
+    payments: {
+      id: string;
+      amount: number | string;
+      method: string;
+      reference: string | null;
+      receivedAt: string;
+    }[];
+    refunds: {
+      id: string;
+      amount: number | string;
+      method: string;
+      reference: string | null;
+      refundedAt: string;
+    }[];
+    cancellation: {
+      eligibleRefund: number | string;
+      feeAmount: number | string;
+    } | null;
+  }>(`/api/finance/bookings/pnr/${encodeURIComponent(pnr)}`);
+}
+export function recordBookingPayment(
+  id: string,
+  data: { amount: number; method: FinanceMethod; reference?: string },
+) {
+  return request<unknown>(`/api/bookings/${id}/payments`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function cancelBookingFinance(id: string, reason?: string) {
+  return request<{
+    eligibleRefund: number;
+    feeAmount: number;
+    feePercent: number;
+  }>(`/api/bookings/${id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+export function recordBookingRefund(
+  id: string,
+  data: { amount: number; method: FinanceMethod; reference?: string },
+) {
+  return request<unknown>(`/api/bookings/${id}/refunds`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function postFinanceSettlement(data: {
+  party: SettlementParty;
+  partyId: string;
+  amount: number;
+  method: FinanceMethod;
+  reference?: string;
+}) {
+  return request<unknown>("/api/finance/settlements", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function financeExportUrl(
+  format: "excel" | "pdf",
+  from?: string,
+  to?: string,
+  scope: Omit<FinanceFilters, "from" | "to"> = {},
+) {
+  const query = financeQuery({ ...scope, from, to });
+  return `${apiUrl}/api/finance/reports/export/${format}?${query}`;
+}
 export type BookingRecord = {
   id: string;
   pnr: string;
+  status: "CONFIRMED" | "CANCELLED";
+  cancellationRequest?: { status: "PENDING" | "APPROVED" | "REJECTED" } | null;
   currency: string;
   baseFare: number | string;
   discountAmount: number | string;
@@ -363,18 +633,31 @@ export type BookingRecord = {
   dropOffStop: { id: string; name: string };
 };
 export function getSeatLayout(busId: string) {
-  return request<{ rows: number; columns: number; disabledSeats: string[]; seatDetails?: Record<string, {type:string;restriction:string}> }>(
-    `/api/buses/${busId}/seat-layout`,
-  );
+  return request<{
+    rows: number;
+    columns: number;
+    disabledSeats: string[];
+    seatDetails?: Record<string, { type: string; restriction: string }>;
+  }>(`/api/buses/${busId}/seat-layout`);
 }
 export function saveSeatLayout(
   busId: string,
-  data: { rows: number; columns: number; disabledSeats: string[]; seatDetails: Record<string, {type:string;restriction:string}> },
+  data: {
+    rows: number;
+    columns: number;
+    disabledSeats: string[];
+    seatDetails: Record<string, { type: string; restriction: string }>;
+  },
 ) {
-  return request<{ rows: number; columns: number; disabledSeats: string[]; seatDetails?: Record<string, {type:string;restriction:string}> }>(
-    `/api/buses/${busId}/seat-layout`,
-    { method: "PUT", body: JSON.stringify(data) },
-  );
+  return request<{
+    rows: number;
+    columns: number;
+    disabledSeats: string[];
+    seatDetails?: Record<string, { type: string; restriction: string }>;
+  }>(`/api/buses/${busId}/seat-layout`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 export function getDiscountCap() {
   return request<{ type: "FIXED" | "PERCENTAGE"; value: number }>(

@@ -72,6 +72,95 @@ button {
   outline-offset: 3px;
 }
 
+.landing-hero-copy,
+.landing-visual-wrap,
+.auth-main > *,
+.auth-visual-content,
+.auth-form-panel,
+.auth-card-stack {
+  min-width: 0;
+}
+
+.dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+.table-wrapper {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 620px) {
+  .button {
+    min-height: 44px;
+  }
+
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .header-search {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .password-visibility,
+  .notice-close {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .notice-close {
+    display: grid;
+    flex: 0 0 44px;
+    place-items: center;
+  }
+
+  .auth-links-row > a,
+  .auth-links-row > span a,
+  .auth-text-button.resend-row {
+    min-height: 44px;
+  }
+
+  .landing-primary-cta,
+  .landing-nav-cta {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 520px) {
+  .landing-hero h1 {
+    font-size: clamp(40px, 11.5vw, 58px);
+  }
+}
+
+@media (max-width: 360px) {
+  .landing-brand {
+    gap: 6px;
+  }
+
+  .landing-brand-copy small {
+    display: none;
+  }
+
+  .landing-nav-actions {
+    gap: 7px;
+  }
+
+  .landing-nav-cta {
+    padding-right: 7px;
+    padding-left: 7px;
+    font-size: 8px;
+    white-space: nowrap;
+  }
+}
+
 @keyframes finance-spin {
   to { transform: rotate(360deg); }
 }

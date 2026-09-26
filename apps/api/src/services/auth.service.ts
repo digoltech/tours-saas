@@ -96,17 +96,32 @@ export async function registerUser(input: {
   branchName: string;
 }) {
   const email = input.email.toLowerCase().trim();
-  const role = await prisma.role.findUnique({ where: { code: "AGENCY_ADMIN" } });
+  const role = await prisma.role.findUnique({
+    where: { code: "AGENCY_ADMIN" },
+  });
   if (!role) throw new Error("Agency Admin role is not configured");
-  const slug = `${input.agencyName.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
+  const slug = `${input.agencyName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
   const passwordHash = await hashPassword(input.password);
   try {
     return await prisma.$transaction(async (transaction) => {
       const agency = await transaction.agency.create({
         data: { name: input.agencyName.trim(), slug },
       });
+      await transaction.subscription.create({
+        data: {
+          agencyId: agency.id,
+          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+      });
       const branch = await transaction.branch.create({
-        data: { agencyId: agency.id, name: input.branchName.trim(), code: "MAIN" },
+        data: {
+          agencyId: agency.id,
+          name: input.branchName.trim(),
+          code: "MAIN",
+        },
       });
       return transaction.user.create({
         data: {
@@ -119,12 +134,19 @@ export async function registerUser(input: {
           branchId: branch.id,
           onboardingCompleted: false,
         },
-        include: { role: { include: { permissions: { include: { permission: true } } } } },
+        include: {
+          role: { include: { permissions: { include: { permission: true } } } },
+        },
       });
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const conflict = new Error("An account with this email already exists") as Error & { statusCode?: number; code?: string };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const conflict = new Error(
+        "An account with this email already exists",
+      ) as Error & { statusCode?: number; code?: string };
       conflict.statusCode = 409;
       conflict.code = "CONFLICT";
       throw conflict;
@@ -133,13 +155,32 @@ export async function registerUser(input: {
   }
 }
 
-export async function completeOnboarding(userId: string, input: { agencyName: string; branchName: string; phone?: string }) {
+export async function completeOnboarding(
+  userId: string,
+  input: { agencyName: string; branchName: string; phone?: string },
+) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || !user.agencyId || !user.branchId) throw new Error("Onboarding account is invalid");
+  if (!user || !user.agencyId || !user.branchId)
+    throw new Error("Onboarding account is invalid");
   await prisma.$transaction([
-    prisma.agency.update({ where: { id: user.agencyId }, data: { name: input.agencyName.trim() } }),
-    prisma.branch.update({ where: { id: user.branchId }, data: { name: input.branchName.trim(), phone: input.phone?.trim() || undefined } }),
-    prisma.user.update({ where: { id: userId }, data: { phone: input.phone?.trim() || undefined, onboardingCompleted: true } }),
+    prisma.agency.update({
+      where: { id: user.agencyId },
+      data: { name: input.agencyName.trim() },
+    }),
+    prisma.branch.update({
+      where: { id: user.branchId },
+      data: {
+        name: input.branchName.trim(),
+        phone: input.phone?.trim() || undefined,
+      },
+    }),
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        phone: input.phone?.trim() || undefined,
+        onboardingCompleted: true,
+      },
+    }),
   ]);
   const updated = await findUserById(userId);
   if (!updated) throw new Error("Unable to reload account");
@@ -152,29 +193,61 @@ function hashToken(token: string) {
 
 export async function createEmailVerificationToken(userId: string) {
   const token = randomBytes(32).toString("hex");
-  await prisma.emailVerificationToken.deleteMany({ where: { userId, usedAt: null } });
+  await prisma.emailVerificationToken.deleteMany({
+    where: { userId, usedAt: null },
+  });
   await prisma.emailVerificationToken.create({
-    data: { userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+    data: {
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
   });
   return token;
 }
 
 export async function verifyEmail(token: string) {
-  const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashToken(token) } });
-  if (!record || record.usedAt || record.expiresAt <= new Date()) throw new Error("This email confirmation link is invalid or expired");
+  const record = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash: hashToken(token) },
+  });
+  if (!record || record.usedAt || record.expiresAt <= new Date())
+    throw new Error("This email confirmation link is invalid or expired");
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
-    prisma.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { emailVerifiedAt: new Date() },
+    }),
+    prisma.emailVerificationToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
   ]);
 }
 
 export async function acceptInvitation(token: string, password: string) {
-  const invitation = await prisma.invitation.findUnique({ where: { tokenHash: hashToken(token) } });
-  if (!invitation || invitation.acceptedAt || invitation.expiresAt <= new Date()) throw new Error("This invitation is invalid or expired");
+  const invitation = await prisma.invitation.findUnique({
+    where: { tokenHash: hashToken(token) },
+  });
+  if (
+    !invitation ||
+    invitation.acceptedAt ||
+    invitation.expiresAt <= new Date()
+  )
+    throw new Error("This invitation is invalid or expired");
   const passwordHash = await hashPassword(password);
   await prisma.$transaction([
-    prisma.user.update({ where: { id: invitation.userId }, data: { passwordHash, emailVerifiedAt: new Date(), onboardingCompleted: true } }),
-    prisma.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } }),
+    prisma.user.update({
+      where: { id: invitation.userId },
+      data: {
+        passwordHash,
+        emailVerifiedAt: new Date(),
+        onboardingCompleted: true,
+      },
+    }),
+    prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { acceptedAt: new Date() },
+    }),
   ]);
   const user = await findUserById(invitation.userId);
   if (!user) throw new Error("Unable to load invited account");
@@ -187,9 +260,13 @@ function randomOtp() {
 
 export async function requestPasswordReset(email: string) {
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
   if (!user || user.status !== "ACTIVE") return;
-  await prisma.passwordResetOtp.deleteMany({ where: { userId: user.id, usedAt: null } });
+  await prisma.passwordResetOtp.deleteMany({
+    where: { userId: user.id, usedAt: null },
+  });
   const otp = randomOtp();
   const record = await prisma.passwordResetOtp.create({
     data: {
@@ -209,33 +286,68 @@ export async function requestPasswordReset(email: string) {
 
 export async function verifyPasswordResetOtp(email: string, otp: string) {
   const record = await prisma.passwordResetOtp.findFirst({
-    where: { email: email.toLowerCase().trim(), usedAt: null, expiresAt: { gt: new Date() } },
+    where: {
+      email: email.toLowerCase().trim(),
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
     orderBy: { createdAt: "desc" },
   });
-  if (!record || record.attempts >= 5 || !(await verifyPassword(otp, record.codeHash))) {
-    if (record) await prisma.passwordResetOtp.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
-    const error = new Error("The reset code is invalid or expired") as Error & { statusCode?: number; code?: string };
+  if (
+    !record ||
+    record.attempts >= 5 ||
+    !(await verifyPassword(otp, record.codeHash))
+  ) {
+    if (record)
+      await prisma.passwordResetOtp.update({
+        where: { id: record.id },
+        data: { attempts: { increment: 1 } },
+      });
+    const error = new Error("The reset code is invalid or expired") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
     error.statusCode = 400;
     error.code = "INVALID_OTP";
     throw error;
   }
-  await prisma.passwordResetOtp.update({ where: { id: record.id }, data: { verifiedAt: new Date() } });
+  await prisma.passwordResetOtp.update({
+    where: { id: record.id },
+    data: { verifiedAt: new Date() },
+  });
 }
 
-export async function resetPassword(email: string, otp: string, password: string) {
+export async function resetPassword(
+  email: string,
+  otp: string,
+  password: string,
+) {
   const normalizedEmail = email.toLowerCase().trim();
   const record = await prisma.passwordResetOtp.findFirst({
-    where: { email: normalizedEmail, usedAt: null, verifiedAt: { not: null }, expiresAt: { gt: new Date() } },
+    where: {
+      email: normalizedEmail,
+      usedAt: null,
+      verifiedAt: { not: null },
+      expiresAt: { gt: new Date() },
+    },
     orderBy: { createdAt: "desc" },
   });
   if (!record || !(await verifyPassword(otp, record.codeHash))) {
-    const error = new Error("Verify the reset code before choosing a new password") as Error & { statusCode?: number; code?: string };
+    const error = new Error(
+      "Verify the reset code before choosing a new password",
+    ) as Error & { statusCode?: number; code?: string };
     error.statusCode = 400;
     error.code = "RESET_NOT_VERIFIED";
     throw error;
   }
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { passwordHash: await hashPassword(password) } }),
-    prisma.passwordResetOtp.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash: await hashPassword(password) },
+    }),
+    prisma.passwordResetOtp.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
   ]);
 }

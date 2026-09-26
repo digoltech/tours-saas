@@ -11,13 +11,44 @@ export type NavigationItem = {
 
 export type FinanceMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER";
 export type SettlementParty = "AGENT" | "OPERATOR";
+export type NotificationPreferences = {
+  inApp: boolean;
+  email: boolean;
+  sms: boolean;
+  whatsapp: boolean;
+};
+export type AgencyBranding = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  brandColor: string;
+  logoUrl: string | null;
+  currency: string;
+  defaultFare: number | string;
+};
+export type SubscriptionContract = {
+  id: string;
+  agencyId: string;
+  planName: string;
+  requestedPlanName: string | null;
+  requestedPrice: number | string | null;
+  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  price: number | string;
+  currency: string;
+  trialEndsAt: string | null;
+  periodEndsAt: string | null;
+};
 export type FinanceSettingsContract = {
   agencyId?: string;
   gstRate: number | string;
   gstAfterDiscount: boolean;
   commissionType: "FIXED" | "PERCENTAGE";
   commissionValue: number | string;
-  tiers: { hoursBeforeDeparture: number | string; feePercent: number | string }[];
+  tiers: {
+    hoursBeforeDeparture: number | string;
+    feePercent: number | string;
+  }[];
 };
 export type FinanceReportFilters = {
   from?: string;
@@ -44,7 +75,10 @@ export type FinanceReportResponse = {
     taxAmount: number | string;
     commissionAmount: number | string;
     createdAt: string;
-    cancellation: { eligibleRefund: number | string; feeAmount: number | string } | null;
+    cancellation: {
+      eligibleRefund: number | string;
+      feeAmount: number | string;
+    } | null;
     refunds: { amount: number | string }[];
   }[];
 };

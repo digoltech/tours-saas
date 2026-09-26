@@ -2,7 +2,7 @@
 
 import { cn } from "../../lib/utils";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Ban, ChevronLeft, ChevronRight, Pencil, Plus, Search, Save, X } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
@@ -24,11 +24,18 @@ import {
   type Driver,
   type Route,
   type Trip,
+  type PageResult,
 } from "../auth/services/api-client";
 
-export function TripPage() {
+export function TripPage({
+  initialPage,
+  initialError = "",
+}: {
+  initialPage?: PageResult<Trip> | null;
+  initialError?: string;
+}) {
   const { user } = useAuth();
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const [trips, setTrips] = useState<Trip[]>(initialPage?.data ?? []);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -37,12 +44,13 @@ export function TripPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
+  const [pages, setPages] = useState(initialPage?.meta.totalPages ?? 1);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(initialPage === undefined);
+  const [error, setError] = useState(initialError);
+  const skipInitialLoad = useRef(initialPage !== undefined);
   const [form, setForm] = useState<Record<string, string>>({});
   const update = (key: string, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -63,12 +71,17 @@ export function TripPage() {
     }
   }, [page, search, status]);
   useEffect(() => {
+    if (skipInitialLoad.current) {
+      skipInitialLoad.current = false;
+      return;
+    }
     const timer = window.setTimeout(() => {
       void load();
     }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
   useEffect(() => {
+    if (!open) return;
     const timer = window.setTimeout(() => {
       void Promise.all([
         getRoutes({ limit: "100", status: "ACTIVE" }),
@@ -102,7 +115,7 @@ export function TripPage() {
         );
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [user?.agencyId, user?.role]);
+  }, [open, user?.agencyId, user?.role]);
   async function save() {
     const required = [[form.tripCode, "Trip code"], [form.branchId, "Branch"], [form.routeId, "Route"], [form.busId, "Bus"], [form.driverId, "Driver"], [form.travelDate, "Travel date"], [form.departureTime, "Departure"], [form.arrivalTime, "Arrival"]] as const;
     const missing = required.find(([value]) => !value.trim());

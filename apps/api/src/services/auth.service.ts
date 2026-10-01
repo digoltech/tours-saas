@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { Prisma, type RoleCode, type User } from "@prisma/client";
+import { Prisma, type User } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext, SafeUser } from "../types/auth.js";
@@ -9,7 +9,7 @@ import { sendPasswordResetOtp } from "./email.service.js";
 const secret = new TextEncoder().encode(environment.JWT_SECRET);
 
 type UserWithAccess = User & {
-  role: { code: RoleCode; permissions: { permission: { code: string } }[] };
+  role: { code: string; name: string; scope: "PLATFORM" | "AGENCY" | "BRANCH"; permissions: { permission: { code: string } }[] };
   agency?: { name: string } | null;
 };
 
@@ -20,6 +20,8 @@ export function toAuthContext(user: UserWithAccess): AuthContext {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role.code,
+    roleName: user.role.name,
+    roleScope: user.role.scope,
     agencyId: user.agencyId,
     agencyName: user.agency?.name ?? null,
     branchId: user.branchId,
@@ -35,6 +37,7 @@ export function toSafeUser(context: AuthContext): SafeUser {
     firstName: context.firstName,
     lastName: context.lastName,
     role: context.role,
+    roleName: context.roleName,
     agencyId: context.agencyId,
     agencyName: context.agencyName ?? null,
     branchId: context.branchId,

@@ -12,12 +12,14 @@ import { useAuth } from "../auth/components/AuthProvider";
 import {
   cancelTrip,
   createTrip,
+  createRecurringTrips,
   getBuses,
   getBranches,
   getAgencies,
   getDrivers,
   getRoutes,
   getTrips,
+  previewRecurringTrips,
   updateTrip,
   type Branch,
   type Bus,
@@ -25,6 +27,7 @@ import {
   type Route,
   type Trip,
   type PageResult,
+  type RecurringTripInput,
 } from "../auth/services/api-client";
 
 export function TripPage({
@@ -50,10 +53,15 @@ export function TripPage({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(initialPage === undefined);
   const [error, setError] = useState(initialError);
+  const [message, setMessage] = useState("");
   const skipInitialLoad = useRef(initialPage !== undefined);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatEndDate, setRepeatEndDate] = useState("");
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [recurrencePreview, setRecurrencePreview] = useState<Awaited<ReturnType<typeof previewRecurringTrips>>>([]);
   const update = (key: string, value: string) =>
-    setForm((current) => ({ ...current, [key]: value }));
+    { setRecurrencePreview([]); setForm((current) => ({ ...current, [key]: value })); };
   const can = (action: string) =>
     user?.role === "SUPER_ADMIN" ||
     user?.permissions.includes(`trip:${action}`);
@@ -125,6 +133,7 @@ export function TripPage({
     if (new Date(form.arrivalTime) <= new Date(form.departureTime)) { setError("Arrival must be after departure."); return; }
     setSaving(true);
     setError("");
+    setMessage("");
     try {
       const payload = {
         ...form,
@@ -134,7 +143,13 @@ export function TripPage({
         arrivalTime: new Date(form.arrivalTime).toISOString(),
       };
       if (editingId) await updateTrip(editingId, payload);
-      else await createTrip(payload);
+      else if (repeatWeekly) {
+        const schedule = recurrencePayload();
+        const preview = await previewRecurringTrips(schedule);
+        setRecurrencePreview(preview);
+        setSaving(false);
+        return;
+      } else await createTrip(payload);
       setForm({});
       setOpen(false);
       setEditingId(null);
@@ -144,6 +159,20 @@ export function TripPage({
     } finally {
       setSaving(false);
     }
+  }
+  function recurrencePayload(): RecurringTripInput {
+    return {
+      agencyId: user?.agencyId ?? form.agencyId,
+      branchId: form.branchId ?? "", routeId: form.routeId ?? "", busId: form.busId ?? "", driverId: form.driverId ?? "",
+      tripCode: form.tripCode ?? "", startDate: form.travelDate ?? "", endDate: repeatEndDate, weekdays,
+      departureTime: new Date(form.departureTime ?? "").toISOString(), arrivalTime: new Date(form.arrivalTime ?? "").toISOString(), fare: Number(form.fare ?? 0),
+    };
+  }
+  async function generateRecurring() {
+    setSaving(true); setError("");
+    try { const result = await createRecurringTrips(recurrencePayload()); setMessage(`${result.created.length} trips created; ${result.skipped.length} skipped. ${result.skipped.slice(0, 3).map((item) => `${item.date}: ${item.reason}`).join(" · ")}`); setForm({}); setOpen(false); setRepeatWeekly(false); setRecurrencePreview([]); await load(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to generate recurring trips"); }
+    finally { setSaving(false); }
   }
   function editTrip(trip: Trip) {
     setEditingId(trip.id);
@@ -338,10 +367,11 @@ export function TripPage({
               />
             </label>
           </div>
+          {!editingId && <section className="mt-5 rounded-xl border border-slate-200 p-4"><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={repeatWeekly} onChange={(event) => { setRepeatWeekly(event.target.checked); setRecurrencePreview([]); }} />Repeat weekly</label>{repeatWeekly && <div className="mt-3 grid gap-3"><label>Repeat until<input type="date" min={form.travelDate} value={repeatEndDate} onChange={(event) => { setRepeatEndDate(event.target.value); setRecurrencePreview([]); }} /></label><fieldset><legend className="mb-2 text-sm font-medium">Days of week</legend><div className="flex flex-wrap gap-3">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => <label className="flex items-center gap-1" key={day}><input type="checkbox" checked={weekdays.includes(index)} onChange={(event) => { setWeekdays((current) => event.target.checked ? [...current, index].sort() : current.filter((value) => value !== index)); setRecurrencePreview([]); }} />{day}</label>)}</div></fieldset>{recurrencePreview.length > 0 && <div className="rounded-lg bg-slate-50 p-3"><strong>{recurrencePreview.filter((item) => item.create).length} trips can be created · {recurrencePreview.filter((item) => !item.create).length} skipped</strong><ul className="mt-2 max-h-36 overflow-auto text-sm">{recurrencePreview.map((item) => <li key={item.date} className={item.create ? "text-emerald-700" : "text-rose-700"}>{item.date} · {item.tripCode}{item.reason ? ` · ${item.reason}` : ""}</li>)}</ul><Button className="mt-3" onClick={() => void generateRecurring()} disabled={saving}>Create valid trips</Button></div>}</div>}</section>}
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={() => void save()} disabled={saving}>
               <Save size={15} />
-              {saving ? "Saving..." : editingId ? "Save changes" : "Save trip"}
+              {saving ? "Saving..." : editingId ? "Save changes" : repeatWeekly ? "Preview weekly trips" : "Save trip"}
             </Button>
             <Button
               variant="secondary"
@@ -355,6 +385,7 @@ export function TripPage({
           </div>
         </Card>
       )}
+      {message && <div className="state-message" role="status"><strong>{message}</strong></div>}
       {error && (
         <div className={cn("state-message state-error")}>
           <strong>{error}</strong>
@@ -386,7 +417,7 @@ export function TripPage({
             <option>COMPLETED</option>
             <option>CANCELLED</option>
           </select>
-          {can("create") && <Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> Add trip</Button>}
+          {can("create") && <Button onClick={() => { setEditingId(null); setForm({}); setRepeatWeekly(false); setRepeatEndDate(""); setWeekdays([]); setRecurrencePreview([]); setOpen((value) => !value); }}><Plus size={16} /> Add trip</Button>}
         </div>
         {loading ? (
           <div className={cn("state-message")}>Loading trips...</div>

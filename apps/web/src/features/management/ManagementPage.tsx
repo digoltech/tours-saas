@@ -11,13 +11,13 @@ import { useAuth } from "../auth/components/AuthProvider";
 import {
   createAgency, createAgent, createBranch, deactivateAgency, deactivateAgent,
   deactivateBranch, getAgencies, getAgents, getBranches, updateAgency,
-  updateAgent, updateBranch,
+  updateAgent, updateBranch, getWorkspaceRoles, type WorkspaceRole,
 } from "../auth/services/api-client";
 
 type Resource = "agencies" | "branches" | "agents";
 type Row = Record<string, unknown> & { id: string; status: string };
 type BranchOption = { id: string; name: string; code: string };
-const emptyForm = { name: "", slug: "", code: "", firstName: "", lastName: "", email: "", password: "", phone: "", branchId: "", status: "ACTIVE" };
+const emptyForm = { name: "", slug: "", code: "", firstName: "", lastName: "", email: "", password: "", phone: "", branchId: "", roleId: "", status: "ACTIVE" };
 const labels: Record<Resource, { title: string; description: string }> = {
   agencies: { title: "Agencies", description: "Manage the organizations operating on the platform." },
   branches: { title: "Branches", description: "Keep each agency's operating locations accurate." },
@@ -28,6 +28,7 @@ export function ManagementPage({ resource }: { resource: Resource }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [roles, setRoles] = useState<WorkspaceRole[]>([]);
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [selectedAgencyId, setSelectedAgencyId] = useState("");
   const [search, setSearch] = useState("");
@@ -65,9 +66,12 @@ export function ManagementPage({ resource }: { resource: Resource }) {
   useEffect(() => {
     if (resource === "agents" && scopeAgencyId) void getBranches(scopeAgencyId).then((data) => setBranches(data as BranchOption[])).catch(() => setBranches([]));
   }, [resource, scopeAgencyId]);
+  useEffect(() => {
+    if (resource === "agents" && scopeAgencyId) void getWorkspaceRoles(user?.role === "SUPER_ADMIN" ? scopeAgencyId : undefined).then((data) => setRoles(data.roles)).catch(() => setRoles([]));
+  }, [resource, scopeAgencyId, user?.role]);
 
   function startEdit(row: Row) {
-    setEditing(row); setForm({ ...emptyForm, name: String(row.name ?? ""), slug: String(row.slug ?? ""), code: String(row.code ?? ""), firstName: String(row.firstName ?? ""), lastName: String(row.lastName ?? ""), email: String(row.email ?? ""), phone: String(row.phone ?? ""), branchId: String(row.branchId ?? ""), status: row.status });
+    setEditing(row); setForm({ ...emptyForm, name: String(row.name ?? ""), slug: String(row.slug ?? ""), code: String(row.code ?? ""), firstName: String(row.firstName ?? ""), lastName: String(row.lastName ?? ""), email: String(row.email ?? ""), phone: String(row.phone ?? ""), branchId: String(row.branchId ?? ""), roleId: String(row.roleId ?? ""), status: row.status });
     setFormOpen(true);
   }
   async function save() {
@@ -91,8 +95,8 @@ export function ManagementPage({ resource }: { resource: Resource }) {
         else await createBranch(scopeAgencyId, { name: form.name, code: form.code, email: form.email || undefined });
       }
       if (resource === "agents") {
-        if (editing) await updateAgent(editing.id, { firstName: form.firstName, lastName: form.lastName, phone: form.phone, branchId: form.branchId || null, status: form.status });
-        else await createAgent(scopeAgencyId, form);
+        if (editing) await updateAgent(editing.id, { firstName: form.firstName, lastName: form.lastName, phone: form.phone, branchId: form.branchId || null, roleId: form.roleId || undefined, status: form.status });
+        else await createAgent(scopeAgencyId, { ...form, password: form.password || undefined, roleId: form.roleId || undefined });
       }
       setForm(emptyForm); setFormOpen(false); setEditing(null); await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save record"); }
@@ -108,7 +112,7 @@ export function ManagementPage({ resource }: { resource: Resource }) {
     <PageHeader title={config.title} description={config.description} />
     {formOpen && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{editing ? "Update record" : "New record"}</p><h2>{editing ? "Edit" : "Add"} {singular}</h2></div></div>
       <div className={cn("form-grid")}>
-        {resource === "agents" ? <><label>First name<input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label><label>Last name<input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label><label>Email<input type="email" value={form.email} disabled={!!editing} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>{!editing && <label>Temporary password<input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Leave blank to send an invitation" /></label>}<label>Phone<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label><label>Branch<select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">Unassigned</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label></> : <><label>Name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label><label>{resource === "agencies" ? "Slug" : "Code"}<input value={resource === "agencies" ? form.slug : form.code} onChange={(e) => setForm({ ...form, ...(resource === "agencies" ? { slug: e.target.value } : { code: e.target.value }) })} required /></label><label>Contact email<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label></>}
+        {resource === "agents" ? <><label>First name<input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label><label>Last name<input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label><label>Email<input type="email" value={form.email} disabled={!!editing} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>{!editing && <label>Temporary password<input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Leave blank to send an invitation" /></label>}<label>Phone<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label><label>Branch<select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">Unassigned</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Role<select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })}><option value="">Agent (default)</option>{roles.filter((role) => role.code === "AGENT" || (!role.isSystem && (user?.role === "AGENCY_ADMIN" || role.scope === "BRANCH"))).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></> : <><label>Name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label><label>{resource === "agencies" ? "Slug" : "Code"}<input value={resource === "agencies" ? form.slug : form.code} onChange={(e) => setForm({ ...form, ...(resource === "agencies" ? { slug: e.target.value } : { code: e.target.value }) })} required /></label><label>Contact email<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label></>}
         {editing && <label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></label>}
       </div><div className={cn("management-toolbar")}><Button onClick={() => void save()} disabled={saving}><Check size={15} />{saving ? "Saving..." : editing ? "Save changes" : "Save record"}</Button><Button variant="secondary" onClick={() => { setFormOpen(false); setEditing(null); }}><X size={15} />Cancel</Button></div></Card>}
     {error && <div className={cn("state-message state-error")} role="alert"><strong>{error}</strong></div>}

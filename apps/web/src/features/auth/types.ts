@@ -1,5 +1,4 @@
-export type RoleCode =
-  "SUPER_ADMIN" | "AGENCY_ADMIN" | "BRANCH_ADMIN" | "AGENT";
+export type RoleCode = string;
 
 export type AuthUser = {
   id: string;
@@ -7,6 +6,8 @@ export type AuthUser = {
   firstName: string;
   lastName: string;
   role: RoleCode;
+  roleName?: string;
+  roleScope?: "PLATFORM" | "AGENCY" | "BRANCH";
   agencyId: string | null;
   agencyName?: string | null;
   branchId: string | null;

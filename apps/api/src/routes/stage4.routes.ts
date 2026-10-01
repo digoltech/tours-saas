@@ -30,14 +30,10 @@ stage4Router.post(
 stage4Router.get("/agency/settings", controller.agencySettings);
 stage4Router.put(
   "/agency/settings",
-  requireRole("AGENCY_ADMIN"),
+  requirePermission("agency:update"),
   controller.agencySettings,
 );
-stage4Router.get(
-  "/audit-logs",
-  requirePermission("finance:read"),
-  controller.auditLogs,
-);
+stage4Router.get("/audit-logs", controller.auditLogs);
 stage4Router.get("/subscription", controller.subscription);
 stage4Router.put("/subscription", controller.subscription);
 stage4Router.put(

@@ -55,7 +55,7 @@ export function SettingsWorkspace() {
   useEffect(() => {
     let active = true;
     const agencyRequest =
-      user?.role === "AGENCY_ADMIN"
+      user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update")
         ? getAgencySettings()
         : Promise.resolve(null);
     Promise.all([
@@ -93,7 +93,7 @@ export function SettingsWorkspace() {
     return () => {
       active = false;
     };
-  }, [user?.role]);
+  }, [user?.role, user?.roleScope, user?.permissions]);
   async function save() {
     setError("");
     setSaved(false);
@@ -158,7 +158,7 @@ export function SettingsWorkspace() {
           {error}
         </div>
       )}
-      {user?.role === "AGENCY_ADMIN" && (
+      {user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update") && (
         <Card className={cn("settings-card")}>
           <p className={cn("eyebrow")}>AGENCY BRANDING</p>
           <h2>Workspace and ticket details</h2>

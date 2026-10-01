@@ -292,6 +292,7 @@ export async function createAgentController(request: Request, response: Response
       phone: z.string().optional(),
       branchId: z.string().optional(),
       password: z.string().min(8).optional(),
+      roleId: z.string().min(1).optional(),
       status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
     }).parse(request.body);
     const agent = await createAgent(request.auth!, agencyId, {
@@ -302,6 +303,7 @@ export async function createAgentController(request: Request, response: Response
       branchId: payload.branchId || null,
       password: payload.password,
       status: payload.status ? RecordStatus[payload.status as keyof typeof RecordStatus] : undefined,
+      roleId: payload.roleId,
     });
     return response.status(201).json({ success: true, data: agent });
   } catch (error) {
@@ -319,6 +321,7 @@ export async function updateAgentController(request: Request, response: Response
       phone: z.string().optional(),
       branchId: z.string().nullable().optional(),
       status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+      roleId: z.string().min(1).optional(),
     }).parse(request.body);
     const agent = await updateAgent(request.auth!, agentId, {
       firstName: payload.firstName,
@@ -326,6 +329,7 @@ export async function updateAgentController(request: Request, response: Response
       phone: payload.phone || null,
       branchId: payload.branchId ?? undefined,
       status: payload.status ? RecordStatus[payload.status as keyof typeof RecordStatus] : undefined,
+      roleId: payload.roleId,
     });
     return response.json({ success: true, data: agent });
   } catch (error) {

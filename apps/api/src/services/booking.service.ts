@@ -2,7 +2,7 @@ import { Prisma, type DiscountType } from "@prisma/client";
 import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
-import { canAccessTenant } from "../middleware/tenant-policy.js";
+import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
 import {
   calculateCommission,
   calculateTax,
@@ -126,7 +126,7 @@ export async function searchTrips(
         ? {}
         : {
             agencyId: context.agencyId ?? "__missing__",
-            ...(context.role === "AGENT" || context.role === "BRANCH_ADMIN"
+            ...(isBranchScoped(context)
               ? { branchId: context.branchId ?? "__missing__" }
               : {}),
           }),
@@ -589,6 +589,7 @@ export async function confirmBooking(
         await tx.auditLog.create({
           data: {
             agencyId: trip.agencyId,
+            branchId: trip.branchId,
             actorId: context.userId,
             action: "BOOKING_CONFIRMED",
             entityType: "Booking",
@@ -688,7 +689,7 @@ export async function listBookings(
       ? {}
       : {
           agencyId: context.agencyId ?? "__missing__",
-          ...(context.role === "AGENT" || context.role === "BRANCH_ADMIN"
+          ...(isBranchScoped(context)
             ? { branchId: context.branchId ?? "__missing__" }
             : {}),
         }),
@@ -757,7 +758,7 @@ export async function getBookingDashboardSummary(context: AuthContext) {
       ? {}
       : {
           agencyId: context.agencyId ?? "__missing__",
-          ...(context.role === "AGENT" || context.role === "BRANCH_ADMIN"
+          ...(isBranchScoped(context)
             ? { branchId: context.branchId ?? "__missing__" }
             : {}),
         };
@@ -770,7 +771,7 @@ export async function getBookingDashboardSummary(context: AuthContext) {
       ? {}
       : {
           agencyId: context.agencyId ?? "__missing__",
-          ...(context.role === "AGENT" || context.role === "BRANCH_ADMIN"
+            ...(isBranchScoped(context)
             ? { branchId: context.branchId ?? "__missing__" }
             : {}),
         };

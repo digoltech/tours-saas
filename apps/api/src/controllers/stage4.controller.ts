@@ -108,7 +108,7 @@ export const agencySettings = (req: Request, res: Response) =>
         ),
   );
 export const auditLogs = (req: Request, res: Response) =>
-  run(req, res, () => service.listAuditLogs(req.auth!));
+  run(req, res, () => service.listAuditLogs(req.auth!, z.object({ from: z.iso.datetime().optional(), to: z.iso.datetime().optional(), actorId: z.string().optional(), action: z.string().optional(), entityType: z.string().optional() }).parse(req.query)));
 export const subscription = (req: Request, res: Response) =>
   run(req, res, () =>
     req.method === "GET"

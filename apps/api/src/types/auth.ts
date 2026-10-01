@@ -1,11 +1,11 @@
-import type { RoleCode } from "@prisma/client";
-
 export type AuthContext = {
   userId: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: RoleCode;
+  role: string;
+  roleName?: string;
+  roleScope?: "PLATFORM" | "AGENCY" | "BRANCH";
   agencyId: string | null;
   agencyName?: string | null;
   branchId: string | null;

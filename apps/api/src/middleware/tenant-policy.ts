@@ -8,9 +8,15 @@ export function canAccessTenant(
   if (context.role === "SUPER_ADMIN") return true;
   if (context.agencyId !== agencyId) return false;
   if (
-    (context.role === "BRANCH_ADMIN" || context.role === "AGENT") &&
+    (context.roleScope === "BRANCH" ||
+      (!context.roleScope && (context.role === "BRANCH_ADMIN" || context.role === "AGENT"))) &&
     branchId !== context.branchId
   )
     return false;
   return true;
+}
+
+export function isBranchScoped(context: AuthContext) {
+  return context.roleScope === "BRANCH" ||
+    (!context.roleScope && (context.role === "BRANCH_ADMIN" || context.role === "AGENT"));
 }

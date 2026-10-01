@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import type { RoleCode } from "@prisma/client";
 import { verifySession, toAuthContext } from "../services/auth.service.js";
 import { AUTH_COOKIE, readCookie } from "../utils/cookies.js";
 import { sendError } from "../utils/api-response.js";
@@ -44,7 +43,7 @@ function readBearerToken(request: Request) {
   return value?.startsWith("Bearer ") ? value.slice(7) : undefined;
 }
 
-export function requireRole(...roles: RoleCode[]) {
+export function requireRole(...roles: string[]) {
   return (request: Request, response: Response, next: NextFunction) => {
     if (!request.auth)
       return sendError(

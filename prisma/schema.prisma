@@ -11,11 +11,10 @@ enum RecordStatus {
   INACTIVE
 }
 
-enum RoleCode {
-  SUPER_ADMIN
-  AGENCY_ADMIN
-  BRANCH_ADMIN
-  AGENT
+enum RoleScope {
+  PLATFORM
+  AGENCY
+  BRANCH
 }
 
 enum BusType {
@@ -144,6 +143,7 @@ model Agency {
   invoices             SubscriptionInvoice[]
   notifications        Notification[]
   auditLogs            AuditLog[]
+  roles                Role[]
   cancellationRequests CancellationRequest[]
 }
 
@@ -174,11 +174,17 @@ model Branch {
 
 model Role {
   id          String           @id @default(cuid())
-  code        RoleCode         @unique
+  code        String           @unique
   name        String
+  scope       RoleScope        @default(AGENCY)
+  isSystem    Boolean          @default(true)
+  agencyId    String?
   users       User[]
   permissions RolePermission[]
   invitations Invitation[]
+  agency      Agency?          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, isSystem])
 }
 
 model Permission {
@@ -673,6 +679,7 @@ model AuditLog {
   id         String   @id @default(cuid())
   agencyId   String
   actorId    String?
+  branchId   String?
   action     String
   entityType String
   entityId   String?
@@ -684,6 +691,7 @@ model AuditLog {
 
   @@index([agencyId, createdAt])
   @@index([actorId, createdAt])
+  @@index([agencyId, branchId, createdAt])
 }
 
 model Subscription {

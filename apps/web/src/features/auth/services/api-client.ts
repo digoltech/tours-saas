@@ -231,7 +231,8 @@ export function markSubscriptionInvoicePaid(
     { method: "POST", body: JSON.stringify({ method, reference }) },
   );
 }
-export function getAuditLogs() {
+export function getAuditLogs(filters: Record<string, string> = {}) {
+  const query = new URLSearchParams(filters).toString();
   return request<
     {
       id: string;
@@ -239,9 +240,37 @@ export function getAuditLogs() {
       entityType: string;
       entityId: string | null;
       createdAt: string;
-      actor: { firstName: string; lastName: string; email: string } | null;
+      actor: { id: string; firstName: string; lastName: string } | null;
     }[]
-  >("/api/audit-logs");
+  >(`/api/audit-logs${query ? `?${query}` : ""}`);
+}
+export type WorkspaceRole = { id: string; code: string; name: string; scope: "PLATFORM" | "AGENCY" | "BRANCH"; isSystem: boolean; permissions: string[] };
+export type PermissionOption = { id: string; code: string; description: string };
+export function getWorkspaceRoles(agencyId?: string) {
+  const query = agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : "";
+  return request<{ roles: WorkspaceRole[]; permissions: PermissionOption[] }>(`/api/agency/roles${query}`);
+}
+export function saveWorkspaceRole(input: { id?: string; agencyId?: string; name: string; scope: "AGENCY" | "BRANCH"; permissions: string[] }) {
+  return request<WorkspaceRole>(input.id ? `/api/agency/roles/${encodeURIComponent(input.id)}` : "/api/agency/roles", {
+    method: input.id ? "PATCH" : "POST", body: JSON.stringify(input),
+  });
+}
+export function deleteWorkspaceRole(id: string, agencyId?: string) {
+  const query = agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : "";
+  return request<{ deleted: boolean }>(`/api/agency/roles/${encodeURIComponent(id)}${query}`, { method: "DELETE" });
+}
+export type BulkEntity = "buses" | "drivers" | "routes" | "stops";
+export function previewBulkImport(entity: BulkEntity, rows: Record<string, string>[], agencyId?: string) {
+  return request<{ results: { row: number; ok: boolean; message: string }[]; valid: number; invalid: number }>(`/api/bulk/${entity}/import`, { method: "POST", body: JSON.stringify({ rows, agencyId, commit: false }) });
+}
+export function commitBulkImport(entity: BulkEntity, rows: Record<string, string>[], agencyId?: string) {
+  return request<{ results: { row: number; ok: boolean; message: string }[]; valid: number; invalid: number }>(`/api/bulk/${entity}/import`, { method: "POST", body: JSON.stringify({ rows, agencyId, commit: true }) });
+}
+export async function fetchBulkCsv(entity: BulkEntity, kind: "template" | "export", agencyId?: string) {
+  const query = agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : "";
+  const response = await fetch(`${apiUrl}/api/bulk/${entity}/${kind}${query}`, { credentials: "include" });
+  if (!response.ok) throw new Error("Unable to download CSV");
+  return response.text();
 }
 export function logout() {
   return request<{ loggedOut: boolean }>("/api/auth/logout", {
@@ -328,6 +357,10 @@ export function createAgent(
     lastName: string;
     email: string;
     password?: string;
+    phone?: string;
+    branchId?: string | null;
+    roleId?: string;
+    status?: string;
   },
 ) {
   return request<unknown>(`/api/agencies/${agencyId}/agents`, {
@@ -783,6 +816,13 @@ export function createTrip(data: Record<string, unknown>) {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+export type RecurringTripInput = { agencyId?: string; branchId: string; routeId: string; busId: string; driverId: string; tripCode: string; startDate: string; endDate: string; weekdays: number[]; departureTime: string; arrivalTime: string; fare?: number };
+export function previewRecurringTrips(data: RecurringTripInput) {
+  return request<{ date: string; tripCode: string; departureTime: string; arrivalTime: string; create: boolean; reason?: string }[]>("/api/trips/recurring/preview", { method: "POST", body: JSON.stringify(data) });
+}
+export function createRecurringTrips(data: RecurringTripInput) {
+  return request<{ created: Trip[]; skipped: { date: string; tripCode: string; reason: string }[] }>("/api/trips/recurring", { method: "POST", body: JSON.stringify(data) });
 }
 export function updateTrip(id: string, data: Record<string, unknown>) {
   return request<Trip>(`/api/trips/${id}`, {

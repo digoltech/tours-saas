@@ -4,7 +4,7 @@ import type { FinanceMethod } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext } from "../types/auth.js";
-import { canAccessTenant } from "../middleware/tenant-policy.js";
+import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
 import { sendEmail } from "./email.service.js";
 import { cancelBooking } from "./finance.service.js";
 
@@ -32,6 +32,7 @@ export async function audit(
     data: {
       agencyId,
       actorId: context.userId,
+      branchId: details && typeof details === "object" && !Array.isArray(details) && "branchId" in details && typeof details.branchId === "string" ? details.branchId : undefined,
       action,
       entityType,
       entityId,
@@ -301,7 +302,7 @@ export async function listCancellationRequests(context: AuthContext) {
   return prisma.cancellationRequest.findMany({
     where: {
       ...agencyScope(context),
-      ...(context.role === "AGENT" || context.role === "BRANCH_ADMIN"
+      ...(isBranchScoped(context)
         ? { booking: { branchId: context.branchId ?? "__missing__" } }
         : {}),
       status: "PENDING",
@@ -416,7 +417,7 @@ export async function updateAgencySettings(
     defaultFare: number;
   },
 ) {
-  if (context.role !== "AGENCY_ADMIN" || !context.agencyId)
+  if (context.roleScope !== "AGENCY" || !context.agencyId || !context.permissions.includes("agency:update"))
     fail(403, "FORBIDDEN", "Only agency admins can update workspace branding");
   const updated = await prisma.agency.update({
     where: { id: context.agencyId },
@@ -449,15 +450,38 @@ export async function updateAgencySettings(
   );
   return updated;
 }
-export async function listAuditLogs(context: AuthContext) {
-  return prisma.auditLog.findMany({
-    where: agencyScope(context),
+export async function listAuditLogs(context: AuthContext, filters: { from?: string; to?: string; actorId?: string; action?: string; entityType?: string } = {}) {
+  if (context.role !== "SUPER_ADMIN" && !context.permissions.includes("agency:read"))
+    fail(403, "FORBIDDEN", "You do not have permission to view workspace activity");
+  const rows = await prisma.auditLog.findMany({
+    where: {
+      ...agencyScope(context),
+      ...(context.roleScope === "BRANCH" ? { branchId: context.branchId ?? "__missing__" } : {}),
+      ...(filters.from || filters.to ? { createdAt: { ...(filters.from ? { gte: new Date(filters.from) } : {}), ...(filters.to ? { lte: new Date(filters.to) } : {}) } } : {}),
+      ...(filters.actorId ? { actorId: filters.actorId } : {}),
+      ...(filters.action ? { action: { contains: filters.action, mode: "insensitive" as const } } : {}),
+      ...(filters.entityType ? { entityType: { equals: filters.entityType, mode: "insensitive" as const } } : {}),
+    },
     include: {
-      actor: { select: { firstName: true, lastName: true, email: true } },
+      actor: { select: { id: true, firstName: true, lastName: true } },
     },
     orderBy: { createdAt: "desc" },
-    take: 200,
+    take: 500,
   });
+  if (context.role === "SUPER_ADMIN") return rows.slice(0, 200);
+  const can = (permission: string) => context.permissions.includes(permission);
+  return rows.filter((row) => {
+    if (["PAYMENT_RECORDED", "REFUND_RECORDED", "SETTLEMENT_POSTED", "FINANCE_SETTINGS_UPDATED", "BOOKING_CANCELLED"].includes(row.action))
+      return can("finance:read") || can("booking:read");
+    if (row.entityType === "Booking") return can("booking:read");
+    if (row.entityType === "Bus") return can("bus:read");
+    if (row.entityType === "Driver") return can("driver:read");
+    if (["Route", "Stop", "BoardingPoint"].includes(row.entityType)) return can("route:read") || can("stop:read");
+    if (["Trip", "TripSeries"].includes(row.entityType)) return can("trip:read");
+    if (["Branch"].includes(row.entityType)) return can("branch:read");
+    if (["User"].includes(row.entityType)) return can("agent:read");
+    return can("agency:read");
+  }).slice(0, 200);
 }
 
 export async function getSubscription(context: AuthContext) {

@@ -1,9 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { Prisma, RecordStatus, RoleCode } from "@prisma/client";
+import { Prisma, RecordStatus } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { hashPassword } from "./auth.service.js";
 import type { AuthContext } from "../types/auth.js";
 import { environment } from "../config/env.js";
+import { isBranchScoped } from "../middleware/tenant-policy.js";
 import { sendTeamInvitation, sendTeamWelcome } from "./email.service.js";
 
 export type AgencyQuery = {
@@ -35,7 +36,7 @@ export function canManageBranch(
 ) {
   if (context.role === "SUPER_ADMIN") return true;
   if (!agencyId || context.agencyId !== agencyId) return false;
-  if (context.role === "AGENCY_ADMIN") return true;
+  if (!isBranchScoped(context)) return true;
   if (!branchId) return false;
   return context.branchId === branchId;
 }
@@ -70,6 +71,10 @@ function ensureBranchAccess(
     error.code = "FORBIDDEN";
     throw error;
   }
+}
+
+function recordManagementAudit(context: AuthContext, agencyId: string, action: string, entityType: string, entityId: string, details: Prisma.InputJsonValue = {}, branchId?: string | null) {
+  return prisma.auditLog.create({ data: { agencyId, actorId: context.userId, branchId: branchId ?? undefined, action, entityType, entityId, details } });
 }
 
 function parseListResponse<T>(
@@ -115,7 +120,7 @@ export async function getDashboardSummary(context: AuthContext) {
     prisma.agency.count(),
     prisma.agency.count({ where: { status: RecordStatus.ACTIVE } }),
     prisma.branch.count(),
-    prisma.user.count({ where: { role: { code: RoleCode.AGENT } } }),
+    prisma.user.count({ where: { role: { code: "AGENT" } } }),
     prisma.bus.count(),
     prisma.driver.count(),
     prisma.route.count(),
@@ -280,6 +285,7 @@ export async function createAgency(
           trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
       });
+      await tx.auditLog.create({ data: { agencyId: agency.id, actorId: context.userId, action: "AGENCY_CREATED", entityType: "Agency", entityId: agency.id, details: { name: agency.name } } });
       return agency;
     });
   } catch (error) {
@@ -325,6 +331,12 @@ export async function updateAgency(
     throw error;
   }
   ensureAgencyAccess(context, agency.id);
+  if (isBranchScoped(context)) {
+    const error = new Error("Branch-scoped users cannot update agency-wide settings") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 403;
+    error.code = "FORBIDDEN";
+    throw error;
+  }
 
   const nextData: Prisma.AgencyUpdateInput = {};
   if (data.name !== undefined) nextData.name = data.name.trim();
@@ -338,10 +350,12 @@ export async function updateAgency(
   if (data.status !== undefined) nextData.status = data.status;
 
   try {
-    return await prisma.agency.update({
+    const updated = await prisma.agency.update({
       where: { id: agencyId },
       data: nextData,
     });
+    await recordManagementAudit(context, agencyId, "AGENCY_UPDATED", "Agency", agencyId, { changedFields: Object.keys(data) });
+    return updated;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -371,10 +385,18 @@ export async function deactivateAgency(context: AuthContext, agencyId: string) {
     throw error;
   }
   ensureAgencyAccess(context, agency.id);
-  return prisma.agency.update({
+  if (isBranchScoped(context)) {
+    const error = new Error("Branch-scoped users cannot deactivate an agency") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 403;
+    error.code = "FORBIDDEN";
+    throw error;
+  }
+  const updated = await prisma.agency.update({
     where: { id: agencyId },
     data: { status: RecordStatus.INACTIVE },
   });
+  await recordManagementAudit(context, agencyId, "AGENCY_DEACTIVATED", "Agency", agencyId);
+  return updated;
 }
 
 export async function listBranches(
@@ -402,6 +424,7 @@ export async function listBranches(
 
   const where: Prisma.BranchWhereInput = {
     agencyId,
+    ...(isBranchScoped(context) ? { id: context.branchId ?? "__missing__" } : {}),
     ...(status && status !== "ALL" ? { status } : {}),
     ...searchClause,
   };
@@ -462,6 +485,12 @@ export async function createBranch(
   },
 ) {
   ensureAgencyAccess(context, agencyId);
+  if (isBranchScoped(context)) {
+    const error = new Error("Branch-scoped users cannot create branches") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 403;
+    error.code = "FORBIDDEN";
+    throw error;
+  }
   const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
   if (!agency) {
     const error = new Error("Agency not found") as Error & {
@@ -486,7 +515,7 @@ export async function createBranch(
   }
 
   try {
-    return prisma.branch.create({
+    const created = await prisma.branch.create({
       data: {
         agencyId,
         name,
@@ -500,6 +529,8 @@ export async function createBranch(
         status: data.status ?? RecordStatus.ACTIVE,
       },
     });
+    await recordManagementAudit(context, agencyId, "BRANCH_CREATED", "Branch", created.id, { code: created.code, name: created.name });
+    return created;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -555,7 +586,9 @@ export async function updateBranch(
   if (data.status !== undefined) nextData.status = data.status;
 
   try {
-    return prisma.branch.update({ where: { id: branchId }, data: nextData });
+    const updated = await prisma.branch.update({ where: { id: branchId }, data: nextData });
+    await recordManagementAudit(context, branch.agencyId, "BRANCH_UPDATED", "Branch", branchId, { changedFields: Object.keys(data) }, branchId);
+    return updated;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -584,10 +617,12 @@ export async function deactivateBranch(context: AuthContext, branchId: string) {
     throw error;
   }
   ensureBranchAccess(context, branch.agencyId, branch.id);
-  return prisma.branch.update({
+  const updated = await prisma.branch.update({
     where: { id: branchId },
     data: { status: RecordStatus.INACTIVE },
   });
+  await recordManagementAudit(context, branch.agencyId, "BRANCH_DEACTIVATED", "Branch", branchId, { code: branch.code }, branchId);
+  return updated;
 }
 
 export async function listAgents(
@@ -605,12 +640,18 @@ export async function listAgents(
   const status = normalizeStatus(
     (query.status ?? query.branchStatus) as string | undefined,
   );
-  const branchId = query.branchId;
+  const branchId = isBranchScoped(context) ? context.branchId ?? "__missing__" : query.branchId;
+  if (isBranchScoped(context) && query.branchId && query.branchId !== context.branchId) {
+    const error = new Error("You can only view agents in your assigned branch") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 403;
+    error.code = "FORBIDDEN";
+    throw error;
+  }
 
   ensureAgencyAccess(context, agencyId);
   const where: Prisma.UserWhereInput = {
     agencyId,
-    role: { code: RoleCode.AGENT },
+    role: { OR: [{ code: "AGENT" }, { agencyId, isSystem: false }] },
     ...(status && status !== "ALL" ? { status } : {}),
     ...(branchId ? { branchId } : {}),
     ...(search
@@ -654,6 +695,8 @@ export async function listAgents(
       agencyName: agent.agency?.name ?? null,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,
+      roleId: agent.roleId,
+      roleName: agent.role.name,
     })),
     page,
     limit,
@@ -684,7 +727,7 @@ export async function getAgent(context: AuthContext, agentId: string) {
     error.code = "INVALID_REQUEST";
     throw error;
   }
-  ensureAgencyAccess(context, agent.agencyId);
+  ensureBranchAccess(context, agent.agencyId, agent.branchId);
   return agent;
 }
 
@@ -699,6 +742,7 @@ export async function createAgent(
     branchId?: string | null;
     password?: string;
     status?: RecordStatus;
+    roleId?: string;
   },
 ) {
   ensureAgencyAccess(context, agencyId);
@@ -712,6 +756,21 @@ export async function createAgent(
     throw error;
   }
 
+  if (isBranchScoped(context)) {
+    if (!context.branchId) {
+      const error = new Error("Your account is not assigned to a branch") as Error & { statusCode?: number; code?: string };
+      error.statusCode = 403;
+      error.code = "FORBIDDEN";
+      throw error;
+    }
+    if (data.branchId && data.branchId !== context.branchId) {
+      const error = new Error("You can only assign agents to your branch") as Error & { statusCode?: number; code?: string };
+      error.statusCode = 403;
+      error.code = "FORBIDDEN";
+      throw error;
+    }
+    data.branchId = context.branchId;
+  }
   if (data.branchId) {
     const branch = await prisma.branch.findUnique({
       where: { id: data.branchId },
@@ -726,9 +785,9 @@ export async function createAgent(
     }
   }
 
-  const role = await prisma.role.findUnique({
-    where: { code: RoleCode.AGENT },
-  });
+  const role = data.roleId
+    ? await prisma.role.findFirst({ where: { id: data.roleId, OR: [{ code: "AGENT" }, { agencyId, isSystem: false }] } })
+    : await prisma.role.findUnique({ where: { code: "AGENT" } });
   if (!role) {
     const error = new Error("Agent role is not configured") as Error & {
       statusCode?: number;
@@ -736,6 +795,12 @@ export async function createAgent(
     };
     error.statusCode = 500;
     error.code = "INTERNAL_SERVER_ERROR";
+    throw error;
+  }
+  if (isBranchScoped(context) && role.scope !== "BRANCH") {
+    const error = new Error("Branch-scoped users can only assign branch-scoped roles") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 403;
+    error.code = "FORBIDDEN";
     throw error;
   }
 
@@ -760,6 +825,7 @@ export async function createAgent(
       },
       include: { role: true, agency: true, branch: true },
     });
+    await recordManagementAudit(context, agencyId, "USER_CREATED", "User", user.id, { roleId: role.id }, user.branchId);
     if (!hasExplicitPassword) {
       const token = randomBytes(32).toString("hex");
       await prisma.invitation.create({
@@ -819,6 +885,7 @@ export async function updateAgent(
     phone: string | null;
     branchId: string | null;
     status: RecordStatus;
+    roleId: string;
   }>,
 ) {
   const agent = await prisma.user.findUnique({
@@ -843,7 +910,34 @@ export async function updateAgent(
     error.code = "INVALID_REQUEST";
     throw error;
   }
-  ensureAgencyAccess(context, agent.agencyId);
+  ensureBranchAccess(context, agent.agencyId, agent.branchId);
+
+  if (isBranchScoped(context) && data.branchId !== undefined && data.branchId !== context.branchId) {
+    const error = new Error("You can only assign agents to your branch") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 403;
+    error.code = "FORBIDDEN";
+    throw error;
+  }
+
+  let roleId: string | undefined;
+  if (data.roleId) {
+    const role = await prisma.role.findFirst({
+      where: { id: data.roleId, OR: [{ code: "AGENT" }, { agencyId: agent.agencyId, isSystem: false }] },
+    });
+    if (!role) {
+      const error = new Error("Role does not belong to this agency") as Error & { statusCode?: number; code?: string };
+      error.statusCode = 400;
+      error.code = "INVALID_REQUEST";
+      throw error;
+    }
+    if (isBranchScoped(context) && role.scope !== "BRANCH") {
+      const error = new Error("Branch-scoped users can only assign branch-scoped roles") as Error & { statusCode?: number; code?: string };
+      error.statusCode = 403;
+      error.code = "FORBIDDEN";
+      throw error;
+    }
+    roleId = role.id;
+  }
 
   if (data.branchId !== undefined && data.branchId !== null) {
     const branch = await prisma.branch.findUnique({
@@ -859,7 +953,7 @@ export async function updateAgent(
     }
   }
 
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: agentId },
     data: {
       ...(data.firstName !== undefined
@@ -875,9 +969,17 @@ export async function updateAgent(
         ? { branchId: data.branchId ?? null }
         : {}),
       ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(roleId ? { roleId } : {}),
     },
     include: { agency: true, branch: true, role: true },
   });
+  if (roleId) {
+    await prisma.invitation.updateMany({ where: { userId: agentId, acceptedAt: null }, data: { roleId } });
+    await recordManagementAudit(context, agent.agencyId, "USER_ROLE_ASSIGNED", "User", updated.id, { roleId }, updated.branchId);
+  }
+  const changedFields = Object.keys(data).filter((key) => key !== "roleId");
+  if (changedFields.length) await recordManagementAudit(context, agent.agencyId, "USER_UPDATED", "User", updated.id, { changedFields }, updated.branchId);
+  return updated;
 }
 
 export async function deactivateAgent(context: AuthContext, agentId: string) {
@@ -900,11 +1002,13 @@ export async function deactivateAgent(context: AuthContext, agentId: string) {
     error.code = "INVALID_REQUEST";
     throw error;
   }
-  ensureAgencyAccess(context, agent.agencyId);
-  return prisma.user.update({
+  ensureBranchAccess(context, agent.agencyId, agent.branchId);
+  const updated = await prisma.user.update({
     where: { id: agentId },
     data: { status: RecordStatus.INACTIVE },
   });
+  await recordManagementAudit(context, agent.agencyId, "USER_DEACTIVATED", "User", agentId, {}, agent.branchId);
+  return updated;
 }
 
 export const agencyListSchema = { page: 1, limit: 20 } as const;

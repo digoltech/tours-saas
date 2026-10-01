@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canAccessTenant } from "./tenant-policy.js";
+import { canAccessTenant, isBranchScoped } from "./tenant-policy.js";
 import type { AuthContext } from "../types/auth.js";
 
 const context = (
@@ -52,5 +52,20 @@ describe("tenant access policy", () => {
         "branch-a1",
       ),
     ).toBe(false);
+  });
+
+  test("custom branch-scoped roles stay within their assigned branch", () => {
+    const operator = { ...context("CUSTOM_FLEET", "agency-a", "branch-a1"), roleScope: "BRANCH" as const };
+    expect(isBranchScoped(operator)).toBe(true);
+    expect(canAccessTenant(operator, "agency-a", "branch-a1")).toBe(true);
+    expect(canAccessTenant(operator, "agency-a", "branch-a2")).toBe(false);
+    expect(canAccessTenant(operator, "agency-b", "branch-a1")).toBe(false);
+  });
+
+  test("custom agency-scoped roles can access only their own agency", () => {
+    const manager = { ...context("CUSTOM_MANAGER", "agency-a", "branch-a1"), roleScope: "AGENCY" as const };
+    expect(isBranchScoped(manager)).toBe(false);
+    expect(canAccessTenant(manager, "agency-a", "branch-a2")).toBe(true);
+    expect(canAccessTenant(manager, "agency-b", "branch-b1")).toBe(false);
   });
 });

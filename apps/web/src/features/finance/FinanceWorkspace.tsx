@@ -43,7 +43,6 @@ import {
   saveFinanceSettings,
 } from "../auth/services/api-client";
 import { CancellationRequests } from "./CancellationRequests";
-import { AuditLogList } from "./AuditLogList";
 
 type FinanceSettings = {
   gstRate: string;
@@ -120,8 +119,9 @@ export function FinanceWorkspace() {
   const [loading, setLoading] = useState(true);
 
   const canSettings =
-    user?.role === "AGENCY_ADMIN" || user?.role === "SUPER_ADMIN";
-  const canSettle = user?.role === "AGENCY_ADMIN";
+    user?.role === "SUPER_ADMIN" ||
+    (user?.roleScope === "AGENCY" && user?.permissions.includes("finance:settings"));
+  const canSettle = user?.permissions.includes("finance:settlement");
   const filters = useMemo(
     () => ({
       ...(user?.role === "SUPER_ADMIN" && agencyId ? { agencyId } : {}),
@@ -387,13 +387,7 @@ export function FinanceWorkspace() {
         title="Finance & reports"
         description="Track finance and reports."
       />
-      {(user?.role === "AGENCY_ADMIN" ||
-        user?.role === "BRANCH_ADMIN" ||
-        user?.role === "SUPER_ADMIN") && <CancellationRequests />}
-      {(user?.role === "AGENCY_ADMIN" || user?.role === "SUPER_ADMIN") && (
-        <AuditLogList />
-      )}
-
+      {user?.permissions.includes("finance:cancel") && <CancellationRequests />}
       <div className={cn("finance-toolbar-card")}>
         <div className={cn("finance-filter-heading")}>
           <div>

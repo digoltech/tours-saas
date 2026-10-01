@@ -10,11 +10,13 @@ import { transportRouter } from "./routes/transport.routes.js";
 import { bookingRouter } from "./routes/booking.routes.js";
 import { financeRouter } from "./routes/finance.routes.js";
 import { stage4Router } from "./routes/stage4.routes.js";
+import { rolesRouter } from "./routes/roles.routes.js";
+import { bulkRouter } from "./routes/bulk.routes.js";
 
 export const app = express();
 
 app.use(cors({ origin: environment.WEB_URL, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use((request, response, next) => {
   const startedAt = performance.now();
   response.on("finish", () => {
@@ -33,5 +35,7 @@ app.use("/api", transportRouter);
 app.use("/api", bookingRouter);
 app.use("/api", financeRouter);
 app.use("/api", stage4Router);
+app.use("/api", rolesRouter);
+app.use("/api", bulkRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);

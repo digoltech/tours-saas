@@ -243,6 +243,26 @@ export const getTripController = wrap(async (r) =>
 export const createTripController = created(async (r) =>
   service.createTrip(r.auth!, tripPayload.parse(r.body)),
 );
+const recurringTripPayload = z.object({
+  agencyId: agency,
+  branchId: id,
+  routeId: id,
+  busId: id,
+  driverId: id,
+  tripCode: z.string().trim().min(1).max(60),
+  startDate: z.iso.date(),
+  endDate: z.iso.date(),
+  weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  departureTime: z.string().datetime(),
+  arrivalTime: z.string().datetime(),
+  fare: z.coerce.number().min(0).optional(),
+});
+export const previewRecurringTripsController = wrap(async (r) =>
+  service.previewRecurringTrips(r.auth!, recurringTripPayload.parse(r.body)),
+);
+export const createRecurringTripsController = wrap(async (r) =>
+  service.createRecurringTrips(r.auth!, recurringTripPayload.parse(r.body)),
+);
 export const updateTripController = wrap(async (r) =>
   service.updateTrip(
     r.auth!,

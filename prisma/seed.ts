@@ -1,4 +1,4 @@
-import { PrismaClient, RoleCode, RecordStatus } from "@prisma/client";
+import { PrismaClient, RecordStatus } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { config as loadEnv } from "dotenv";
 
@@ -59,8 +59,10 @@ const permissions = [
   "finance:settings",
 ];
 
+const builtinRoleCodes = ["SUPER_ADMIN", "AGENCY_ADMIN", "BRANCH_ADMIN", "AGENT"] as const;
+type BuiltinRoleCode = (typeof builtinRoleCodes)[number];
 const roleDefinitions: Record<
-  RoleCode,
+  BuiltinRoleCode,
   { name: string; permissions: string[] }
 > = {
   SUPER_ADMIN: { name: "Super Admin", permissions },
@@ -119,15 +121,25 @@ async function main() {
       }),
     );
 
-  const roles = new Map<RoleCode, { id: string }>();
+  const roles = new Map<BuiltinRoleCode, { id: string }>();
   for (const [code, definition] of Object.entries(roleDefinitions) as [
-    RoleCode,
-    (typeof roleDefinitions)[RoleCode],
+    BuiltinRoleCode,
+    (typeof roleDefinitions)[BuiltinRoleCode],
   ][]) {
     const role = await prisma.role.upsert({
       where: { code },
-      update: { name: definition.name },
-      create: { code, name: definition.name },
+      update: {
+        name: definition.name,
+        scope: code === "SUPER_ADMIN" ? "PLATFORM" : code === "AGENT" || code === "BRANCH_ADMIN" ? "BRANCH" : "AGENCY",
+        isSystem: true,
+        agencyId: null,
+      },
+      create: {
+        code,
+        name: definition.name,
+        scope: code === "SUPER_ADMIN" ? "PLATFORM" : code === "AGENT" || code === "BRANCH_ADMIN" ? "BRANCH" : "AGENCY",
+        isSystem: true,
+      },
     });
     roles.set(code, role);
     await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
@@ -170,7 +182,7 @@ async function main() {
       email: "super.admin@aone.local",
       firstName: "Super",
       lastName: "Admin",
-      roleCode: RoleCode.SUPER_ADMIN,
+      roleCode: "SUPER_ADMIN",
       agencyId: null,
       branchId: null,
     },
@@ -178,7 +190,7 @@ async function main() {
       email: "agency.admin.a@aone.local",
       firstName: "Agency",
       lastName: "Admin A",
-      roleCode: RoleCode.AGENCY_ADMIN,
+      roleCode: "AGENCY_ADMIN",
       agencyId: agencyA.id,
       branchId: null,
     },
@@ -186,7 +198,7 @@ async function main() {
       email: "branch.admin.a1@aone.local",
       firstName: "Branch",
       lastName: "Admin A1",
-      roleCode: RoleCode.BRANCH_ADMIN,
+      roleCode: "BRANCH_ADMIN",
       agencyId: agencyA.id,
       branchId: branchA1.id,
     },
@@ -194,7 +206,7 @@ async function main() {
       email: "agent.a1@aone.local",
       firstName: "Agent",
       lastName: "A1",
-      roleCode: RoleCode.AGENT,
+      roleCode: "AGENT",
       agencyId: agencyA.id,
       branchId: branchA1.id,
     },

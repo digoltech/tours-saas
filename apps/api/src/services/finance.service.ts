@@ -1,6 +1,6 @@
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
-import { canAccessTenant } from "../middleware/tenant-policy.js";
+import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
 import { calculateCancellation } from "./finance-calculations.js";
 
 type FinanceMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER";
@@ -52,7 +52,7 @@ export async function saveSettings(
     tiers: { hoursBeforeDeparture: number; feePercent: number }[];
   },
 ) {
-  if (context.role !== "AGENCY_ADMIN" && context.role !== "SUPER_ADMIN")
+  if (context.role !== "SUPER_ADMIN" && (context.roleScope !== "AGENCY" || !context.permissions.includes("finance:settings")))
     fail(
       403,
       "FORBIDDEN",
@@ -206,6 +206,7 @@ export async function recordPayment(
     await tx.auditLog.create({
       data: {
         agencyId: booking.agencyId,
+        branchId: booking.branchId,
         actorId: context.userId,
         action: "PAYMENT_RECORDED",
         entityType: "Booking",
@@ -265,6 +266,7 @@ export async function cancelBooking(
     await tx.auditLog.create({
       data: {
         agencyId: booking.agencyId,
+        branchId: booking.branchId,
         actorId: context.userId,
         action: "BOOKING_CANCELLED",
         entityType: "Booking",
@@ -388,6 +390,7 @@ export async function recordRefund(
     await tx.auditLog.create({
       data: {
         agencyId: booking.agencyId,
+        branchId: booking.branchId,
         actorId: context.userId,
         action: "REFUND_RECORDED",
         entityType: "Booking",
@@ -425,7 +428,7 @@ export async function postSettlement(
       where: {
         id: input.partyId,
         agencyId,
-        ...(context.role === "BRANCH_ADMIN"
+        ...(isBranchScoped(context)
           ? { branchId: context.branchId ?? "__missing__" }
           : {}),
       },
@@ -487,7 +490,7 @@ export async function listLedger(context: AuthContext) {
       ? {}
       : {
           agencyId: context.agencyId ?? "__missing__",
-          ...(context.role === "BRANCH_ADMIN"
+          ...(isBranchScoped(context)
             ? { booking: { branchId: context.branchId ?? "__missing__" } }
             : context.role === "AGENT"
               ? {
@@ -519,7 +522,7 @@ export async function getReports(
       ? filters.agencyId
       : (context.agencyId ?? "__missing__");
   if (
-    context.role === "BRANCH_ADMIN" &&
+    isBranchScoped(context) &&
     filters.branchId &&
     filters.branchId !== context.branchId
   )
@@ -537,7 +540,7 @@ export async function getReports(
   )
     fail(403, "FORBIDDEN", "You can only report on your own bookings");
   const branchId =
-    context.role === "BRANCH_ADMIN" || context.role === "AGENT"
+    isBranchScoped(context)
       ? (context.branchId ?? "__missing__")
       : filters.branchId;
   const agentId = context.role === "AGENT" ? context.userId : filters.agentId;

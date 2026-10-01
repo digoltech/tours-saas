@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Activity,
   ArrowRight,
   Search,
   BarChart3,
@@ -25,6 +26,7 @@ import {
   ChevronsRight,
   GitBranch,
   LayoutDashboard,
+  FileSpreadsheet,
   LogOut,
   Map,
   Menu,
@@ -105,6 +107,9 @@ const navGroups = [
         icon: Users,
         permission: "agent:read",
       },
+      { label: "Roles & permissions", path: "/dashboard/roles", icon: ShieldCheck, permission: "agency:read", adminOnly: true },
+      { label: "Workspace activity", path: "/dashboard/activity", icon: Activity, permission: "agency:read" },
+      { label: "Bulk data", path: "/dashboard/data", icon: FileSpreadsheet, permission: "bus:read" },
       {
         label: "Finance",
         path: "/dashboard/finance",
@@ -432,6 +437,9 @@ export function Shell({ children }: { children: ReactNode }) {
     "seat-layout": "Seat layouts",
     settings: "Settings",
     profile: "Profile",
+    roles: "Roles & permissions",
+    activity: "Workspace activity",
+    data: "Bulk data",
   };
   const pathParts = pathname.split("/").filter(Boolean);
   const breadcrumbParts = pathParts.map((part, index) => ({
@@ -521,7 +529,9 @@ export function Shell({ children }: { children: ReactNode }) {
                     (item) =>
                       !item.permission ||
                       user?.role === "SUPER_ADMIN" ||
-                      user?.permissions.includes(item.permission),
+                      (item.label === "Bulk data" && ["bus:read", "driver:read", "route:read", "stop:read"].some((permission) => user?.permissions.includes(permission))) ||
+                      (user?.permissions.includes(item.permission) &&
+                        (!item.adminOnly || user?.role === "AGENCY_ADMIN")),
                   )
                   .map((item) =>
                     (() => {
@@ -619,11 +629,11 @@ export function Shell({ children }: { children: ReactNode }) {
                           : "Unauthenticated"}
                     </strong>
                     <span>
-                      {user?.role
+                      {user?.roleName ?? (user?.role
                         .replaceAll("_", " ")
                         .toLowerCase()
                         .replace(/\b\w/g, (letter) => letter.toUpperCase()) ??
-                        "Sign in required"}
+                        "Sign in required")}
                     </span>
                   </div>
                   <ChevronDown size={16} />

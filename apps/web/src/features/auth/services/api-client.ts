@@ -99,17 +99,19 @@ export function completeOnboarding(data: {
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
 }
-export function getNotifications() {
+export function getNotifications(cursor?: string) {
   return request<
-    {
+    { items: {
       id: string;
+      userId: string | null;
       subject: string;
       message: string;
       status: string;
+      channel: "IN_APP" | "EMAIL" | "SMS" | "WHATSAPP";
       createdAt: string;
       readAt: string | null;
-    }[]
-  >("/api/notifications");
+    }[]; nextCursor: string | null }
+  >(`/api/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
 }
 export function getNotificationPreferences() {
   return request<NotificationPreferences>("/api/notifications/preferences");
@@ -244,11 +246,22 @@ export function getAuditLogs(filters: Record<string, string> = {}) {
     }[]
   >(`/api/audit-logs${query ? `?${query}` : ""}`);
 }
-export type WorkspaceRole = { id: string; code: string; name: string; scope: "PLATFORM" | "AGENCY" | "BRANCH"; isSystem: boolean; permissions: string[] };
+export type WorkspaceRole = { id: string; code: string; name: string; scope: "PLATFORM" | "AGENCY" | "BRANCH"; isSystem: boolean; userCount: number; permissions: string[] };
+export type WorkspaceMember = { id: string; firstName: string; lastName: string; email: string; status: "ACTIVE" | "INACTIVE"; roleId: string; branchId: string | null; branchName: string | null };
 export type PermissionOption = { id: string; code: string; description: string };
 export function getWorkspaceRoles(agencyId?: string) {
   const query = agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : "";
-  return request<{ roles: WorkspaceRole[]; permissions: PermissionOption[] }>(`/api/agency/roles${query}`);
+  return request<{ roles: WorkspaceRole[]; permissions: PermissionOption[]; users: WorkspaceMember[] }>(`/api/agency/roles${query}`);
+}
+export function assignWorkspaceRole(userId: string, roleId: string, agencyId?: string) {
+  return request<{ id: string; roleId: string }>(`/api/agency/roles/users/${encodeURIComponent(userId)}`, {
+    method: "PATCH", body: JSON.stringify({ roleId, agencyId }),
+  });
+}
+export function customizeWorkspaceMember(userId: string, input: { agencyId?: string; name: string; scope: "AGENCY" | "BRANCH"; permissions: string[] }) {
+  return request<{ id: string; roleId: string }>(`/api/agency/roles/users/${encodeURIComponent(userId)}/customize`, {
+    method: "POST", body: JSON.stringify(input),
+  });
 }
 export function saveWorkspaceRole(input: { id?: string; agencyId?: string; name: string; scope: "AGENCY" | "BRANCH"; permissions: string[] }) {
   return request<WorkspaceRole>(input.id ? `/api/agency/roles/${encodeURIComponent(input.id)}` : "/api/agency/roles", {

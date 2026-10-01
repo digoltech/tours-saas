@@ -203,15 +203,17 @@ export async function updatePreferences(
     update: input,
   });
 }
-export async function listNotifications(context: AuthContext) {
-  return prisma.notification.findMany({
+export async function listNotifications(context: AuthContext, cursor?: string) {
+  const rows = await prisma.notification.findMany({
     where: {
       agencyId: context.agencyId ?? "__missing__",
       OR: [{ userId: context.userId }, { channel: "IN_APP", userId: null }],
     },
-    orderBy: { createdAt: "desc" },
-    take: 100,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    take: 51,
   });
+  return { items: rows.slice(0, 50), nextCursor: rows.length > 50 ? rows[49].id : null };
 }
 export async function markNotificationRead(context: AuthContext, id: string) {
   const item = await prisma.notification.findFirst({

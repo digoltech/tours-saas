@@ -116,8 +116,6 @@ const navGroups = [
         icon: CircleDollarSign,
         permission: "finance:read",
       },
-      { label: "Notifications", path: "/dashboard/notifications", icon: Bell },
-      { label: "Settings", path: "/dashboard/settings", icon: Settings },
     ],
   },
 ];
@@ -492,16 +490,13 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
           </div>
           <div className={cn("tenant-switcher")}>
-            <div className={cn("tenant-avatar")}>
-              {(agencyBranding?.name ?? "AT").slice(0, 2).toUpperCase()}
-            </div>
             <div>
               <strong>
                 {agencyBranding?.name ?? user?.agencyName ?? "A-One Tours"}
               </strong>
               <span>Organization</span>
             </div>
-            <ChevronDown size={20} />
+            <ChevronDown size={24} />
             <button
               className={cn("sidebar-collapse-toggle")}
               type="button"
@@ -614,6 +609,14 @@ export function Shell({ children }: { children: ReactNode }) {
                 title="Notifications"
               >
                 <Bell size={19} />
+              </Link>
+              <Link
+                className={cn("icon-button")}
+                href="/dashboard/settings"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings size={19} />
               </Link>
               <details className={cn("profile-menu")}>
                 <summary className={cn("profile profile-compact")}>

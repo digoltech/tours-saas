@@ -1,35 +1,96 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Activity, Search } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Activity, CalendarDays, Clock3, FilterX, Search, SlidersHorizontal, UserRound } from "lucide-react";
+import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
-import { cn } from "../../lib/utils";
 import { getAuditLogs } from "../auth/services/api-client";
 
 type ActivityRow = Awaited<ReturnType<typeof getAuditLogs>>[number];
+type Filters = { from: string; to: string; actorId: string; action: string; entityType: string };
+const emptyFilters: Filters = { from: "", to: "", actorId: "", action: "", entityType: "" };
+
+function formatAction(action: string) {
+  return action.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export function ActivityPage() {
   const [rows, setRows] = useState<ActivityRow[]>([]);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [actorId, setActorId] = useState("");
-  const [action, setAction] = useState("");
-  const [entityType, setEntityType] = useState("");
-  const [applied, setApplied] = useState({ from: "", to: "", actorId: "", action: "", entityType: "" });
+  const [actors, setActors] = useState<{ id: string; name: string }[]>([]);
+  const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const hasFilters = Object.values(applied).some(Boolean);
+
   const load = useCallback(async () => {
-    setLoading(true); setError("");
-    try { setRows(await getAuditLogs({ ...(applied.from ? { from: new Date(`${applied.from}T00:00:00`).toISOString() } : {}), ...(applied.to ? { to: new Date(`${applied.to}T23:59:59.999`).toISOString() } : {}), ...(applied.actorId ? { actorId: applied.actorId } : {}), ...(applied.action ? { action: applied.action } : {}), ...(applied.entityType ? { entityType: applied.entityType } : {}) })); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load workspace activity"); }
-    finally { setLoading(false); }
-  }, [applied]);
+    setLoading(true);
+    setError("");
+    try {
+      const result = await getAuditLogs({
+        ...(applied.from ? { from: new Date(`${applied.from}T00:00:00`).toISOString() } : {}),
+        ...(applied.to ? { to: new Date(`${applied.to}T23:59:59.999`).toISOString() } : {}),
+        ...(applied.actorId ? { actorId: applied.actorId } : {}),
+        ...(applied.action ? { action: applied.action } : {}),
+        ...(applied.entityType ? { entityType: applied.entityType } : {}),
+      });
+      setRows(result);
+      if (!hasFilters) {
+        setActors(Array.from(new Map(result.filter((row) => row.actor).map((row) => [
+          row.actor!.id,
+          { id: row.actor!.id, name: `${row.actor!.firstName} ${row.actor!.lastName}` },
+        ])).values()).sort((a, b) => a.name.localeCompare(b.name)));
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load workspace activity.");
+    } finally { setLoading(false); }
+  }, [applied, hasFilters]);
+
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
-  const actors = Array.from(new Map(rows.filter((row) => row.actor).map((row) => [row.actor!.id, { id: row.actor!.id, name: `${row.actor!.firstName} ${row.actor!.lastName}` }])).values());
+
+  function apply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (filters.from && filters.to && filters.from > filters.to) {
+      setError("The start date must be before the end date.");
+      return;
+    }
+    setApplied({ ...filters, action: filters.action.trim(), entityType: filters.entityType.trim() });
+  }
+
+  function clear() {
+    setFilters(emptyFilters);
+    setApplied(emptyFilters);
+    setError("");
+  }
+
   return <>
     <PageHeader title="Workspace activity" description="Review changes made across your agency workspace." />
-    {error && <div className={cn("state-message state-error")} role="alert">{error}</div>}
-    <Card className="mb-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><label>From<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label><label>To<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label><label>Actor<select value={actorId} onChange={(event) => setActorId(event.target.value)}><option value="">Anyone</option>{actors.map((actor) => <option key={actor.id} value={actor.id}>{actor.name}</option>)}</select></label><label>Action<input value={action} onChange={(event) => setAction(event.target.value)} placeholder="e.g. TRIP_CREATED" /></label><label>Entity<input value={entityType} onChange={(event) => setEntityType(event.target.value)} placeholder="Bus, Trip, Role…" /></label></div><button className="button button-secondary mt-3" onClick={() => setApplied({ from, to, actorId, action, entityType })}><Search size={15} /> Apply filters</button></Card>
-    <Card>{loading ? <div className="state-message">Loading activity…</div> : rows.length ? <div className="grid gap-2">{rows.map((row) => <article className="rounded-xl border border-slate-200 p-4" key={row.id}><div className="flex flex-wrap items-center justify-between gap-2"><strong className="flex items-center gap-2"><Activity size={15} />{row.action.replaceAll("_", " ")}</strong><time className="text-sm text-slate-500">{new Date(row.createdAt).toLocaleString()}</time></div><p className="mt-1 text-sm text-slate-600">{row.entityType}{row.entityId ? ` · ${row.entityId}` : ""} · {row.actor ? `${row.actor.firstName} ${row.actor.lastName}` : "System"}</p></article>)}</div> : <div className="state-message">No activity found for these filters.</div>}</Card>
+    <div className="activity-intro">
+      <span className="activity-intro-icon"><Activity size={24} /></span>
+      <div><p className="eyebrow">AUDIT TRAIL</p><h1>Workspace activity</h1><p>See who changed what, and when it happened.</p></div>
+      <span className="activity-count">{loading ? "Loading…" : `${rows.length} ${rows.length === 1 ? "event" : "events"}`}</span>
+    </div>
+    <Card className="activity-filter-card">
+      <div className="activity-card-heading"><div><span className="activity-heading-icon"><SlidersHorizontal size={18} /></span><div><h2>Filter activity</h2><p>Narrow the timeline by date, team member, action or record.</p></div></div>{hasFilters && <button type="button" className="activity-clear" onClick={clear}><FilterX size={16} /> Clear filters</button>}</div>
+      <form onSubmit={apply}>
+        <div className="activity-filter-grid">
+          <label>From date <span className="activity-input-wrap"><CalendarDays size={16} /><input type="date" value={filters.from} max={filters.to || undefined} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></span></label>
+          <label>To date <span className="activity-input-wrap"><CalendarDays size={16} /><input type="date" value={filters.to} min={filters.from || undefined} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></span></label>
+          <label>Team member <span className="activity-input-wrap"><UserRound size={16} /><select value={filters.actorId} onChange={(event) => setFilters((current) => ({ ...current, actorId: event.target.value }))}><option value="">Anyone</option>{actors.map((actor) => <option key={actor.id} value={actor.id}>{actor.name}</option>)}</select></span></label>
+          <label>Action <span className="activity-input-wrap"><Search size={16} /><input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="e.g. TRIP_CREATED" /></span></label>
+          <label>Record type <span className="activity-input-wrap"><Search size={16} /><input value={filters.entityType} onChange={(event) => setFilters((current) => ({ ...current, entityType: event.target.value }))} placeholder="Bus, Trip, Role…" /></span></label>
+        </div>
+        <div className="activity-filter-actions"><Button type="submit" disabled={loading}><Search size={16} /> Apply filters</Button><span>Showing the most recent matching activity</span></div>
+      </form>
+    </Card>
+    {error && <div className="state-message state-error" role="alert">{error}</div>}
+    <Card className="activity-results">
+      <div className="activity-results-heading"><div><p className="eyebrow">EVENT HISTORY</p><h2>Activity timeline</h2></div><span>{loading ? "Loading" : `${rows.length} shown`}</span></div>
+      {loading ? <div className="activity-empty" role="status"><span className="activity-empty-icon"><Clock3 size={25} /></span><h3>Loading activity…</h3><p>Getting the latest changes from your workspace.</p></div> : rows.length ? <div className="activity-timeline">{rows.map((row) => <article className="activity-event" key={row.id}>
+        <span className="activity-event-icon"><Activity size={18} /></span>
+        <div className="activity-event-body"><div className="activity-event-title"><h3>{formatAction(row.action)}</h3><time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString()}</time></div><p><strong>{row.actor ? `${row.actor.firstName} ${row.actor.lastName}` : "System"}</strong> updated <span className="activity-entity">{row.entityType}</span>{row.entityId && <span className="activity-entity-id" title={row.entityId}> · {row.entityId}</span>}</p></div>
+      </article>)}</div> : <div className="activity-empty"><span className="activity-empty-icon"><Activity size={26} /></span><h3>{hasFilters ? "No matching activity" : "No activity yet"}</h3><p>{hasFilters ? "Try a wider date range or clear the filters to see more events." : "Changes to bookings, trips and your team will appear here."}</p>{hasFilters && <Button variant="secondary" onClick={clear}><FilterX size={16} /> Clear filters</Button>}</div>}
+    </Card>
   </>;
 }

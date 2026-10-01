@@ -21,3 +21,9 @@ export const listRoles = (req: Request, res: Response) => run(res, () => service
 export const createRole = (req: Request, res: Response) => run(res, () => service.createRole(req.auth!, roleInput.parse(req.body)), 201);
 export const updateRole = (req: Request, res: Response) => run(res, () => service.updateRole(req.auth!, z.string().min(1).parse(req.params.id), roleInput.parse(req.body)));
 export const deleteRole = (req: Request, res: Response) => run(res, () => service.deleteRole(req.auth!, z.string().min(1).parse(req.params.id), typeof req.query.agencyId === "string" ? req.query.agencyId : undefined));
+export const assignUserRole = (req: Request, res: Response) => run(res, () => {
+  const input = z.object({ roleId: z.string().min(1), agencyId: z.string().min(1).optional() }).parse(req.body);
+  return service.assignUserRole(req.auth!, z.string().min(1).parse(req.params.userId), input.roleId, input.agencyId);
+});
+export const customizeUserRole = (req: Request, res: Response) => run(res, () =>
+  service.customizeUserRole(req.auth!, z.string().min(1).parse(req.params.userId), roleInput.parse(req.body)), 201);

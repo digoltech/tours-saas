@@ -32,7 +32,7 @@ const id = z.string().min(1);
 export const notifications = (req: Request, res: Response) =>
   run(req, res, () =>
     req.method === "GET"
-      ? service.listNotifications(req.auth!)
+      ? service.listNotifications(req.auth!, z.object({ cursor: z.string().min(1).optional() }).parse(req.query).cursor)
       : service.updatePreferences(
           req.auth!,
           z

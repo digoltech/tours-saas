@@ -11,6 +11,19 @@ enum RecordStatus {
   INACTIVE
 }
 
+enum PrivacyRequestType {
+  ACCESS
+  ERASURE
+}
+
+enum PrivacyRequestStatus {
+  PENDING
+  VERIFIED
+  COMPLETED
+  RETAINED
+  REJECTED
+}
+
 enum RoleScope {
   PLATFORM
   AGENCY
@@ -100,6 +113,10 @@ model User {
   notifications           Notification[]
   notificationPreference  NotificationPreference?
   auditLogs               AuditLog[]
+  sessions                Session[]
+  privacyRequests         PrivacyRequest[] @relation("PrivacyRequester")
+  reviewedPrivacyRequests PrivacyRequest[] @relation("PrivacyReviewer")
+  securityEvents          SecurityEvent[]
 
   @@index([agencyId])
   @@index([branchId])
@@ -145,6 +162,56 @@ model Agency {
   auditLogs            AuditLog[]
   roles                Role[]
   cancellationRequests CancellationRequest[]
+  privacyRequests      PrivacyRequest[]
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model PrivacyRequest {
+  id           String               @id @default(cuid())
+  type         PrivacyRequestType
+  status       PrivacyRequestStatus @default(PENDING)
+  agencyId     String?
+  userId       String?
+  bookingPnr   String?
+  contactEmail String?
+  contactPhone String?
+  subjectName  String
+  reason       String?
+  reviewNote   String?
+  verifiedAt   DateTime?
+  completedAt  DateTime?
+  reviewedById String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  agency       Agency?              @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  user         User?                @relation("PrivacyRequester", fields: [userId], references: [id], onDelete: SetNull)
+  reviewedBy   User?                @relation("PrivacyReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([agencyId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  route     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
 }
 
 model Branch {

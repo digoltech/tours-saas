@@ -13,6 +13,7 @@ export type AuthUser = {
   branchId: string | null;
   permissions: string[];
   onboardingCompleted: boolean;
+  emailVerified?: boolean;
 };
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";

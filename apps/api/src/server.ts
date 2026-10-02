@@ -22,7 +22,10 @@ async function startServer() {
         ('CancellationRequest'),
         ('AuditLog'),
         ('Subscription'),
-        ('SubscriptionInvoice')
+        ('SubscriptionInvoice'),
+        ('Session'),
+        ('PrivacyRequest'),
+        ('SecurityEvent')
       ) AS required(table_name)
     `;
     const missingTables = requiredTables
@@ -44,7 +47,7 @@ async function startServer() {
   }
 
   startSeatHoldCleanup();
-  app.listen(environment.PORT, () => {
+  app.listen(environment.PORT, "127.0.0.1", () => {
     console.info(`API listening on http://localhost:${environment.PORT}`);
   });
 }

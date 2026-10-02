@@ -104,6 +104,7 @@ const navGroups = [
       { label: "Roles & permissions", path: "/dashboard/roles", icon: ShieldCheck, permission: "agency:read", adminOnly: true },
       { label: "Workspace activity", path: "/dashboard/activity", icon: Activity, permission: "agency:read" },
       { label: "Bulk data", path: "/dashboard/data", icon: FileSpreadsheet, permission: "bus:read" },
+      { label: "Privacy requests", path: "/dashboard/privacy", icon: ShieldCheck },
       {
         label: "Finance",
         path: "/dashboard/finance",

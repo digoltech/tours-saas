@@ -82,6 +82,7 @@ export async function assignUserRole(context: AuthContext, userId: string, roleI
   if (user.roleId === role.id) return { id: user.id, roleId: role.id };
   await prisma.$transaction(async (tx) => {
     await tx.user.update({ where: { id: userId }, data: { roleId: role.id } });
+    await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await tx.invitation.updateMany({ where: { userId, acceptedAt: null }, data: { roleId: role.id } });
     await tx.auditLog.create({ data: {
       agencyId, actorId: context.userId, action: "USER_ROLE_ASSIGNED",
@@ -119,6 +120,7 @@ export async function customizeUserRole(
       permissions: { create: allowed.map(({ id }) => ({ permissionId: id })) },
     } });
     await tx.user.update({ where: { id: userId }, data: { roleId: role.id } });
+    await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await tx.invitation.updateMany({ where: { userId, acceptedAt: null }, data: { roleId: role.id } });
     await tx.auditLog.create({ data: {
       agencyId, actorId: context.userId, action: "USER_PERMISSIONS_CUSTOMIZED",
@@ -172,6 +174,7 @@ export async function updateRole(
     fail(400, "INVALID_REQUEST", "One or more permissions are not available");
   const updated = await prisma.$transaction(async (tx) => {
     await tx.rolePermission.deleteMany({ where: { roleId: id } });
+    await tx.session.updateMany({ where: { user: { roleId: id }, revokedAt: null }, data: { revokedAt: new Date() } });
     return tx.role.update({ where: { id }, data: {
       name: input.name.trim(), scope: input.scope,
       permissions: { create: allowed.map(({ id: permissionId }) => ({ permissionId })) },

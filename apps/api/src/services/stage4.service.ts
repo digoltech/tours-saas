@@ -489,23 +489,14 @@ export async function listAuditLogs(context: AuthContext, filters: { from?: stri
 export async function getSubscription(context: AuthContext) {
   if (!context.agencyId)
     fail(400, "INVALID_REQUEST", "Select an agency workspace first");
-  const record = await prisma.subscription.upsert({
-    where: { agencyId: context.agencyId },
-    create: {
-      agencyId: context.agencyId,
-      trialEndsAt: new Date(Date.now() + 14 * 86400000),
-    },
-    update: {},
-  });
+  const record = await prisma.subscription.findUnique({ where: { agencyId: context.agencyId } });
+  if (!record) return null;
   if (
     record.status === "TRIAL" &&
     record.trialEndsAt &&
     record.trialEndsAt < new Date()
   )
-    return prisma.subscription.update({
-      where: { agencyId: record.agencyId },
-      data: { status: "PAST_DUE" },
-    });
+    return { ...record, status: "PAST_DUE" as const };
   return record;
 }
 export async function requestPlan(

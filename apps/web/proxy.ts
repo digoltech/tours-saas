@@ -34,14 +34,16 @@ export async function proxy(request: NextRequest) {
   if (token) {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/auth/me`,
+        `${process.env.API_INTERNAL_URL ?? "http://127.0.0.1:4000"}/api/auth/me`,
         { headers: { Cookie: `aone_session=${token}` }, cache: "no-store" },
       );
       if (response.ok) {
         const payload = (await response.json()) as {
-          data?: { onboardingCompleted?: boolean } & Record<string, unknown>;
+          data?: { onboardingCompleted?: boolean; emailVerified?: boolean } & Record<string, unknown>;
         };
         authenticated = true;
+        if (payload.data?.emailVerified !== true)
+          return NextResponse.redirect(new URL("/verify-email", request.url));
         const onboardingDone = payload.data?.onboardingCompleted === true;
         if (request.nextUrl.pathname === "/onboarding" && onboardingDone)
           return NextResponse.redirect(new URL("/dashboard/home", request.url));

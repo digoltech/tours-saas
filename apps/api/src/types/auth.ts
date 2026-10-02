@@ -11,6 +11,7 @@ export type AuthContext = {
   branchId: string | null;
   permissions: string[];
   onboardingCompleted?: boolean;
+  emailVerified?: boolean;
 };
 
 export type SafeUser = Omit<AuthContext, "userId" | "permissions"> & {

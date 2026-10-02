@@ -1,0 +1,23 @@
+[Unit]
+Description=A-One Tours web
+After=network-online.target aone-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aone
+Group=aone
+WorkingDirectory=/srv/a-one-tours/apps/web
+EnvironmentFile=/etc/a-one-tours/web.env
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/local/bin/bun run start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

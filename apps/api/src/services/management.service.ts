@@ -354,6 +354,8 @@ export async function updateAgency(
       where: { id: agencyId },
       data: nextData,
     });
+    if (data.status === RecordStatus.INACTIVE)
+      await prisma.session.updateMany({ where: { user: { agencyId }, revokedAt: null }, data: { revokedAt: new Date() } });
     await recordManagementAudit(context, agencyId, "AGENCY_UPDATED", "Agency", agencyId, { changedFields: Object.keys(data) });
     return updated;
   } catch (error) {
@@ -395,6 +397,7 @@ export async function deactivateAgency(context: AuthContext, agencyId: string) {
     where: { id: agencyId },
     data: { status: RecordStatus.INACTIVE },
   });
+  await prisma.session.updateMany({ where: { user: { agencyId }, revokedAt: null }, data: { revokedAt: new Date() } });
   await recordManagementAudit(context, agencyId, "AGENCY_DEACTIVATED", "Agency", agencyId);
   return updated;
 }
@@ -587,6 +590,8 @@ export async function updateBranch(
 
   try {
     const updated = await prisma.branch.update({ where: { id: branchId }, data: nextData });
+    if (data.status === RecordStatus.INACTIVE)
+      await prisma.session.updateMany({ where: { user: { branchId }, revokedAt: null }, data: { revokedAt: new Date() } });
     await recordManagementAudit(context, branch.agencyId, "BRANCH_UPDATED", "Branch", branchId, { changedFields: Object.keys(data) }, branchId);
     return updated;
   } catch (error) {
@@ -621,6 +626,7 @@ export async function deactivateBranch(context: AuthContext, branchId: string) {
     where: { id: branchId },
     data: { status: RecordStatus.INACTIVE },
   });
+  await prisma.session.updateMany({ where: { user: { branchId }, revokedAt: null }, data: { revokedAt: new Date() } });
   await recordManagementAudit(context, branch.agencyId, "BRANCH_DEACTIVATED", "Branch", branchId, { code: branch.code }, branchId);
   return updated;
 }
@@ -974,10 +980,13 @@ export async function updateAgent(
     include: { agency: true, branch: true, role: true },
   });
   if (roleId) {
+    await prisma.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
     await prisma.invitation.updateMany({ where: { userId: agentId, acceptedAt: null }, data: { roleId } });
     await recordManagementAudit(context, agent.agencyId, "USER_ROLE_ASSIGNED", "User", updated.id, { roleId }, updated.branchId);
   }
   const changedFields = Object.keys(data).filter((key) => key !== "roleId");
+  if (data.status === RecordStatus.INACTIVE)
+    await prisma.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
   if (changedFields.length) await recordManagementAudit(context, agent.agencyId, "USER_UPDATED", "User", updated.id, { changedFields }, updated.branchId);
   return updated;
 }
@@ -1007,6 +1016,7 @@ export async function deactivateAgent(context: AuthContext, agentId: string) {
     where: { id: agentId },
     data: { status: RecordStatus.INACTIVE },
   });
+  await prisma.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
   await recordManagementAudit(context, agent.agencyId, "USER_DEACTIVATED", "User", agentId, {}, agent.branchId);
   return updated;
 }

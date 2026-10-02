@@ -1,19 +1,43 @@
 "use client";
 
-import { cn } from "../../src/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle } from "lucide-react";
-import { verifyEmail } from "../../src/features/auth/services/api-client";
-import { Card } from "../../src/ui/Card";
+import { useRouter } from "next/navigation";
 import { AuthLayout } from "../../src/features/auth/components/AuthLayout";
+import { resendEmailVerification, verifyEmail } from "../../src/features/auth/services/api-client";
+import { Card } from "../../src/ui/Card";
 
 export default function VerifyEmailPage() {
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const router = useRouter();
+  const attempted = useRef(false);
+  const [status, setStatus] = useState<"pending" | "loading" | "success" | "error">("pending");
+  const [message, setMessage] = useState("Check your inbox for a confirmation link.");
+
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
-    if (!token) { const timer = window.setTimeout(() => setStatus("error"), 0); return () => window.clearTimeout(timer); }
-    verifyEmail(token).then(() => setStatus("success")).catch(() => setStatus("error"));
-  }, []);
-  return <AuthLayout><div className={cn("auth-card-stack auth-card-stack-narrow")}><Card className={cn("login-card email-result")}>{status === "loading" && <><p className={cn("eyebrow")}>Confirming email</p><h1>Verifying your address...</h1><p className={cn("muted")}>Just a moment while we secure your account.</p></>}{status === "success" && <><CheckCircle2 className={cn("email-result-icon success")} size={42} /><p className={cn("eyebrow")}>Email confirmed</p><h1>Your account is ready.</h1><p className={cn("muted")}>Thanks for confirming your email. You can continue to your workspace.</p><Link className={cn("button button-primary email-result-action")} href="/dashboard/home">Open workspace</Link></>}{status === "error" && <><XCircle className={cn("email-result-icon error")} size={42} /><p className={cn("eyebrow")}>Link unavailable</p><h1>This link has expired.</h1><p className={cn("muted")}>Request a new confirmation email or continue to sign in.</p><Link className={cn("button button-secondary email-result-action")} href="/login">Back to sign in</Link></>}</Card></div></AuthLayout>;
+    if (!token || attempted.current) return;
+    attempted.current = true;
+    window.history.replaceState(null, "", "/verify-email");
+    queueMicrotask(() => setStatus("loading"));
+    verifyEmail(token).then(() => {
+      setStatus("success");
+      router.refresh();
+    }).catch(() => setStatus("error"));
+  }, [router]);
+
+  async function resend() {
+    try {
+      await resendEmailVerification();
+      setMessage("A new confirmation link has been sent if your session is still active.");
+    } catch {
+      setMessage("Please sign in, then request another confirmation link.");
+    }
+  }
+
+  return <AuthLayout><Card className="login-card email-result">
+    {status === "pending" && <><h1>Confirm your email</h1><p>{message}</p><button type="button" className="button button-secondary" onClick={resend}>Resend link</button></>}
+    {status === "loading" && <><h1>Verifying your address…</h1><p>Please wait.</p></>}
+    {status === "success" && <><h1>Email confirmed</h1><p>Your workspace is ready.</p><Link className="button button-primary" href="/onboarding">Continue</Link></>}
+    {status === "error" && <><h1>Link unavailable</h1><p>This link is invalid or expired.</p><button type="button" className="button button-secondary" onClick={resend}>Resend link</button></>}
+  </Card></AuthLayout>;
 }

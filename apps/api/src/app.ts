@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import helmet from "helmet";
 import { environment } from "./config/env.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { tenantRouter } from "./routes/tenant.routes.js";
@@ -12,11 +13,22 @@ import { financeRouter } from "./routes/finance.routes.js";
 import { stage4Router } from "./routes/stage4.routes.js";
 import { rolesRouter } from "./routes/roles.routes.js";
 import { bulkRouter } from "./routes/bulk.routes.js";
+import { requireSameOrigin } from "./middleware/csrf.js";
+import { generalLimit } from "./middleware/rate-limit.js";
+import { auditPlatformMutation } from "./middleware/security-audit.js";
+import { privacyRouter } from "./routes/privacy.routes.js";
 
 export const app = express();
 
+app.disable("x-powered-by");
+app.set("trust proxy", "loopback");
+app.use(helmet());
 app.use(cors({ origin: environment.WEB_URL, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
+app.use((_request, response, next) => { response.setHeader("Cache-Control", "no-store"); next(); });
+app.use(requireSameOrigin);
+app.use("/api", generalLimit);
+app.use("/api", auditPlatformMutation);
 app.use((request, response, next) => {
   const startedAt = performance.now();
   response.on("finish", () => {
@@ -28,6 +40,7 @@ app.use((request, response, next) => {
   next();
 });
 app.use("/api/health", healthRouter);
+app.use("/api", privacyRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/tenants", tenantRouter);
 app.use("/api", managementRouter);

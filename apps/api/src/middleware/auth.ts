@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { verifySession, toAuthContext } from "../services/auth.service.js";
+import { verifySession, toAuthContext, accountIsActive } from "../services/auth.service.js";
 import { AUTH_COOKIE, readCookie } from "../utils/cookies.js";
 import { sendError } from "../utils/api-response.js";
 import { canAccessTenant } from "./tenant-policy.js";
@@ -19,7 +19,7 @@ export async function authenticate(
         "Authentication is required",
       );
     const user = await verifySession(token);
-    if (!user || user.status !== "ACTIVE")
+    if (!user || !accountIsActive(user))
       return sendError(
         response,
         401,
@@ -27,6 +27,8 @@ export async function authenticate(
         "Authentication is invalid or expired",
       );
     request.auth = toAuthContext(user);
+    if (!request.auth.emailVerified && !["/me", "/onboarding", "/verify-email/resend"].includes(request.path))
+      return sendError(response, 403, "EMAIL_VERIFICATION_REQUIRED", "Verify your email address to continue");
     return next();
   } catch {
     return sendError(

@@ -12,7 +12,14 @@ import type {
   SubscriptionContract,
 } from "@a-one-tours/shared";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+export type PrivacyRequestRecord = {
+  id: string; type: "ACCESS" | "ERASURE"; status: "PENDING" | "VERIFIED" | "COMPLETED" | "RETAINED" | "REJECTED";
+  subjectName: string; contactEmail: string | null; contactPhone: string | null; bookingPnr: string | null;
+  reason: string | null; reviewNote: string | null; agencyId: string | null; userId: string | null;
+  createdAt: string; verifiedAt: string | null; completedAt: string | null;
+};
 
 type ApiResponse<T> =
   | { success: true; data: T }
@@ -69,8 +76,37 @@ export function resetPassword(email: string, otp: string, password: string) {
 }
 export function verifyEmail(token: string) {
   return request<{ verified: boolean }>(
-    `/api/auth/verify-email?token=${encodeURIComponent(token)}`,
+    "/api/auth/verify-email",
+    { method: "POST", body: JSON.stringify({ token }) },
   );
+}
+
+export function resendEmailVerification() {
+  return request<{ sent: boolean }>("/api/auth/verify-email/resend", { method: "POST" });
+}
+
+export function submitPublicPrivacyRequest(input: { type: "ACCESS" | "ERASURE"; subjectName: string; contactEmail?: string; contactPhone?: string; bookingPnr: string; reason?: string }) {
+  return request<{ id: string }>("/api/privacy/public-requests", { method: "POST", body: JSON.stringify(input) });
+}
+export function submitStaffPrivacyRequest(input: { type: "ACCESS" | "ERASURE"; reason?: string }) {
+  return request<{ id: string; status: string }>("/api/privacy/requests", { method: "POST", body: JSON.stringify(input) });
+}
+export function getPrivacyRequests() {
+  return request<PrivacyRequestRecord[]>("/api/privacy/requests");
+}
+export function reviewPrivacyRequest(id: string, action: "VERIFY" | "REJECT" | "RETAIN" | "COMPLETE", note: string) {
+  return request<PrivacyRequestRecord>(`/api/privacy/requests/${encodeURIComponent(id)}/review`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+export async function downloadPrivacyExport(id: string) {
+  const response = await fetch(`${apiUrl}/api/privacy/requests/${encodeURIComponent(id)}/export`, { credentials: "include" });
+  if (!response.ok) throw new Error("Unable to export this request");
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `privacy-${id}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 export function getInvitation(token: string) {
   return request<{
@@ -168,7 +204,7 @@ export function reviewCancellationRequest(
   );
 }
 export function getSubscription() {
-  return request<SubscriptionContract>("/api/subscription");
+  return request<SubscriptionContract | null>("/api/subscription");
 }
 export function requestSubscriptionPlan(planName: string, price: number) {
   return request<SubscriptionContract>("/api/subscription", {

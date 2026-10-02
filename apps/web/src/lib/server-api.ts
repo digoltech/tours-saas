@@ -11,7 +11,7 @@ export async function serverApiRequest<T>(path: string): Promise<T> {
   if (!token) throw new Error("Your session has expired. Please sign in again.");
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}${path}`,
+    `${process.env.API_INTERNAL_URL ?? "http://127.0.0.1:4000"}${path}`,
     {
       headers: { Cookie: `aone_session=${token}` },
       cache: "no-store",

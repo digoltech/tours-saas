@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { clearAuthCookie, setAuthCookie } from "../utils/cookies.js";
+import { AUTH_COOKIE, clearAuthCookie, readCookie, setAuthCookie } from "../utils/cookies.js";
 import { sendError } from "../utils/api-response.js";
 import {
   createSession,
@@ -16,6 +16,9 @@ import {
   createEmailVerificationToken,
   verifyEmail,
   acceptInvitation,
+  revokeSession,
+  resendEmailVerification,
+  accountIsActive,
 } from "../services/auth.service.js";
 import { sendRegistrationConfirmation } from "../services/email.service.js";
 import { environment } from "../config/env.js";
@@ -56,7 +59,7 @@ export async function login(request: Request, response: Response) {
   const user = await findUserByEmail(result.data.email);
   if (
     !user ||
-    user.status !== "ACTIVE" ||
+    !accountIsActive(user) ||
     !(await verifyPassword(result.data.password, user.passwordHash))
   )
     return sendError(
@@ -66,7 +69,7 @@ export async function login(request: Request, response: Response) {
       "Invalid email or password",
     );
   const context = toAuthContext(user);
-  setAuthCookie(response, await createSession(context));
+  setAuthCookie(response, await createSession(context), context.role);
   return response.json({ success: true, data: { user: toSafeUser(context) } });
 }
 
@@ -84,7 +87,7 @@ export async function register(request: Request, response: Response) {
       agencyName: result.data.agencyName,
       verificationUrl,
     }).catch((error) => console.error("Registration confirmation email failed", error));
-    setAuthCookie(response, await createSession(context));
+    setAuthCookie(response, await createSession(context), context.role);
     return response.status(201).json({ success: true, data: { user: toSafeUser(context) } });
   } catch (error) {
     const item = error as { statusCode?: number; code?: string };
@@ -93,7 +96,7 @@ export async function register(request: Request, response: Response) {
 }
 
 export async function confirmEmail(request: Request, response: Response) {
-  const parsed = z.string().min(20).safeParse(request.query.token);
+  const parsed = z.string().min(20).safeParse(request.body?.token);
   if (!parsed.success) return sendError(response, 400, "INVALID_REQUEST", "A valid confirmation token is required");
   const token = parsed.data;
   try {
@@ -122,7 +125,7 @@ export async function acceptInvitationController(request: Request, response: Res
   if (!result.success) return sendError(response, 400, "INVALID_REQUEST", "Provide a valid invitation and a password with at least 8 characters");
   try {
     const context = await acceptInvitation(result.data.token, result.data.password);
-    setAuthCookie(response, await createSession(context));
+    setAuthCookie(response, await createSession(context), context.role);
     return response.json({ success: true, data: { user: toSafeUser(context) } });
   } catch (error) {
     return sendError(response, 400, "INVITATION_FAILED", error instanceof Error ? error.message : "Unable to accept invitation");
@@ -186,7 +189,18 @@ export function me(request: Request, response: Response) {
   return response.json({ success: true, data: toSafeUser(request.auth) });
 }
 
-export function logout(_request: Request, response: Response) {
+export async function resendVerification(request: Request, response: Response) {
+  const pending = await resendEmailVerification(request.auth!.userId);
+  if (pending) {
+    const verificationUrl = `${environment.WEB_URL}/verify-email?token=${encodeURIComponent(pending.token)}`;
+    await sendRegistrationConfirmation({ email: pending.user.email, firstName: pending.user.firstName, agencyName: pending.user.agency?.name ?? "your workspace", verificationUrl });
+  }
+  return response.json({ success: true, data: { sent: true } });
+}
+
+export async function logout(request: Request, response: Response) {
+  const token = readCookie(request, AUTH_COOKIE);
+  if (token) await revokeSession(token);
   clearAuthCookie(response);
   return response.json({ success: true, data: { loggedOut: true } });
 }

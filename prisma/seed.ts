@@ -220,12 +220,14 @@ async function main() {
         passwordHash,
         status: RecordStatus.ACTIVE,
         onboardingCompleted: true,
+        emailVerifiedAt: new Date(),
         roleId: roles.get(roleCode)!.id,
       },
       create: {
         ...userData,
         passwordHash,
         status: RecordStatus.ACTIVE,
+        emailVerifiedAt: new Date(),
         roleId: roles.get(roleCode)!.id,
       },
     });

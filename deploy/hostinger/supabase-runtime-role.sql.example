@@ -1,0 +1,17 @@
+-- Run in a maintenance session as the database owner after choosing a strong password.
+-- Replace both role names and the password; never commit a filled copy of this file.
+CREATE ROLE aone_runtime LOGIN PASSWORD 'REPLACE_WITH_RANDOM_SECRET';
+GRANT CONNECT ON DATABASE postgres TO aone_runtime;
+GRANT USAGE ON SCHEMA public TO aone_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO aone_runtime;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO aone_runtime;
+
+-- Replace postgres with the actual role that owns future migrations.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO aone_runtime;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT USAGE ON SEQUENCES TO aone_runtime;
+
+-- Check effective privilege and role memberships after creation.
+SELECT rolname, rolbypassrls, rolcreatedb, rolcreaterole
+FROM pg_roles WHERE rolname = 'aone_runtime';

@@ -10,8 +10,13 @@ const secret = new TextEncoder().encode(environment.JWT_SECRET);
 
 type UserWithAccess = User & {
   role: { code: string; name: string; scope: "PLATFORM" | "AGENCY" | "BRANCH"; permissions: { permission: { code: string } }[] };
-  agency?: { name: string } | null;
+  agency?: { name: string; status: string } | null;
+  branch?: { status: string } | null;
 };
+
+export function accountIsActive(user: UserWithAccess) {
+  return user.status === "ACTIVE" && user.agency?.status !== "INACTIVE" && user.branch?.status !== "INACTIVE";
+}
 
 export function toAuthContext(user: UserWithAccess): AuthContext {
   return {
@@ -27,6 +32,7 @@ export function toAuthContext(user: UserWithAccess): AuthContext {
     branchId: user.branchId,
     permissions: user.role.permissions.map(({ permission }) => permission.code),
     onboardingCompleted: user.onboardingCompleted,
+    emailVerified: user.emailVerifiedAt !== null,
   };
 }
 
@@ -43,6 +49,7 @@ export function toSafeUser(context: AuthContext): SafeUser {
     branchId: context.branchId,
     permissions: context.permissions,
     onboardingCompleted: context.onboardingCompleted !== false,
+    emailVerified: context.emailVerified === true,
   };
 }
 
@@ -51,7 +58,8 @@ export async function findUserByEmail(email: string) {
     where: { email: email.toLowerCase() },
     include: {
       role: { include: { permissions: { include: { permission: true } } } },
-      agency: { select: { name: true } },
+      agency: { select: { name: true, status: true } },
+      branch: { select: { status: true } },
     },
   });
 }
@@ -61,25 +69,54 @@ export async function findUserById(id: string) {
     where: { id },
     include: {
       role: { include: { permissions: { include: { permission: true } } } },
-      agency: { select: { name: true } },
+      agency: { select: { name: true, status: true } },
+      branch: { select: { status: true } },
     },
   });
 }
 
 export async function createSession(user: AuthContext) {
+  const sessionId = randomBytes(32).toString("hex");
+  const ttlSeconds = user.role === "SUPER_ADMIN" ? 8 * 3600 : 24 * 3600;
+  await prisma.session.create({ data: {
+    userId: user.userId,
+    tokenHash: hashToken(sessionId),
+    expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+  } });
   return new SignJWT({ type: "session" })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.userId)
+    .setJti(sessionId)
     .setIssuedAt()
-    .setExpirationTime("1d")
+    .setExpirationTime(`${ttlSeconds}s`)
     .sign(secret);
 }
 
 export async function verifySession(token: string) {
   const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
-  if (payload.type !== "session" || typeof payload.sub !== "string")
+  if (payload.type !== "session" || typeof payload.sub !== "string" || typeof payload.jti !== "string")
     return null;
+  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(payload.jti) } });
+  if (!sessionIsActive(session, payload.sub)) return null;
   return findUserById(payload.sub);
+}
+
+export function sessionIsActive(session: { userId: string; revokedAt: Date | null; expiresAt: Date } | null, userId: string, now = new Date()) {
+  return Boolean(session && session.userId === userId && !session.revokedAt && session.expiresAt > now);
+}
+
+export async function revokeSession(token: string) {
+  let sessionId: string | undefined;
+  try {
+    const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
+    sessionId = typeof payload.jti === "string" ? payload.jti : undefined;
+  } catch { return; }
+  if (sessionId)
+    await prisma.session.updateMany({ where: { tokenHash: hashToken(sessionId) }, data: { revokedAt: new Date() } });
+}
+
+export async function revokeAllSessions(userId: string) {
+  await prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
 }
 
 export async function verifyPassword(password: string, passwordHash: string) {
@@ -227,6 +264,12 @@ export async function verifyEmail(token: string) {
   ]);
 }
 
+export async function resendEmailVerification(userId: string) {
+  const user = await findUserById(userId);
+  if (!user || user.emailVerifiedAt) return null;
+  return { token: await createEmailVerificationToken(userId), user };
+}
+
 export async function acceptInvitation(token: string, password: string) {
   const invitation = await prisma.invitation.findUnique({
     where: { tokenHash: hashToken(token) },
@@ -352,5 +395,6 @@ export async function resetPassword(
       where: { id: record.id },
       data: { usedAt: new Date() },
     }),
+    prisma.session.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
 }

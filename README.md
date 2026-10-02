@@ -31,7 +31,7 @@ Install Bun 1.3+ and have access to a Supabase PostgreSQL project. Node.js is us
 4. Set `JWT_SECRET` to at least 32 random characters and `WEB_URL` to the frontend origin.
 5. Copy `apps/web/.env.example` to `apps/web/.env.local` and set `NEXT_PUBLIC_API_URL`.
 
-The frontend does not currently require environment variables.
+For production, serve web and API on one HTTPS origin and follow [the security deployment runbook](docs/security-deployment.md). The web build must set `NEXT_PUBLIC_API_URL` to an empty string; the API uses a CA-verified Supabase connection and Redis rate-limit storage.
 
 ## Supabase and Prisma setup
 
@@ -81,3 +81,5 @@ bun run build
 Keep route files thin and put business logic in services and repositories. Keep Prisma access centralized. Use strict TypeScript, shared contracts for cross-app types, environment variables for configuration, and tenant ownership fields on tenant-owned records. Finance changes belong in the finance service; posted payment, refund, and ledger history is retained as records.
 
 See [docs/phase-1-audit.md](docs/phase-1-audit.md) for checklist status and evidence.
+
+Security review artifacts: [prioritized findings](docs/security-findings.md) and [threat model](Tours-SaaS-threat-model.md). Run `bun run security:supabase-audit` for a read-only table-grant and connection-TLS check. The privacy notice stays unpublished until its legal details and retention schedule are approved.

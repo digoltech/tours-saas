@@ -10,7 +10,6 @@
   --color-primary-foreground: hsl(var(--primary-foreground));
   --color-muted: hsl(0 0% 94%);
   --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-muted-foreground: hsl(var(--muted-foreground));
   --color-border: hsl(var(--border));
   --color-ring: hsl(var(--ring));
   --font-sans: "Manrope", sans-serif;

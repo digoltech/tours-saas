@@ -297,18 +297,6 @@ export function getAgencies(search = "", status = "") {
   );
 }
 
-export function getDashboardSummary() {
-  return request<{
-    totalAgencies: number;
-    activeAgencies: number;
-    totalBranches: number;
-    totalAgents: number;
-    totalBuses: number;
-    totalDrivers: number;
-    totalRoutes: number;
-    totalTrips: number;
-  }>("/api/dashboard/summary");
-}
 
 export function createAgency(data: {
   name: string;
@@ -537,13 +525,6 @@ export function getBookings(params: Record<string, string | undefined> = {}) {
     `/api/bookings?${transportQuery({ limit: "20", ...params })}`,
   );
 }
-export function getBookingDashboardSummary() {
-  return request<{
-    todayBookings: number;
-    todaySales: number;
-    upcomingTrips: number;
-  }>("/api/bookings/summary");
-}
 export type FinanceSettingsData = Omit<FinanceSettingsContract, "agencyId">;
 export function getFinanceSettings(agencyId?: string) {
   return request<{
@@ -705,20 +686,6 @@ export function saveSeatLayout(
     body: JSON.stringify(data),
   });
 }
-export function getDiscountCap() {
-  return request<{ type: "FIXED" | "PERCENTAGE"; value: number }>(
-    "/api/bookings/discount-cap",
-  );
-}
-export function updateDiscountCap(data: {
-  type: "FIXED" | "PERCENTAGE";
-  value: number;
-}) {
-  return request<{ type: "FIXED" | "PERCENTAGE"; value: number }>(
-    "/api/bookings/discount-cap",
-    { method: "PUT", body: JSON.stringify(data) },
-  );
-}
 const transportQuery = (params: Record<string, string | undefined>) =>
   Object.entries(params)
     .filter(([, value]) => value)
@@ -789,9 +756,6 @@ export function updateRoute(id: string, data: Record<string, unknown>) {
 }
 export function deactivateRouteById(id: string) {
   return request<Route>(`/api/routes/${id}`, { method: "DELETE" });
-}
-export function getStops(routeId: string) {
-  return request<Stop[]>(`/api/routes/${routeId}/stops`);
 }
 export function createStop(routeId: string, data: Record<string, unknown>) {
   return request<Stop>(`/api/routes/${routeId}/stops`, {

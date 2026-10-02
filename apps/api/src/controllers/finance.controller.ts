@@ -5,7 +5,6 @@ import { sendError } from "../utils/api-response.js";
 import { sendBookingNotifications } from "../services/stage4.service.js";
 
 async function run(
-  req: Request,
   res: Response,
   action: () => Promise<unknown>,
 ) {
@@ -31,7 +30,7 @@ async function run(
 const method = z.enum(["CASH", "BANK_TRANSFER", "CARD", "UPI", "OTHER"]);
 const money = z.number().positive().multipleOf(0.01);
 export const settings = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     req.method === "GET"
       ? service.getSettings(
           req.auth!,
@@ -59,14 +58,14 @@ export const settings = (req: Request, res: Response) =>
         ),
   );
 export const bookingFinance = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.getBookingFinanceByPnr(
       req.auth!,
       z.string().min(1).parse(req.params.pnr),
     ),
   );
 export const payment = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.recordPayment(
       req.auth!,
       z.string().min(1).parse(req.params.id),
@@ -80,7 +79,7 @@ export const payment = (req: Request, res: Response) =>
     ),
   );
 export const cancellation = (req: Request, res: Response) =>
-  run(req, res, async () => {
+  run(res, async () => {
     const result = await service.cancelBooking(
       req.auth!,
       z.string().min(1).parse(req.params.id),
@@ -96,7 +95,7 @@ export const cancellation = (req: Request, res: Response) =>
     return result;
   });
 export const refund = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.recordRefund(
       req.auth!,
       z.string().min(1).parse(req.params.id),
@@ -110,7 +109,7 @@ export const refund = (req: Request, res: Response) =>
     ),
   );
 export const settlement = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.postSettlement(
       req.auth!,
       z
@@ -125,7 +124,7 @@ export const settlement = (req: Request, res: Response) =>
     ),
   );
 export const ledger = (req: Request, res: Response) =>
-  run(req, res, () => service.listLedger(req.auth!));
+  run(res, () => service.listLedger(req.auth!));
 function reportFilters(req: Request) {
   return {
     agencyId:
@@ -142,7 +141,7 @@ function reportDate(req: Request, name: "from" | "to") {
   return value === undefined ? undefined : z.iso.date().parse(value);
 }
 export const reports = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.getReports(
       req.auth!,
       reportDate(req, "from"),

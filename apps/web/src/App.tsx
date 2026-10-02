@@ -15,7 +15,6 @@ import {
   Activity,
   ArrowRight,
   Search,
-  BarChart3,
   Bell,
   Bus,
   CalendarDays,
@@ -37,15 +36,10 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Badge } from "./ui/Badge";
-import { Button } from "./ui/Button";
-import { Card } from "./ui/Card";
 import {
-  PageHeader,
   WorkspaceHeadingContext,
   type WorkspaceHeading,
 } from "./ui/PageHeader";
-import type { PageConfig } from "./page-config";
 import { useAuth } from "./features/auth/components/AuthProvider";
 import {
   getAgencySettings,
@@ -119,16 +113,6 @@ const navGroups = [
     ],
   },
 ];
-const pageIcons = {
-  shield: ShieldCheck,
-  map: Map,
-  users: Users,
-  bus: Bus,
-  driver: UserRound,
-  chart: BarChart3,
-  settings: Settings,
-};
-
 type HeaderSearchItem = {
   id: string;
   title: string;
@@ -670,175 +654,5 @@ export function Shell({ children }: { children: ReactNode }) {
         </main>
       </div>
     </WorkspaceHeadingContext.Provider>
-  );
-}
-function Metric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <Card className={cn("metric-card")}>
-      <p>{label}</p>
-      <strong>{value}</strong>
-      <span>{detail}</span>
-    </Card>
-  );
-}
-function SetupRow({
-  number,
-  title,
-  detail,
-}: {
-  number: string;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <div className={cn("setup-row")}>
-      <span className={cn("step-number")}>{number}</span>
-      <div>
-        <strong>{title}</strong>
-        <span>{detail}</span>
-      </div>
-      <ArrowRight size={17} />
-    </div>
-  );
-}
-export function DashboardPage() {
-  return (
-    <>
-      <PageHeader
-        title="Good morning, Admin"
-        description="Here is what is happening across your travel operations today."
-      />
-      <div className={cn("notice")}>
-        <div className={cn("notice-icon")}>
-          <ShieldCheck size={19} />
-        </div>
-        <div>
-          <strong>Your workspace is ready for setup</strong>
-          <p>
-            Start by defining your organization structure. Business modules will
-            become available as your foundation grows.
-          </p>
-        </div>
-        <button className={cn("notice-close")} aria-label="Dismiss notice">
-          <X size={17} />
-        </button>
-      </div>
-      <div className={cn("metric-grid")}>
-        <Metric label="Agencies" value="0" detail="No agencies added" />
-        <Metric label="Active branches" value="0" detail="Awaiting setup" />
-        <Metric label="Fleet vehicles" value="0" detail="No vehicles added" />
-        <Metric label="Upcoming trips" value="0" detail="No trips planned" />
-      </div>
-      <div className={cn("dashboard-grid")}>
-        <Card className={cn("setup-card")}>
-          <div className={cn("card-heading")}>
-            <div>
-              <p className={cn("eyebrow")}>Getting started</p>
-              <h2>Build your operating foundation</h2>
-            </div>
-            <Badge>Phase 1</Badge>
-          </div>
-          <p className={cn("muted")}>
-            A few essentials will unlock the rest of the A-One Tours workspace.
-          </p>
-          <div className={cn("setup-list")}>
-            <SetupRow
-              number="01"
-              title="Define your organization"
-              detail="Add your agency and branches"
-            />
-            <SetupRow
-              number="02"
-              title="Configure your team"
-              detail="Invite agents and assign roles"
-            />
-            <SetupRow
-              number="03"
-              title="Add your fleet"
-              detail="Register buses and drivers"
-            />
-          </div>
-        </Card>
-        <Card className={cn("activity-card")}>
-          <div className={cn("card-heading")}>
-            <div>
-              <p className={cn("eyebrow")}>System status</p>
-              <h2>Platform health</h2>
-            </div>
-            <span className={cn("status-dot")}>
-              <i />
-              Operational
-            </span>
-          </div>
-          <div className={cn("health-row")}>
-            <span>API service</span>
-            <strong>Ready</strong>
-          </div>
-          <div className={cn("health-row")}>
-            <span>Database connection</span>
-            <strong>Configuration pending</strong>
-          </div>
-          <div className={cn("health-row")}>
-            <span>Authentication</span>
-            <strong>Coming in next phase</strong>
-          </div>
-        </Card>
-      </div>
-    </>
-  );
-}
-export function PlaceholderPage({ config }: { config: PageConfig }) {
-  const Icon = pageIcons[config.icon];
-  return (
-    <>
-      <PageHeader title={config.title} description={config.description} />
-      <Card className={cn("empty-state")}>
-        <div className={cn("empty-icon")}>
-          <Icon size={25} />
-        </div>
-        <h2>{config.title} workspace</h2>
-        <p>
-          This module is intentionally reserved for a later implementation
-          phase. The route and shell are ready for it.
-        </p>
-        <Badge>Foundation only</Badge>
-      </Card>
-    </>
-  );
-}
-export function LoginPage() {
-  return (
-    <div className={cn("login-page")}>
-      <div className={cn("login-brand")}>
-        <div className={cn("brand-mark")}>A</div>
-        <strong>A-One Tours & Travels</strong>
-      </div>
-      <Card className={cn("login-card")}>
-        <p className={cn("eyebrow")}>Welcome back</p>
-        <h1>Sign in to your workspace</h1>
-        <p className={cn("muted")}>
-          Authentication will be enabled in a later phase.
-        </p>
-        <label>
-          Email address
-          <input type="email" placeholder="you@company.com" disabled />
-        </label>
-        <label>
-          Password
-          <input type="password" placeholder="Your password" disabled />
-        </label>
-        <Button>
-          Authentication coming soon <ArrowRight size={15} />
-        </Button>
-      </Card>
-    </div>
   );
 }

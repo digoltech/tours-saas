@@ -4,7 +4,6 @@ import * as service from "../services/stage4.service.js";
 import { sendError } from "../utils/api-response.js";
 
 async function run(
-  req: Request,
   res: Response,
   action: () => Promise<unknown>,
   status = 200,
@@ -30,7 +29,7 @@ async function run(
 }
 const id = z.string().min(1);
 export const notifications = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     req.method === "GET"
       ? service.listNotifications(req.auth!, z.object({ cursor: z.string().min(1).optional() }).parse(req.query).cursor)
       : service.updatePreferences(
@@ -46,15 +45,13 @@ export const notifications = (req: Request, res: Response) =>
         ),
   );
 export const preferences = (req: Request, res: Response) =>
-  run(req, res, () => service.getPreferences(req.auth!));
+  run(res, () => service.getPreferences(req.auth!));
 export const markRead = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.markNotificationRead(req.auth!, id.parse(req.params.id)),
   );
 export const requestCancellation = (req: Request, res: Response) =>
-  run(
-    req,
-    res,
+  run(res,
     () =>
       service.requestCancellation(
         req.auth!,
@@ -65,7 +62,7 @@ export const requestCancellation = (req: Request, res: Response) =>
     201,
   );
 export const cancellationRequests = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     req.method === "GET"
       ? service.listCancellationRequests(req.auth!)
       : service.reviewCancellation(
@@ -80,7 +77,7 @@ export const cancellationRequests = (req: Request, res: Response) =>
         ),
   );
 export const agencySettings = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     req.method === "GET"
       ? service.getAgencySettings(req.auth!)
       : service.updateAgencySettings(
@@ -108,9 +105,9 @@ export const agencySettings = (req: Request, res: Response) =>
         ),
   );
 export const auditLogs = (req: Request, res: Response) =>
-  run(req, res, () => service.listAuditLogs(req.auth!, z.object({ from: z.iso.datetime().optional(), to: z.iso.datetime().optional(), actorId: z.string().optional(), action: z.string().optional(), entityType: z.string().optional() }).parse(req.query)));
+  run(res, () => service.listAuditLogs(req.auth!, z.object({ from: z.iso.datetime().optional(), to: z.iso.datetime().optional(), actorId: z.string().optional(), action: z.string().optional(), entityType: z.string().optional() }).parse(req.query)));
 export const subscription = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     req.method === "GET"
       ? service.getSubscription(req.auth!)
       : service.requestPlan(
@@ -124,7 +121,7 @@ export const subscription = (req: Request, res: Response) =>
         ),
   );
 export const adminSubscription = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.adminSubscription(
       req.auth!,
       id.parse(req.params.agencyId),
@@ -140,13 +137,11 @@ export const adminSubscription = (req: Request, res: Response) =>
     ),
   );
 export const adminSubscriptionGet = (req: Request, res: Response) =>
-  run(req, res, () =>
+  run(res, () =>
     service.getAdminSubscription(req.auth!, id.parse(req.params.agencyId)),
   );
 export const invoices = (req: Request, res: Response) =>
-  run(
-    req,
-    res,
+  run(res,
     () =>
       req.method === "GET"
         ? service.invoices(
@@ -169,7 +164,7 @@ export const invoices = (req: Request, res: Response) =>
     req.method === "POST" ? 201 : 200,
   );
 export const markInvoicePaid = (req: Request, res: Response) =>
-  run(req, res, () => {
+  run(res, () => {
     const body = z
       .object({
         method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "UPI", "OTHER"]),

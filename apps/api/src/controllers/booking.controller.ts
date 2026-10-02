@@ -4,7 +4,6 @@ import * as service from "../services/booking.service.js";
 import { sendError } from "../utils/api-response.js";
 
 async function run(
-  request: Request,
   response: Response,
   action: () => Promise<unknown>,
   status = 200,
@@ -32,7 +31,7 @@ async function run(
 }
 const id = z.string().min(1);
 export const searchTrips = (r: Request, s: Response) =>
-  run(r, s, () =>
+  run(s, () =>
     service.searchTrips(
       r.auth!,
       z
@@ -45,11 +44,9 @@ export const searchTrips = (r: Request, s: Response) =>
     ),
   );
 export const availability = (r: Request, s: Response) =>
-  run(r, s, () => service.tripAvailability(r.auth!, id.parse(r.params.tripId)));
+  run(s, () => service.tripAvailability(r.auth!, id.parse(r.params.tripId)));
 export const hold = (r: Request, s: Response) =>
-  run(
-    r,
-    s,
+  run(s,
     () =>
       service.holdSeats(
         r.auth!,
@@ -64,7 +61,7 @@ export const hold = (r: Request, s: Response) =>
     201,
   );
 export const release = (r: Request, s: Response) =>
-  run(r, s, () => service.releaseHold(r.auth!, id.parse(r.params.token)));
+  run(s, () => service.releaseHold(r.auth!, id.parse(r.params.token)));
 const bookingPayload = z.object({
   tripId: id,
   holdToken: z.string().uuid(),
@@ -90,16 +87,14 @@ const bookingPayload = z.object({
     .min(1),
 });
 export const confirm = (r: Request, s: Response) =>
-  run(
-    r,
-    s,
+  run(s,
     () => service.confirmBooking(r.auth!, bookingPayload.parse(r.body)),
     201,
   );
 export const byPnr = (r: Request, s: Response) =>
-  run(r, s, () => service.getBookingByPnr(r.auth!, id.parse(r.params.pnr)));
+  run(s, () => service.getBookingByPnr(r.auth!, id.parse(r.params.pnr)));
 export const list = (r: Request, s: Response) =>
-  run(r, s, () =>
+  run(s, () =>
     service.listBookings(
       r.auth!,
       z
@@ -114,11 +109,11 @@ export const list = (r: Request, s: Response) =>
     ),
   );
 export const summary = (r: Request, s: Response) =>
-  run(r, s, () => service.getBookingDashboardSummary(r.auth!));
+  run(s, () => service.getBookingDashboardSummary(r.auth!));
 export const getLayout = (r: Request, s: Response) =>
-  run(r, s, () => service.getSeatLayout(r.auth!, id.parse(r.params.id)));
+  run(s, () => service.getSeatLayout(r.auth!, id.parse(r.params.id)));
 export const saveLayout = (r: Request, s: Response) =>
-  run(r, s, () =>
+  run(s, () =>
     service.saveSeatLayout(
       r.auth!,
       id.parse(r.params.id),
@@ -133,9 +128,9 @@ export const saveLayout = (r: Request, s: Response) =>
     ),
   );
 export const getDiscountCap = (r: Request, s: Response) =>
-  run(r, s, () => service.getDiscountCap(r.auth!));
+  run(s, () => service.getDiscountCap(r.auth!));
 export const updateDiscountCap = (r: Request, s: Response) =>
-  run(r, s, () =>
+  run(s, () =>
     service.updateDiscountCap(
       r.auth!,
       z

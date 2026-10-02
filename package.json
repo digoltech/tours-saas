@@ -31,7 +31,6 @@
     "test": "bun --cwd apps/api test"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.18",
     "concurrently": "^9.2.1",
     "dotenv": "^16.6.1",
     "prettier": "^3.6.2",
@@ -43,7 +42,6 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
-    "@prisma/client": "^7.0.0",
-    "pg": "^8.16.3"
+    "@prisma/client": "^7.0.0"
   }
 }

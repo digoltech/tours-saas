@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPaths = [
   "/dashboard",
-  "/auth/onboarding",
+  "/onboaridng",
   "/agencies",
   "/agents",
   "/bookings",
@@ -45,10 +45,10 @@ export async function proxy(request: NextRequest) {
         if (payload.data?.emailVerified !== true)
           return NextResponse.redirect(new URL("/auth/verify-email", request.url));
         const onboardingDone = payload.data?.onboardingCompleted === true;
-        if (request.nextUrl.pathname === "/auth/onboarding" && onboardingDone)
+        if (request.nextUrl.pathname.replace(/\/$/, "") === "/onboaridng" && onboardingDone)
           return NextResponse.redirect(new URL("/dashboard/home", request.url));
-        if (request.nextUrl.pathname !== "/auth/onboarding" && !onboardingDone)
-          return NextResponse.redirect(new URL("/auth/onboarding", request.url));
+        if (request.nextUrl.pathname.replace(/\/$/, "") !== "/onboaridng" && !onboardingDone)
+          return NextResponse.redirect(new URL("/onboaridng/", request.url));
         if (payload.data) {
           const requestHeaders = new Headers(request.headers);
           requestHeaders.set(userHeader, JSON.stringify(payload.data));
@@ -70,7 +70,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/auth/onboarding",
+    "/onboaridng/:path*",
     "/agencies/:path*",
     "/agents/:path*",
     "/bookings/:path*",

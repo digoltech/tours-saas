@@ -2,6 +2,7 @@ import { Router } from "express";
 import { acceptInvitationController, changePassword, confirmEmail, confirmResetOtp, forgotPassword, invitationDetails, login, logout, me, onboarding, register, resendVerification } from "../controllers/auth.controller.js";
 import { authenticate } from "../middleware/auth.js";
 import { loginLimit, registerLimit, resetLimit, otpLimit, verificationLimit } from "../middleware/rate-limit.js";
+import { changeEmailRequest, profile, saveProfile } from "../controllers/profile.controller.js";
 
 export const authRouter = Router();
 authRouter.post("/login", ...loginLimit, login);
@@ -14,5 +15,8 @@ authRouter.post("/verify-email/resend", verificationLimit, authenticate, resendV
 authRouter.get("/invitations/:token", invitationDetails);
 authRouter.post("/invitations/accept", acceptInvitationController);
 authRouter.get("/me", authenticate, me);
+authRouter.get("/profile", authenticate, profile);
+authRouter.patch("/profile", authenticate, saveProfile);
+authRouter.post("/profile/email-change", verificationLimit, authenticate, changeEmailRequest);
 authRouter.post("/onboarding", authenticate, onboarding);
 authRouter.post("/logout", logout);

@@ -44,6 +44,7 @@ export function toSafeUser(context: AuthContext): SafeUser {
     lastName: context.lastName,
     role: context.role,
     roleName: context.roleName,
+    roleScope: context.roleScope,
     agencyId: context.agencyId,
     agencyName: context.agencyName ?? null,
     branchId: context.branchId,
@@ -132,23 +133,18 @@ export async function registerUser(input: {
   lastName: string;
   email: string;
   password: string;
-  agencyName: string;
-  branchName: string;
 }) {
   const email = input.email.toLowerCase().trim();
   const role = await prisma.role.findUnique({
     where: { code: "AGENCY_ADMIN" },
   });
   if (!role) throw new Error("Agency Admin role is not configured");
-  const slug = `${input.agencyName
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
+  const slug = `new-agency-${crypto.randomUUID().slice(0, 8)}`;
   const passwordHash = await hashPassword(input.password);
   try {
     return await prisma.$transaction(async (transaction) => {
       const agency = await transaction.agency.create({
-        data: { name: input.agencyName.trim(), slug },
+        data: { name: "New agency", slug },
       });
       await transaction.subscription.create({
         data: {
@@ -159,7 +155,7 @@ export async function registerUser(input: {
       const branch = await transaction.branch.create({
         data: {
           agencyId: agency.id,
-          name: input.branchName.trim(),
+          name: "Main location",
           code: "MAIN",
         },
       });
@@ -231,7 +227,7 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function createEmailVerificationToken(userId: string) {
+export async function createEmailVerificationToken(userId: string, pendingEmail?: string) {
   const token = randomBytes(32).toString("hex");
   await prisma.emailVerificationToken.deleteMany({
     where: { userId, usedAt: null },
@@ -241,6 +237,7 @@ export async function createEmailVerificationToken(userId: string) {
       userId,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      pendingEmail,
     },
   });
   return token;
@@ -255,13 +252,17 @@ export async function verifyEmail(token: string) {
   await prisma.$transaction([
     prisma.user.update({
       where: { id: record.userId },
-      data: { emailVerifiedAt: new Date() },
+      data: record.pendingEmail
+        ? { email: record.pendingEmail, emailVerifiedAt: new Date() }
+        : { emailVerifiedAt: new Date() },
     }),
     prisma.emailVerificationToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },
     }),
+    ...(record.pendingEmail ? [prisma.session.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: new Date() } })] : []),
   ]);
+  return { emailChanged: Boolean(record.pendingEmail) };
 }
 
 export async function resendEmailVerification(userId: string) {

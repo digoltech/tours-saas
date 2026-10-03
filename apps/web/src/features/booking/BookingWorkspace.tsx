@@ -282,7 +282,7 @@ export function BookingWorkspace() {
         <div id="printable-ticket">
           <Card className={cn("ticket-card")}>
             <p className={cn("eyebrow")}>
-              {agencyBrand?.name ?? "A-One Tours & Travels"} · E-ticket
+              {agencyBrand?.name ?? "Digol Tours"} · E-ticket
             </p>
             {agencyBrand?.logoUrl && (
               <Image

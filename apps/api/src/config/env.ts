@@ -13,6 +13,7 @@ const environmentSchema = z
     WEB_URL: z.string().url().default("http://localhost:3000"),
     RESEND_API_KEY: z.string().optional(),
     MAIL_FROM: z.string().min(3).default("onboarding@resend.dev"),
+    CONTACT_EMAIL: z.email().optional(),
     SMS_PROVIDER_URL: z.string().url().optional(),
     SMS_PROVIDER_TOKEN: z.string().optional(),
     WHATSAPP_PROVIDER_URL: z.string().url().optional(),

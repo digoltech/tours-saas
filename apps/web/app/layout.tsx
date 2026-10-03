@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "../src/index.css";
 
 export const metadata: Metadata = {
-  title: "A-One Tours & Travels",
+  title: "Digol TravelOS | Digol Tours",
   description:
-    "One clear workspace for travel teams to manage routes, trips, bookings, payments, cancellations, and reports.",
+    "One clear platform for travel teams to manage routes, trips, bookings, payments, cancellations, and reports.",
 };
 
 export default function RootLayout({

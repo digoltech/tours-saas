@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, FileUp, RefreshCw } from "lucide-react";
+import { CheckCircle2, Download, FileSpreadsheet, FileUp, RefreshCw, UploadCloud } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
@@ -45,32 +45,34 @@ export function BulkDataPage() {
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [result, setResult] = useState<{ results: { row: number; ok: boolean; message: string }[]; valid: number; invalid: number } | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"template" | "export" | "preview" | "commit" | null>(null);
+  const [fileName, setFileName] = useState("");
   useEffect(() => { if (user?.role === "SUPER_ADMIN") void getAgencies().then((rows) => { const values = rows as { id: string; name: string }[]; setAgencies(values); setAgencyId(values[0]?.id ?? ""); }).catch(() => setAgencies([])); }, [user?.role]);
   const allowed = (action: "read" | "create") => user?.role === "SUPER_ADMIN" || user?.permissions.includes(`${entities.find((item) => item.key === entity)?.permission}:${action}`);
   async function getFile(kind: "template" | "export") {
-    setBusy(true); setError("");
+    setBusy(kind); setError("");
     try { download(`${entity}-${kind}.csv`, await fetchBulkCsv(entity, kind, agencyId || undefined)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to download CSV"); }
-    finally { setBusy(false); }
+    finally { setBusy(null); }
   }
   async function preview() {
-    setBusy(true); setError("");
+    setBusy("preview"); setError("");
     try { setResult(await previewBulkImport(entity, rows, agencyId || undefined)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to validate CSV"); }
-    finally { setBusy(false); }
+    finally { setBusy(null); }
   }
   async function commit() {
-    setBusy(true); setError("");
-    try { const committed = await commitBulkImport(entity, rows, agencyId || undefined); setResult(committed); const failures = committed.results.filter((item) => !item.ok); if (failures.length) download(`${entity}-import-errors.csv`, `row,error\r\n${failures.map((item) => `${item.row},"${item.message.replaceAll('"', '""')}"`).join("\r\n")}`); }
+    setBusy("commit"); setError("");
+    try { const committed = await commitBulkImport(entity, rows, agencyId || undefined); setResult(committed); setRows([]); setFileName(""); const failures = committed.results.filter((item) => !item.ok); if (failures.length) download(`${entity}-import-errors.csv`, `row,error\r\n${failures.map((item) => `${item.row},"${item.message.replaceAll('"', '""')}"`).join("\r\n")}`); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to import CSV"); }
-    finally { setBusy(false); }
+    finally { setBusy(null); }
   }
   return <>
     <PageHeader title="Bulk data" description="Import or export fleet and route records with CSV files." />
+    <div className="data-hero"><span className="data-hero-icon"><FileSpreadsheet size={25} /></span><div><p className="eyebrow">DATA WORKSPACE</p><h1>Move records with confidence</h1><p>Download a template, validate your file, then import the rows that are ready.</p></div></div>
     {error && <div className={cn("state-message state-error")} role="alert">{error}</div>}
-    <Card className="mb-4"><div className="grid gap-4 sm:grid-cols-2">{user?.role === "SUPER_ADMIN" && <label>Agency<select value={agencyId} onChange={(event) => setAgencyId(event.target.value)}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}<label>Record type<select value={entity} onChange={(event) => { setEntity(event.target.value as BulkEntity); setRows([]); setResult(null); }}><option value="buses">Buses</option><option value="drivers">Drivers</option><option value="routes">Routes</option><option value="stops">Stops</option></select></label><div className="flex flex-wrap items-end gap-2">{(allowed("read") || allowed("create")) && <Button variant="secondary" onClick={() => void getFile("template")} disabled={busy}><Download size={15} />CSV template</Button>}{allowed("read") && <Button variant="secondary" onClick={() => void getFile("export")} disabled={busy}><Download size={15} />Export records</Button>}</div></div></Card>
-    {allowed("create") && <Card><p className="eyebrow">IMPORT</p><h2 className="mb-3 text-lg font-semibold">Upload CSV and review rows</h2><input type="file" accept=".csv,text/csv" onChange={async (event) => { const file = event.target.files?.[0]; setRows([]); setResult(null); setError(""); if (!file) return; try { setRows(parseCsv(await file.text())); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to parse CSV"); } }} /><p className="mt-2 text-sm text-slate-500">Up to 500 rows. Use the template’s exact column names. Valid rows can be imported even when other rows fail validation.</p>{rows.length > 0 && <><p className="mt-3">{rows.length} rows loaded.</p><div className="mt-3 flex gap-2"><Button onClick={() => void preview()} disabled={busy}><RefreshCw size={15} />{busy ? "Checking…" : "Validate rows"}</Button>{result && result.valid > 0 && <Button onClick={() => void commit()} disabled={busy}><FileUp size={15} />{busy ? "Importing…" : `Import ${result.valid} valid rows`}</Button>}</div></>}</Card>}
-    {result && <Card className="mt-4"><h2 className="mb-2 font-semibold">{result.valid} valid · {result.invalid} need attention</h2><div className="max-h-[32rem] overflow-auto"><table className="w-full text-left text-sm"><thead><tr><th className="p-2">CSV row</th><th className="p-2">Result</th><th className="p-2">Details</th></tr></thead><tbody>{result.results.map((item) => <tr key={item.row} className="border-t"><td className="p-2">{item.row}</td><td className="p-2">{item.ok ? "Valid" : "Error"}</td><td className="p-2">{item.message}</td></tr>)}</tbody></table></div></Card>}
+    <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow">STEP 01</p><h2>Choose records</h2><p>Select the data you want to work with.</p></div></div><div className="data-controls">{user?.role === "SUPER_ADMIN" && <label>Agency<select value={agencyId} disabled={busy !== null} onChange={(event) => { setAgencyId(event.target.value); setRows([]); setResult(null); setFileName(""); }}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}<label>Record type<select value={entity} disabled={busy !== null} onChange={(event) => { setEntity(event.target.value as BulkEntity); setRows([]); setResult(null); setFileName(""); }}>{entities.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label></div><div className="data-card-actions">{(allowed("read") || allowed("create")) && <Button variant="secondary" onClick={() => void getFile("template")} disabled={busy !== null} loading={busy === "template"} loadingLabel="Downloading…"><Download size={16} /> CSV template</Button>}{allowed("read") && <Button variant="secondary" onClick={() => void getFile("export")} disabled={busy !== null || (user?.role === "SUPER_ADMIN" && !agencyId)} loading={busy === "export"} loadingLabel="Exporting…"><Download size={16} /> Export records</Button>}</div></Card>
+    {allowed("create") && <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow">STEP 02</p><h2>Upload and validate</h2><p>Use the template’s exact column names. Files can contain up to 500 rows.</p></div></div><label className="data-upload"><UploadCloud size={26} /><strong>{fileName || "Choose a CSV file"}</strong><span>{fileName ? `${rows.length} rows ready for validation` : "Browse your device to select a .csv file"}</span><input type="file" accept=".csv,text/csv" disabled={busy !== null} onChange={async (event) => { const file = event.target.files?.[0]; setRows([]); setResult(null); setError(""); setFileName(file?.name ?? ""); if (!file) return; try { const parsed = parseCsv(await file.text()); if (parsed.length > 500) throw new Error("CSV files can contain up to 500 data rows."); setRows(parsed); } catch (cause) { setFileName(""); setError(cause instanceof Error ? cause.message : "Unable to parse CSV"); } }} /></label>{rows.length > 0 && <div className="data-card-actions"><span className="data-ready"><CheckCircle2 size={17} /> {rows.length} rows loaded</span><Button onClick={() => void preview()} disabled={busy !== null || (user?.role === "SUPER_ADMIN" && !agencyId)} loading={busy === "preview"} loadingLabel="Validating…"><RefreshCw size={16} /> Validate rows</Button>{result && result.valid > 0 && <Button onClick={() => void commit()} disabled={busy !== null} loading={busy === "commit"} loadingLabel="Importing…"><FileUp size={16} /> Import {result.valid} valid rows</Button>}</div>}</Card>}
+    {result && <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow">VALIDATION RESULTS</p><h2>{result.valid} valid · {result.invalid} need attention</h2><p>Review each CSV row before importing. Failed rows can be corrected in your file.</p></div></div><div className="table-wrapper data-results"><table><thead><tr><th>CSV row</th><th>Result</th><th>Details</th></tr></thead><tbody>{result.results.map((item) => <tr key={item.row}><td>{item.row}</td><td><span className={item.ok ? "data-status-good" : "data-status-error"}>{item.ok ? "Valid" : "Error"}</span></td><td>{item.message}</td></tr>)}</tbody></table></div></Card>}
   </>;
 }

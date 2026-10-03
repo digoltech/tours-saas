@@ -4,6 +4,8 @@ import { cn } from "../lib/utils";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
+  loading?: boolean;
+  loadingLabel?: string;
 } & VariantProps<typeof buttonVariants>;
 
 const buttonVariants = cva("button", {
@@ -22,6 +24,8 @@ export function Button({
   children,
   className = "",
   variant,
+  loading = false,
+  loadingLabel,
   ...props
 }: ButtonProps) {
   return (
@@ -29,8 +33,10 @@ export function Button({
       className={cn(buttonVariants({ variant }), className)}
       type="button"
       {...props}
+      disabled={loading || props.disabled}
+      aria-busy={loading || undefined}
     >
-      {children}
+      {loading ? <><span className="button-spinner" aria-hidden="true" />{loadingLabel ?? children}</> : children}
     </button>
   );
 }

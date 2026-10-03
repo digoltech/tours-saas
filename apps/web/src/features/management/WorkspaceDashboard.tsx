@@ -46,6 +46,6 @@ export function WorkspaceDashboard({
       {metrics.map(({ label, value, detail, icon: Icon }) => <Card className={cn("metric-card")} key={label}><Icon size={18} /><p>{label}</p><strong>{value ?? "…"}</strong><span>{detail}</span></Card>)}
     </div>}
     <UpcomingTrips initialTrips={trips} initialError={tripsError} />
-    <Card className={cn("workspace-shortcuts")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>Workspace</p><h2>Manage your operations</h2></div></div><div className={cn("workspace-shortcut-list")}>{shortcuts.map(([label, href, Icon]) => <Link className={cn("setup-row")} href={href} key={href}><Icon size={18} /><strong>{label}</strong><ArrowRight size={17} /></Link>)}</div></Card>
+    <Card className={cn("workspace-shortcuts")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>OPERATIONS</p><h2>Manage your operations</h2></div></div><div className={cn("workspace-shortcut-list")}>{shortcuts.map(([label, href, Icon]) => <Link className={cn("setup-row")} href={href} key={href}><Icon size={18} /><strong>{label}</strong><ArrowRight size={17} /></Link>)}</div></Card>
   </>;
 }

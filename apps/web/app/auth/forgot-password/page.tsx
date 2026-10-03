@@ -4,6 +4,7 @@ import { cn } from "../../../src/lib/utils";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { ArrowRight, KeyRound, MailCheck, ShieldCheck } from "lucide-react";
 import { requestPasswordReset, resetPassword, verifyPasswordResetOtp } from "../../../src/features/auth/services/api-client";
 import { AuthLayout } from "../../../src/features/auth/components/AuthLayout";
 import { PasswordInput } from "../../../src/features/auth/components/PasswordInput";
@@ -81,17 +82,19 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <div className={cn("auth-card-stack auth-card-stack-narrow")}>
-        <div className={cn("auth-heading")}><p className={cn("eyebrow")}>Account recovery</p><h2>{step === 1 ? "Check your email" : step === 2 ? "Choose a new password" : step === 3 ? "Password updated" : "Reset your password"}</h2><p>{step === 0 ? "We’ll send a one-time code to help you get back in." : step === 1 ? notice : step === 2 ? "Your code is confirmed. Create a new password for your account." : step === 3 ? "Your password has been reset. You can now sign in securely." : ""}</p></div>
+        <div className={cn("auth-heading")}><p className={cn("eyebrow")}>ACCOUNT RECOVERY</p><h2>{step === 1 ? "Check your email" : step === 2 ? "Choose a new password" : step === 3 ? "Password updated" : "Reset your password"}</h2><p>{step === 0 ? "We’ll send a one-time code to help you get back in." : step === 1 ? notice : step === 2 ? "Your code is confirmed. Create a new password for your account." : "Your password has been reset. You can now sign in securely."}</p></div>
         <Card className={cn("login-card reset-card")}>
+          <div className="auth-step-indicator" aria-label={`Recovery step ${Math.min(step + 1, 3)} of 3`}>{[0, 1, 2].map((index) => <i className={index <= step ? "active" : ""} key={index} />)}</div>
           {step === 0 && <form onSubmit={submitEmail}>
             <Input label="Email address" id="reset-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={loading} placeholder="you@company.com" />
+            <p className="auth-hint"><ShieldCheck size={14} /> We’ll only send a code if an account exists for this address.</p>
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
-            <Button type="submit" disabled={loading}>{loading ? "Sending code…" : "Send reset code"}</Button>
+            <Button type="submit" loading={loading} loadingLabel="Sending code…">Send reset code<ArrowRight size={16} /></Button>
           </form>}
           {step === 1 && <form onSubmit={submitOtp}>
             <Input label="6-digit reset code" id="reset-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))} disabled={loading} placeholder="000000" />
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
-            <Button type="submit" disabled={loading}>{loading ? "Confirming…" : "Confirm code"}</Button>
+            <Button type="submit" loading={loading} loadingLabel="Confirming…"><MailCheck size={16} />Confirm code</Button>
             <div className={cn("resend-row")} role="status" aria-live="polite"><span>{resendSeconds > 0 ? `Resend code in ${formattedTime}` : "Didn’t receive a code?"}</span><button type="button" className={cn("auth-text-button")} disabled={loading || resendSeconds > 0} onClick={() => void resendCode()}>{loading ? "Sending…" : "Resend code"}</button></div>
             <button className={cn("auth-text-button reset-back")} type="button" onClick={() => { setStep(0); setError(""); }}>Use a different email</button>
           </form>}
@@ -100,7 +103,7 @@ export default function ForgotPasswordPage() {
             <PasswordInput label="Confirm password" id="confirm-password" autoComplete="new-password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} disabled={loading} />
             <p className={cn("password-hint")}>Use at least 8 characters.</p>
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
-            <Button type="submit" disabled={loading}>{loading ? "Updating password…" : "Reset password"}</Button>
+            <Button type="submit" loading={loading} loadingLabel="Updating password…"><KeyRound size={16} />Reset password</Button>
           </form>}
           {step === 3 && <Link className={cn("button button-primary reset-login")} href="/auth/login">Return to sign in</Link>}
         </Card>

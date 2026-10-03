@@ -126,7 +126,7 @@ export function RolesPage() {
         <Card><span className="roles-overview-icon"><ShieldCheck size={20} /></span><div><strong>{roles.filter((role) => !role.isSystem).length}</strong><span>Custom roles</span></div></Card>
       </div>
       <Card className="roles-section">
-        <div className="roles-section-heading"><div><p className="eyebrow">ACCESS CONTROL</p><h2>Workspace roles</h2><p>Choose a role to review its permissions. Custom roles can be edited for this agency.</p></div><Button onClick={() => start()}><Plus size={16} /> Create role</Button></div>
+        <div className="roles-section-heading"><div><p className="eyebrow">ACCESS CONTROL</p><h2>Agency roles</h2><p>Choose a role to review its permissions. Custom roles can be edited for this agency.</p></div><Button onClick={() => start()}><Plus size={16} /> Create role</Button></div>
         {loading ? <p className="roles-state">Loading roles…</p> : <div className="roles-grid">{roles.map((role) => <article key={role.id} className="roles-card">
           <div className="roles-card-top"><span className="roles-card-icon"><Shield size={20} /></span><span className="roles-scope">{role.scope.toLowerCase()}</span></div>
           <h3>{role.name}</h3><p>{role.isSystem ? "Built-in role" : "Custom agency role"} · {role.permissions.length} permissions · {role.userCount} {role.userCount === 1 ? "member" : "members"}</p>

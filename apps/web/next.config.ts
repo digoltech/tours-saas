@@ -5,11 +5,12 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/auth", destination: "/auth/login", permanent: false },
-      ...["login", "register", "forgot-password", "verify-email", "onboarding"].map((page) => ({
+      ...["login", "register", "forgot-password", "verify-email"].map((page) => ({
         source: `/${page}`,
         destination: `/auth/${page}`,
         permanent: true,
       })),
+      { source: "/onboarding", destination: "/onboaridng/", permanent: true },
       { source: "/invite/:token", destination: "/auth/invite/:token", permanent: true },
     ];
   },

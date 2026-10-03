@@ -4,7 +4,7 @@ import { cn } from "../../../lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
-import { Building2 } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { register } from "../services/api-client";
 import { Button } from "../../../ui/Button";
 import { Input } from "../../../ui/Input";
@@ -12,17 +12,16 @@ import { Card } from "../../../ui/Card";
 import { PasswordInput } from "./PasswordInput";
 
 const schema = z.object({
-  firstName: z.string().min(2, "Enter your first name"),
-  lastName: z.string().min(2, "Enter your last name"),
+  firstName: z.string().trim().min(2, "Enter your first name"),
+  lastName: z.string().trim().min(2, "Enter your last name"),
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  agencyName: z.string().min(2, "Enter your agency name"),
-  branchName: z.string().min(2, "Enter your first branch name"),
-});
+  confirmPassword: z.string(),
+}).refine((value) => value.password === value.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] });
 
 export function RegisterForm() {
   const router = useRouter();
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", agencyName: "", branchName: "Main branch" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
@@ -33,5 +32,13 @@ export function RegisterForm() {
     setError(""); setLoading(true);
     try { await register(result.data); router.push("/auth/verify-email"); router.refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create account"); } finally { setLoading(false); }
   }
-  return <Card className={cn("login-card")}><form onSubmit={submit}><div className={cn("form-grid")}><Input label="First name" id="firstName" autoComplete="given-name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} disabled={loading} /><Input label="Last name" id="lastName" autoComplete="family-name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} disabled={loading} /></div><Input label="Work email" id="email" type="email" autoComplete="email" value={form.email} onChange={(e) => update("email", e.target.value)} disabled={loading} /><PasswordInput label="Password" id="password" autoComplete="new-password" value={form.password} onChange={(e) => update("password", e.target.value)} disabled={loading} /><p className={cn("password-hint")}>Use at least 8 characters.</p><Input label="Agency name" id="agencyName" autoComplete="organization" value={form.agencyName} onChange={(e) => update("agencyName", e.target.value)} disabled={loading} placeholder="A-One Tours" /><Input label="First branch" id="branchName" value={form.branchName} onChange={(e) => update("branchName", e.target.value)} disabled={loading} />{error && <p className={cn("form-error")} role="alert">{error}</p>}<Button type="submit" disabled={loading}><Building2 size={15} />{loading ? "Creating workspace..." : "Create workspace"}</Button></form></Card>;
+  return <Card className={cn("login-card")}><form onSubmit={submit} noValidate>
+    <div className={cn("form-grid")}><Input label="First name" id="firstName" autoComplete="given-name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} disabled={loading} required /><Input label="Last name" id="lastName" autoComplete="family-name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} disabled={loading} required /></div>
+    <Input label="Email address" id="email" type="email" autoComplete="email" value={form.email} onChange={(e) => update("email", e.target.value)} disabled={loading} placeholder="you@example.com" required />
+    <PasswordInput label="Password" id="password" autoComplete="new-password" value={form.password} onChange={(e) => update("password", e.target.value)} disabled={loading} required />
+    <PasswordInput label="Confirm password" id="confirmPassword" autoComplete="new-password" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} disabled={loading} required />
+    <p className="auth-hint"><Check size={14} /> At least 8 characters. Your business details come next.</p>
+    {error && <p className={cn("form-error")} role="alert">{error}</p>}
+    <Button type="submit" loading={loading} loadingLabel="Creating account…">Create account<ArrowRight size={16} /></Button>
+  </form></Card>;
 }

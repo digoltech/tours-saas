@@ -3,7 +3,8 @@
 import { cn } from "./lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { Brand } from "./ui/Brand";
+import { Button } from "./ui/Button";
 import {
   useCallback,
   useEffect,
@@ -102,7 +103,7 @@ const navGroups = [
         permission: "agent:read",
       },
       { label: "Roles & permissions", path: "/dashboard/roles", icon: ShieldCheck, permission: "agency:read", adminOnly: true },
-      { label: "Workspace activity", path: "/dashboard/activity", icon: Activity, permission: "agency:read" },
+      { label: "Agency activity", path: "/dashboard/activity", icon: Activity, permission: "agency:read" },
       { label: "Bulk data", path: "/dashboard/data", icon: FileSpreadsheet, permission: "bus:read" },
       { label: "Privacy requests", path: "/dashboard/privacy", icon: ShieldCheck },
       {
@@ -216,7 +217,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
               .map((agency) => ({
                 id: agency.id,
                 title: agency.name,
-                detail: "Agency workspace",
+                detail: "Agency",
                 kind: "Agency",
                 href: "/dashboard/agencies",
               })),
@@ -303,7 +304,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
       <Search size={17} aria-hidden="true" />
       <input
         ref={inputRef}
-        aria-label="Search workspace"
+        aria-label="Search records"
         type="search"
         value={query}
         onChange={(event) => {
@@ -343,7 +344,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
         >
           <div className={cn("header-search-caption")}>
             {loading
-              ? "Searching workspace…"
+              ? "Searching records…"
               : results.length
                 ? `${results.length} matching records`
                 : "No matching records"}
@@ -378,6 +379,9 @@ function moneySearch(value: number | string) {
 
 export function Shell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspaceHeading, setWorkspaceHeading] =
     useState<WorkspaceHeading | null>(null);
@@ -421,7 +425,7 @@ export function Shell({ children }: { children: ReactNode }) {
     settings: "Settings",
     profile: "Profile",
     roles: "Roles & permissions",
-    activity: "Workspace activity",
+    activity: "Agency activity",
     data: "Bulk data",
   };
   const pathParts = pathname.split("/").filter(Boolean);
@@ -445,27 +449,7 @@ export function Shell({ children }: { children: ReactNode }) {
       >
         <aside className={cn(`sidebar ${mobileOpen ? "sidebar-open" : ""}`)}>
           <div className={cn("brand")}>
-            <div
-              className={cn("brand-mark")}
-              style={{ background: agencyBranding?.brandColor ?? undefined }}
-            >
-              {agencyBranding?.logoUrl ? (
-                <Image
-                  unoptimized
-                  width={42}
-                  height={42}
-                  src={agencyBranding.logoUrl}
-                  alt=""
-                  className="h-full w-full rounded-xl object-contain"
-                />
-              ) : (
-                "A"
-              )}
-            </div>
-            <div>
-              <strong>{agencyBranding?.name ?? "A-One"}</strong>
-              <span>Tours & Travels</span>
-            </div>
+            <Brand className="sidebar-digol-brand" />
             <button
               className={cn("icon-button mobile-close")}
               aria-label="Close navigation"
@@ -477,7 +461,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className={cn("tenant-switcher")}>
             <div>
               <strong>
-                {agencyBranding?.name ?? user?.agencyName ?? "A-One Tours"}
+                {agencyBranding?.name ?? user?.agencyName ?? "Digol Tours"}
               </strong>
               <span>Organization</span>
             </div>
@@ -562,7 +546,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
             <div className={cn("topbar-page-meta")} aria-live="polite">
               <nav className={cn("breadcrumb")} aria-label="Breadcrumb">
-                <Link href={dashboardPath}>Workspace</Link>
+                <Link href={dashboardPath}>Home</Link>
                 {breadcrumbParts.map((part) => (
                   <span className={cn("breadcrumb-part")} key={part.href}>
                     <span aria-hidden="true">/</span>
@@ -629,19 +613,21 @@ export function Shell({ children }: { children: ReactNode }) {
                 {user && (
                   <div className={cn("profile-dropdown")}>
                     <div className={cn("profile-dropdown-identity")}>
+                      <span className="profile-dropdown-avatar" aria-hidden="true">{user.firstName?.[0]}{user.lastName?.[0]}</span>
+                      <span className="profile-dropdown-eyebrow">Signed in as</span>
                       <strong>
                         {user.firstName} {user.lastName}
                       </strong>
                       <span>{user.email}</span>
-                      <span>{user.agencyName ?? "A-One Tours"}</span>
+                      <span>{user.agencyName ?? "Digol Tours"}</span>
                     </div>
-                    <Link href="/dashboard/profile">Profile</Link>
-                    <Link href="/dashboard/settings">Settings</Link>
+                    <Link href="/dashboard/profile"><UserRound size={16} /> My profile</Link>
+                    <Link href="/dashboard/settings"><Settings size={16} /> Settings</Link>
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm("Are you sure you want to log out?"))
-                          void logout();
+                        setLogoutError("");
+                        setLogoutOpen(true);
                       }}
                     >
                       <LogOut size={15} /> Log out
@@ -651,7 +637,29 @@ export function Shell({ children }: { children: ReactNode }) {
               </details>
             </div>
           </header>
+          {logoutOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !loggingOut) setLogoutOpen(false); }}>
+            <div className="logout-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-title" aria-describedby="logout-description" onKeyDown={(event) => {
+              if (event.key === "Escape" && !loggingOut) setLogoutOpen(false);
+              if (event.key === "Tab") {
+                const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+                const first = buttons[0];
+                const last = buttons[buttons.length - 1];
+                if (event.shiftKey && document.activeElement === first && last) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last && first) { event.preventDefault(); first.focus(); }
+              }
+            }}>
+              <div className="logout-dialog-icon"><LogOut size={23} /></div>
+              <h2 id="logout-title">Log out of your account?</h2>
+              <p id="logout-description">You’ll need to sign in again to access your workspace.</p>
+              {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
+              <div className="logout-dialog-actions">
+                <Button variant="secondary" onClick={() => setLogoutOpen(false)} disabled={loggingOut} autoFocus>Stay signed in</Button>
+                <Button variant="destructive" loading={loggingOut} loadingLabel="Logging out…" onClick={async () => { setLoggingOut(true); setLogoutError(""); try { await logout(); } catch (error) { setLogoutError(error instanceof Error ? error.message : "Unable to log out. Please try again."); setLoggingOut(false); } }}><LogOut size={16} /> Log out</Button>
+              </div>
+            </div>
+          </div>}
           <div className={cn("content")}>{children}</div>
+          <footer className="dashboard-footer"><span>© {new Date().getFullYear()} Digol Tours · Digol TravelOS</span><nav aria-label="Support and legal"><Link href="/contact">Contact</Link><Link href="/privacy-policy">Privacy Policy</Link><Link href="/terms-and-conditions">Terms</Link></nav></footer>
         </main>
       </div>
     </WorkspaceHeadingContext.Provider>

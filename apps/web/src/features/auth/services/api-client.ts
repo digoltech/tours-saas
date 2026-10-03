@@ -48,8 +48,7 @@ export function register(data: {
   lastName: string;
   email: string;
   password: string;
-  agencyName: string;
-  branchName: string;
+  confirmPassword: string;
 }) {
   return request<{ user: AuthUser }>("/api/auth/register", {
     method: "POST",
@@ -75,7 +74,7 @@ export function resetPassword(email: string, otp: string, password: string) {
   });
 }
 export function verifyEmail(token: string) {
-  return request<{ verified: boolean }>(
+  return request<{ verified: boolean; emailChanged: boolean }>(
     "/api/auth/verify-email",
     { method: "POST", body: JSON.stringify({ token }) },
   );
@@ -83,6 +82,18 @@ export function verifyEmail(token: string) {
 
 export function resendEmailVerification() {
   return request<{ sent: boolean }>("/api/auth/verify-email/resend", { method: "POST" });
+}
+export function subscribeNewsletter(email: string) {
+  return request<{ sent: boolean }>("/api/newsletter/subscribe", { method: "POST", body: JSON.stringify({ email }) });
+}
+export function confirmNewsletter(token: string) {
+  return request<{ confirmed: boolean }>("/api/newsletter/confirm", { method: "POST", body: JSON.stringify({ token }) });
+}
+export function unsubscribeNewsletter(token: string) {
+  return request<{ unsubscribed: boolean }>("/api/newsletter/unsubscribe", { method: "POST", body: JSON.stringify({ token }) });
+}
+export function sendContactInquiry(input: { name: string; email: string; subject: string; message: string }) {
+  return request<{ received: boolean }>("/api/contact", { method: "POST", body: JSON.stringify(input) });
 }
 
 export function submitPublicPrivacyRequest(input: { type: "ACCESS" | "ERASURE"; subjectName: string; contactEmail?: string; contactPhone?: string; bookingPnr: string; reason?: string }) {
@@ -134,6 +145,19 @@ export function completeOnboarding(data: {
 }
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
+}
+export type ProfileDetails = {
+  id: string; firstName: string; lastName: string; email: string; phone: string | null;
+  emailVerifiedAt: string | null; createdAt: string; pendingEmail: string | null;
+  role: { name: string }; branch: { name: string } | null;
+  agency: { name: string; email: string | null; phone: string | null; address: string | null; city: string | null; state: string | null; country: string | null } | null;
+};
+export function getProfile() { return request<ProfileDetails>("/api/auth/profile"); }
+export function saveProfile(input: { firstName?: string; lastName?: string; phone?: string | null; agency?: ProfileDetails["agency"] }) {
+  return request<ProfileDetails>("/api/auth/profile", { method: "PATCH", body: JSON.stringify(input) });
+}
+export function requestEmailChange(email: string, password: string) {
+  return request<{ pendingEmail: string }>("/api/auth/profile/email-change", { method: "POST", body: JSON.stringify({ email, password }) });
 }
 export function getNotifications(cursor?: string) {
   return request<

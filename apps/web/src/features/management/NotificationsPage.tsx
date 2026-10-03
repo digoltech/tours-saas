@@ -6,13 +6,14 @@ import { cn } from "../../lib/utils";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
 import { Button } from "../../ui/Button";
+import { SkeletonList } from "../../ui/Skeleton";
 import { getNotificationPreferences, getNotifications, markNotificationRead, saveNotificationPreferences } from "../auth/services/api-client";
 import type { NotificationPreferences } from "@a-one-tours/shared";
 
 type Notification = Awaited<ReturnType<typeof getNotifications>>["items"][number];
 const defaults: NotificationPreferences = { inApp: true, email: true, sms: false, whatsapp: false };
 const channels = [
-  { key: "inApp", label: "In app", detail: "Updates in your workspace", icon: Bell },
+  { key: "inApp", label: "In app", detail: "Updates in your account", icon: Bell },
   { key: "email", label: "Email", detail: "Messages sent to your inbox", icon: Mail },
   { key: "sms", label: "SMS", detail: "Text message updates", icon: Smartphone },
   { key: "whatsapp", label: "WhatsApp", detail: "Messages on WhatsApp", icon: MessageSquare },
@@ -91,7 +92,7 @@ export function NotificationsPage() {
 
   return (
     <>
-      <PageHeader title="Notifications" description="Your workspace updates and delivery preferences, all in one place." />
+      <PageHeader title="Notifications" description="Your updates and delivery preferences, all in one place." />
       <div className="notifications-layout">
         <section className="notifications-main" aria-label="Notification inbox">
           <div className="notifications-intro">
@@ -108,7 +109,7 @@ export function NotificationsPage() {
               </div>
               <label className="notifications-search"><Search size={17} /><span className="sr-only">Search loaded notifications</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notifications" /></label>
             </div>
-            {loading ? <div className="notifications-placeholder" role="status">Loading notifications…</div> : visible.length ? (
+            {loading ? <SkeletonList rows={5} /> : visible.length ? (
               <div className="notifications-list">
                 {visible.map((item) => {
                   const isUnread = item.channel === "IN_APP" && Boolean(item.userId) && !item.readAt;
@@ -117,21 +118,21 @@ export function NotificationsPage() {
                     <div className="notification-row-body">
                       <div className="notification-row-heading"><h2>{item.subject.replaceAll("_", " ")}</h2>{isUnread && <span className="notification-new">New</span>}</div>
                       <p>{item.message}</p>
-                      <div className="notification-row-meta"><span>{item.channel.replaceAll("_", " ").toLowerCase()}</span><span aria-hidden="true">·</span><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time><span aria-hidden="true">·</span><span>{item.channel === "IN_APP" ? (!item.userId ? "Workspace" : item.readAt ? "Read" : "Unread") : item.status.toLowerCase()}</span></div>
+                      <div className="notification-row-meta"><span>{item.channel.replaceAll("_", " ").toLowerCase()}</span><span aria-hidden="true">·</span><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time><span aria-hidden="true">·</span><span>{item.channel === "IN_APP" ? (!item.userId ? "Agency" : item.readAt ? "Read" : "Unread") : item.status.toLowerCase()}</span></div>
                     </div>
-                    {isUnread && <Button variant="secondary" className="notification-read-button" disabled={pendingId === item.id} onClick={() => void markRead(item.id)}><Check size={15} /> {pendingId === item.id ? "Saving…" : "Mark read"}</Button>}
+                    {isUnread && <Button variant="secondary" className="notification-read-button" loading={pendingId === item.id} loadingLabel="Saving…" onClick={() => void markRead(item.id)}><Check size={15} /> Mark read</Button>}
                   </article>;
                 })}
               </div>
-            ) : <div className="notifications-placeholder"><span className="notification-empty-icon">{filter === "unread" ? <CheckCheck size={24} /> : <Bell size={24} />}</span><h2>{items.length ? "Nothing matches this view" : "No notifications yet"}</h2><p>{items.length ? "Try another filter or search." : "Booking and workspace updates will appear here."}</p></div>}
-            {nextCursor && <div className="notifications-more"><Button variant="secondary" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load older notifications"} <ChevronDown size={16} /></Button></div>}
+            ) : <div className="notifications-placeholder"><span className="notification-empty-icon">{filter === "unread" ? <CheckCheck size={24} /> : <Bell size={24} />}</span><h2>{items.length ? "Nothing matches this view" : "No notifications yet"}</h2><p>{items.length ? "Try another filter or search." : "Booking and agency updates will appear here."}</p></div>}
+            {nextCursor && <div className="notifications-more"><Button variant="secondary" loading={loadingMore} loadingLabel="Loading…" onClick={() => void loadMore()}>Load older notifications <ChevronDown size={16} /></Button></div>}
           </Card>
         </section>
         <aside className="notifications-aside" aria-labelledby="delivery-heading">
           <Card className="notifications-preferences">
             <p className="eyebrow">SETTINGS</p><h2 id="delivery-heading">Delivery preferences</h2><p className="notifications-aside-copy">Choose where you receive updates.</p>
             <div className="notifications-channels">{channels.map(({ key, label, detail, icon: Icon }) => <label key={key} className="notifications-channel"><Icon size={19} /><span><strong>{label}</strong><small>{detail}</small></span><input type="checkbox" checked={preferences[key]} onChange={(event) => setPreferences((current) => ({ ...current, [key]: event.target.checked }))} /></label>)}</div>
-            <Button className="notifications-save" disabled={saving} onClick={() => void save()}><Save size={16} /> {saving ? "Saving…" : "Save preferences"}</Button>
+            <Button className="notifications-save" loading={saving} loadingLabel="Saving…" onClick={() => void save()}><Save size={16} /> Save preferences</Button>
             {message && <p className="notifications-saved" role="status">{message}</p>}
           </Card>
         </aside>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Check, MailCheck, RefreshCw, ShieldCheck } from "lucide-react";
 import { AuthLayout } from "../../../src/features/auth/components/AuthLayout";
 import { resendEmailVerification, verifyEmail } from "../../../src/features/auth/services/api-client";
 import { Card } from "../../../src/ui/Card";
@@ -11,7 +12,9 @@ export default function VerifyEmailPage() {
   const router = useRouter();
   const attempted = useRef(false);
   const [status, setStatus] = useState<"pending" | "loading" | "success" | "error">("pending");
-  const [message, setMessage] = useState("Check your inbox for a confirmation link.");
+  const [emailChanged, setEmailChanged] = useState(false);
+  const [message, setMessage] = useState("");
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
@@ -19,25 +22,30 @@ export default function VerifyEmailPage() {
     attempted.current = true;
     window.history.replaceState(null, "", "/auth/verify-email");
     queueMicrotask(() => setStatus("loading"));
-    verifyEmail(token).then(() => {
+    verifyEmail(token).then((result) => {
       setStatus("success");
+      setEmailChanged(result.emailChanged);
       router.refresh();
     }).catch(() => setStatus("error"));
   }, [router]);
 
   async function resend() {
+    setResending(true); setMessage("");
     try {
       await resendEmailVerification();
-      setMessage("A new confirmation link has been sent if your session is still active.");
-    } catch {
-      setMessage("Please sign in, then request another confirmation link.");
-    }
+      setMessage("A fresh confirmation link is on its way. Check your inbox and spam folder.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Please sign in and try again."); }
+    finally { setResending(false); }
   }
 
-  return <AuthLayout><Card className="login-card email-result">
-    {status === "pending" && <><h1>Confirm your email</h1><p>{message}</p><button type="button" className="button button-secondary" onClick={resend}>Resend link</button></>}
-    {status === "loading" && <><h1>Verifying your address…</h1><p>Please wait.</p></>}
-    {status === "success" && <><h1>Email confirmed</h1><p>Your workspace is ready.</p><Link className="button button-primary" href="/auth/onboarding">Continue</Link></>}
-    {status === "error" && <><h1>Link unavailable</h1><p>This link is invalid or expired.</p><button type="button" className="button button-secondary" onClick={resend}>Resend link</button></>}
-  </Card></AuthLayout>;
+  const title = status === "success" ? "Email confirmed" : status === "loading" ? "Checking your link" : status === "error" ? "That link isn’t available" : "Check your inbox";
+  const description = status === "success" ? emailChanged ? "Your new address is active. Sign in again to continue." : "Your email is confirmed. Next, let’s set up your travel business." : status === "loading" ? "This takes just a moment." : status === "error" ? "It may have expired or already been used. You can request another one." : "We’ve sent you a link to confirm your email address. Open it to keep going.";
+  return <AuthLayout><div className="auth-card-stack auth-card-stack-narrow"><div className="auth-heading"><p className="eyebrow">ACCOUNT CONFIRMATION</p><h2>{title}</h2><p>{description}</p></div><Card className="login-card email-result">
+    <div className={`auth-result-icon ${status === "success" ? "success" : ""}`}>{status === "success" ? <Check size={28} /> : status === "loading" ? <span className="auth-spinner" /> : <MailCheck size={28} />}</div>
+    {status === "pending" && <><h3>One quick check</h3><p>Look for an email from Digol TravelOS. The link is valid for 24 hours.</p><div className="auth-info-row"><ShieldCheck size={16} /> This helps protect your account.</div></>}
+    {status === "error" && <p>Need a new link? Use the button below while signed in.</p>}
+    {status === "success" && <p>Thanks for confirming your address. Your next step is ready.</p>}
+    {message && <p role="status" className="auth-status-message">{message}</p>}
+    {status === "success" ? <Link className="button button-primary auth-result-action" href={emailChanged ? "/auth/login" : "/onboaridng/"}>{emailChanged ? "Sign in" : "Continue to setup"}<ArrowRight size={16} /></Link> : status !== "loading" ? <button type="button" className="button button-secondary auth-result-action" onClick={() => void resend()} disabled={resending}><RefreshCw size={16} />{resending ? "Sending…" : "Resend confirmation email"}</button> : null}
+  </Card><p className="auth-bottom-link">Need help? <Link href="/contact">Contact us</Link></p></div></AuthLayout>;
 }

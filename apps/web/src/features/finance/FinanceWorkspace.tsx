@@ -1327,7 +1327,7 @@ export function FinanceWorkspace() {
             ))}
             {ledger.length === 0 && (
               <div className={cn("finance-chart-empty")}>
-                No ledger activity in this workspace yet.
+                No ledger activity for this agency yet.
               </div>
             )}
           </div>

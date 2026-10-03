@@ -150,7 +150,7 @@ export function SettingsWorkspace() {
   return (
     <>
       <PageHeader
-        title="Workspace settings"
+        title="Agency settings"
         description="Manage your agency profile, ticket branding, and subscription."
       />
       {error && (
@@ -161,7 +161,7 @@ export function SettingsWorkspace() {
       {user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update") && (
         <Card className={cn("settings-card")}>
           <p className={cn("eyebrow")}>AGENCY BRANDING</p>
-          <h2>Workspace and ticket details</h2>
+          <h2>Agency and ticket details</h2>
           {field("name", "Agency name")}
           {field("email", "Contact email", "email")}
           {field("phone", "Contact phone", "tel")}

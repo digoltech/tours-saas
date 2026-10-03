@@ -19,6 +19,7 @@ type AuthContextValue = {
   status: AuthStatus;
   error: string | null;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -65,8 +66,13 @@ export function AuthProvider({
     router.refresh();
   }
 
+  async function refreshUser() {
+    setUser(await getCurrentUser());
+    router.refresh();
+  }
+
   return (
-    <AuthContext.Provider value={{ user, status, error, logout }}>
+    <AuthContext.Provider value={{ user, status, error, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -34,7 +34,7 @@ export function LoginForm() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      router.push(result.user.emailVerified === false ? "/auth/verify-email" : result.user.onboardingCompleted ? (result.user.role === "SUPER_ADMIN" ? "/dashboard/superadmin" : "/dashboard/home") : "/auth/onboarding");
+      router.push(result.user.emailVerified === false ? "/auth/verify-email" : result.user.onboardingCompleted ? (result.user.role === "SUPER_ADMIN" ? "/dashboard/superadmin" : "/dashboard/home") : "/onboaridng/");
       router.refresh();
     } catch (requestError) {
       setError(
@@ -74,9 +74,9 @@ export function LoginForm() {
             {error}
           </p>
         )}
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" loading={loading} loadingLabel="Signing in…">
           <LogIn size={15} />
-          {loading ? "Signing in..." : "Sign in"}
+          Sign in
         </Button>
       </form>
     </Card>

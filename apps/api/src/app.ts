@@ -3,6 +3,8 @@ import express from "express";
 import helmet from "helmet";
 import { environment } from "./config/env.js";
 import { authRouter } from "./routes/auth.routes.js";
+import { newsletterRouter } from "./routes/newsletter.routes.js";
+import { contactRouter } from "./routes/contact.routes.js";
 import { tenantRouter } from "./routes/tenant.routes.js";
 import { managementRouter } from "./routes/management.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
@@ -42,6 +44,8 @@ app.use((request, response, next) => {
 app.use("/api/health", healthRouter);
 app.use("/api", privacyRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/newsletter", newsletterRouter);
+app.use("/api/contact", contactRouter);
 app.use("/api/tenants", tenantRouter);
 app.use("/api", managementRouter);
 app.use("/api", transportRouter);

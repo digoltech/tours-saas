@@ -326,7 +326,7 @@ export async function reviewCancellation(
     fail(
       403,
       "FORBIDDEN",
-      "Only workspace administrators can review cancellation requests",
+      "Only agency administrators can review cancellation requests",
     );
   const item = await prisma.cancellationRequest.findUnique({
     where: { id },
@@ -386,7 +386,7 @@ export async function reviewCancellation(
 export async function getAgencySettings(context: AuthContext) {
   const agencyId = context.agencyId;
   if (!agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency workspace first");
+    fail(400, "INVALID_REQUEST", "Select an agency first");
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
     select: {
@@ -420,7 +420,7 @@ export async function updateAgencySettings(
   },
 ) {
   if (context.roleScope !== "AGENCY" || !context.agencyId || !context.permissions.includes("agency:update"))
-    fail(403, "FORBIDDEN", "Only agency admins can update workspace branding");
+    fail(403, "FORBIDDEN", "Only agency admins can update agency branding");
   const updated = await prisma.agency.update({
     where: { id: context.agencyId },
     data: {
@@ -454,7 +454,7 @@ export async function updateAgencySettings(
 }
 export async function listAuditLogs(context: AuthContext, filters: { from?: string; to?: string; actorId?: string; action?: string; entityType?: string } = {}) {
   if (context.role !== "SUPER_ADMIN" && !context.permissions.includes("agency:read"))
-    fail(403, "FORBIDDEN", "You do not have permission to view workspace activity");
+    fail(403, "FORBIDDEN", "You do not have permission to view agency activity");
   const rows = await prisma.auditLog.findMany({
     where: {
       ...agencyScope(context),
@@ -488,7 +488,7 @@ export async function listAuditLogs(context: AuthContext, filters: { from?: stri
 
 export async function getSubscription(context: AuthContext) {
   if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency workspace first");
+    fail(400, "INVALID_REQUEST", "Select an agency first");
   const record = await prisma.subscription.findUnique({ where: { agencyId: context.agencyId } });
   if (!record) return null;
   if (
@@ -510,7 +510,7 @@ export async function requestPlan(
       "Only agency admins can request a subscription plan",
     );
   if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency workspace first");
+    fail(400, "INVALID_REQUEST", "Select an agency first");
   const result = await prisma.subscription.upsert({
     where: { agencyId: context.agencyId },
     create: {

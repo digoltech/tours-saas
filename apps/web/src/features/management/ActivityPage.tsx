@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Activity, CalendarDays, Clock3, FilterX, Search, SlidersHorizontal, UserRound } from "lucide-react";
+import { Activity, CalendarDays, FilterX, Search, SlidersHorizontal, UserRound } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
+import { Skeleton, SkeletonList } from "../../ui/Skeleton";
 import { getAuditLogs } from "../auth/services/api-client";
 
 type ActivityRow = Awaited<ReturnType<typeof getAuditLogs>>[number];
@@ -43,7 +44,7 @@ export function ActivityPage() {
         ])).values()).sort((a, b) => a.name.localeCompare(b.name)));
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load workspace activity.");
+      setError(cause instanceof Error ? cause.message : "Unable to load agency activity.");
     } finally { setLoading(false); }
   }, [applied, hasFilters]);
 
@@ -65,12 +66,7 @@ export function ActivityPage() {
   }
 
   return <>
-    <PageHeader title="Workspace activity" description="Review changes made across your agency workspace." />
-    <div className="activity-intro">
-      <span className="activity-intro-icon"><Activity size={24} /></span>
-      <div><p className="eyebrow">AUDIT TRAIL</p><h1>Workspace activity</h1><p>See who changed what, and when it happened.</p></div>
-      <span className="activity-count">{loading ? "Loading…" : `${rows.length} ${rows.length === 1 ? "event" : "events"}`}</span>
-    </div>
+    <PageHeader title="Agency activity" description="Review changes made across your agency." />
     <Card className="activity-filter-card">
       <div className="activity-card-heading"><div><span className="activity-heading-icon"><SlidersHorizontal size={18} /></span><div><h2>Filter activity</h2><p>Narrow the timeline by date, team member, action or record.</p></div></div>{hasFilters && <button type="button" className="activity-clear" onClick={clear}><FilterX size={16} /> Clear filters</button>}</div>
       <form onSubmit={apply}>
@@ -81,13 +77,13 @@ export function ActivityPage() {
           <label>Action <span className="activity-input-wrap"><Search size={16} /><input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="e.g. TRIP_CREATED" /></span></label>
           <label>Record type <span className="activity-input-wrap"><Search size={16} /><input value={filters.entityType} onChange={(event) => setFilters((current) => ({ ...current, entityType: event.target.value }))} placeholder="Bus, Trip, Role…" /></span></label>
         </div>
-        <div className="activity-filter-actions"><Button type="submit" disabled={loading}><Search size={16} /> Apply filters</Button><span>Showing the most recent matching activity</span></div>
+        <div className="activity-filter-actions"><Button type="submit" loading={loading} loadingLabel="Loading activity…"><Search size={16} /> Apply filters</Button><span>Showing the most recent matching activity</span></div>
       </form>
     </Card>
     {error && <div className="state-message state-error" role="alert">{error}</div>}
     <Card className="activity-results">
       <div className="activity-results-heading"><div><p className="eyebrow">EVENT HISTORY</p><h2>Activity timeline</h2></div><span>{loading ? "Loading" : `${rows.length} shown`}</span></div>
-      {loading ? <div className="activity-empty" role="status"><span className="activity-empty-icon"><Clock3 size={25} /></span><h3>Loading activity…</h3><p>Getting the latest changes from your workspace.</p></div> : rows.length ? <div className="activity-timeline">{rows.map((row) => <article className="activity-event" key={row.id}>
+      {loading ? <SkeletonList rows={5} /> : rows.length ? <div className="activity-timeline">{rows.map((row) => <article className="activity-event" key={row.id}>
         <span className="activity-event-icon"><Activity size={18} /></span>
         <div className="activity-event-body"><div className="activity-event-title"><h3>{formatAction(row.action)}</h3><time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString()}</time></div><p><strong>{row.actor ? `${row.actor.firstName} ${row.actor.lastName}` : "System"}</strong> updated <span className="activity-entity">{row.entityType}</span>{row.entityId && <span className="activity-entity-id" title={row.entityId}> · {row.entityId}</span>}</p></div>
       </article>)}</div> : <div className="activity-empty"><span className="activity-empty-icon"><Activity size={26} /></span><h3>{hasFilters ? "No matching activity" : "No activity yet"}</h3><p>{hasFilters ? "Try a wider date range or clear the filters to see more events." : "Changes to bookings, trips and your team will appear here."}</p>{hasFilters && <Button variant="secondary" onClick={clear}><FilterX size={16} /> Clear filters</Button>}</div>}

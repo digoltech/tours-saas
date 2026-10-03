@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AUTH_COOKIE, clearAuthCookie, readCookie, setAuthCookie } from "../utils/cookies.js";
 import { sendError } from "../utils/api-response.js";
@@ -35,9 +36,8 @@ const registerSchema = z.object({
   lastName: z.string().trim().min(2),
   email: z.string().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8),
-  agencyName: z.string().trim().min(2),
-  branchName: z.string().trim().min(2),
-});
+  confirmPassword: z.string(),
+}).refine((value) => value.password === value.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] });
 const onboardingSchema = z.object({
   agencyName: z.string().trim().min(2),
   branchName: z.string().trim().min(2),
@@ -84,7 +84,6 @@ export async function register(request: Request, response: Response) {
     void sendRegistrationConfirmation({
       email: user.email,
       firstName: user.firstName,
-      agencyName: result.data.agencyName,
       verificationUrl,
     }).catch((error) => console.error("Registration confirmation email failed", error));
     setAuthCookie(response, await createSession(context), context.role);
@@ -100,9 +99,11 @@ export async function confirmEmail(request: Request, response: Response) {
   if (!parsed.success) return sendError(response, 400, "INVALID_REQUEST", "A valid confirmation token is required");
   const token = parsed.data;
   try {
-    await verifyEmail(token);
-    return response.json({ success: true, data: { verified: true } });
+    const result = await verifyEmail(token);
+    return response.json({ success: true, data: { verified: true, ...result } });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+      return sendError(response, 409, "CONFLICT", "This email address is already in use");
     return sendError(response, 400, "EMAIL_VERIFICATION_FAILED", error instanceof Error ? error.message : "Unable to verify email");
   }
 }
@@ -193,7 +194,7 @@ export async function resendVerification(request: Request, response: Response) {
   const pending = await resendEmailVerification(request.auth!.userId);
   if (pending) {
     const verificationUrl = `${environment.WEB_URL}/auth/verify-email?token=${encodeURIComponent(pending.token)}`;
-    await sendRegistrationConfirmation({ email: pending.user.email, firstName: pending.user.firstName, agencyName: pending.user.agency?.name ?? "your workspace", verificationUrl });
+    await sendRegistrationConfirmation({ email: pending.user.email, firstName: pending.user.firstName, verificationUrl });
   }
   return response.json({ success: true, data: { sent: true } });
 }

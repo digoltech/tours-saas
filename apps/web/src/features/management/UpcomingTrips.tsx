@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays, Clock3, MapPin, Bus } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Card } from "../../ui/Card";
+import { SkeletonList } from "../../ui/Skeleton";
 import { cn } from "../../lib/utils";
 import { getTrips, type Trip } from "../auth/services/api-client";
 
@@ -47,7 +48,7 @@ export function UpcomingTrips({
       {error ? (
         <div className="px-5 py-6 text-sm text-rose-700" role="alert">{error}</div>
       ) : loading ? (
-        <div className="px-5 py-6 text-sm text-slate-500" role="status">Loading upcoming trips…</div>
+        <SkeletonList rows={3} />
       ) : trips.length === 0 ? (
         <div className="px-5 py-8 text-center sm:px-6">
           <CalendarDays className="mx-auto size-8 text-slate-300" aria-hidden="true" />

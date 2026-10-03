@@ -220,7 +220,7 @@ export async function saveSeatLayout(
     fail(
       403,
       "FORBIDDEN",
-      "Only workspace administrators can update seat layouts",
+      "Only agency administrators can update seat layouts",
     );
   const validNames = Array.from({ length: bus.totalSeats }, (_, i) =>
     seatName(i, input.columns),
@@ -257,7 +257,7 @@ export async function getSeatLayout(context: AuthContext, busId: string) {
 
 export async function getDiscountCap(context: AuthContext) {
   if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency workspace first");
+    fail(400, "INVALID_REQUEST", "Select an agency first");
   const agency = await prisma.agency.findUnique({
     where: { id: context.agencyId },
     select: { maxDiscountType: true, maxDiscountValue: true },
@@ -274,7 +274,7 @@ export async function updateDiscountCap(
   input: { type: DiscountType; value: number },
 ) {
   if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency workspace first");
+    fail(400, "INVALID_REQUEST", "Select an agency first");
   if (context.role !== "AGENCY_ADMIN")
     fail(
       403,

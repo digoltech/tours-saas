@@ -1,10 +1,10 @@
-# A-One Tours & Travels SaaS
+# Digol TravelOS by Digol Tours
 
 A multi-tenant bus, tour, and travel management platform. The repository contains the Phase 1 foundation, Stage 2 booking flow, and Stage 3 finance features, including organization, fleet, route, stop, boarding/drop-off, trip, authentication, RBAC, tenant management, seat inventory, payments, cancellations, refunds, settlements, ledgers, reports, and exports.
 
 ## Tech stack
 
-- Bun, TypeScript, and a workspace-based monorepo
+- Bun, TypeScript, and a monorepo
 - Next.js App Router, React, TypeScript, Tailwind CSS, shadcn/ui primitives, and Lucide icons
 - Express 5 API
 - Prisma ORM with PostgreSQL/Supabase PostgreSQL
@@ -30,6 +30,7 @@ Install Bun 1.3+ and have access to a Supabase PostgreSQL project. Node.js is us
 3. Set `DATABASE_URL` and `DIRECT_URL` to the Supabase connection strings. Keep secrets local and never commit `.env` files.
 4. Set `JWT_SECRET` to at least 32 random characters and `WEB_URL` to the frontend origin.
 5. Copy `apps/web/.env.example` to `apps/web/.env.local` and set `NEXT_PUBLIC_API_URL`.
+6. Set `RESEND_API_KEY`, `MAIL_FROM`, and `CONTACT_EMAIL` to send account, newsletter, and contact emails in production.
 
 For production, serve web and API on one HTTPS origin and follow [the security deployment runbook](docs/security-deployment.md). The web build must set `NEXT_PUBLIC_API_URL` to an empty string; the API uses a CA-verified Supabase connection. Rate limits are local to each API process.
 
@@ -57,9 +58,9 @@ bun run dev:api       # http://localhost:4000
 bun run dev           # both applications
 ```
 
-The frontend is a native Next.js App Router application. Navigation uses Next links and each workspace area is represented by a Next route segment. React remains as Next.js' rendering runtime; no separate client-side router is used.
+The frontend is a native Next.js App Router application. Navigation uses Next links and each dashboard area is represented by a Next route segment. React remains as Next.js' rendering runtime; no separate client-side router is used.
 
-The frontend design system uses shadcn/ui conventions with `class-variance-authority`, `clsx`, and `tailwind-merge`. Its visual language is intentionally red, black, white, and neutral gray for a confident travel-business feel. Typography uses Space Grotesk for headings, DM Sans for interface copy, and IBM Plex Mono for route and operational metrics.
+The frontend design system uses shadcn/ui conventions with `class-variance-authority`, `clsx`, and `tailwind-merge`. Its visual language uses red, deep green, white, and warm neutral tones. Typography uses Space Grotesk for headings, Manrope for interface copy, and IBM Plex Mono for route and operational metrics.
 
 The API health endpoint is `GET http://localhost:4000/api/health` and returns `{ "success": true, "message": "API is running" }`. The Super Admin dashboard summarizes agencies, branches, agents, buses, drivers, routes, and trips.
 

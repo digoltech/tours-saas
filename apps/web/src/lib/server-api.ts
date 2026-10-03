@@ -27,7 +27,7 @@ export async function serverApiRequest<T>(path: string): Promise<T> {
 
   if (!response.ok || !payload.success)
     throw new Error(
-      payload.success ? "Unable to load workspace data." : payload.error.message,
+      payload.success ? "Unable to load platform data." : payload.error.message,
     );
 
   return payload.data;

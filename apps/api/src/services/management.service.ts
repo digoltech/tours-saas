@@ -853,7 +853,7 @@ export async function createAgent(
         firstName: user.firstName,
         inviterName: `${context.firstName} ${context.lastName}`,
         agencyName: user.agency?.name ?? "your travel team",
-        invitationUrl: `${environment.WEB_URL}/invite/${encodeURIComponent(token)}`,
+        invitationUrl: `${environment.WEB_URL}/auth/invite/${encodeURIComponent(token)}`,
       }).catch((error) => console.error("Team invitation email failed", error));
     } else {
       void sendTeamWelcome({
@@ -861,7 +861,7 @@ export async function createAgent(
         firstName: user.firstName,
         inviterName: `${context.firstName} ${context.lastName}`,
         agencyName: user.agency?.name ?? "your travel team",
-        loginUrl: `${environment.WEB_URL}/login`,
+        loginUrl: `${environment.WEB_URL}/auth/login`,
       }).catch((error) => console.error("Team welcome email failed", error));
     }
     return { ...user, invitationSent: !hasExplicitPassword };

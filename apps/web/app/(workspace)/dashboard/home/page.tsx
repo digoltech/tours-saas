@@ -9,7 +9,7 @@ import { WorkspaceDashboard } from "../../../../src/features/management/Workspac
 
 export default async function DashboardRoute() {
   const user = await getRequestUser();
-  if (!user) redirect("/login?from=%2Fdashboard%2Fhome");
+  if (!user) redirect("/auth/login?from=%2Fdashboard%2Fhome");
   if (user.role === "SUPER_ADMIN") redirect("/dashboard/superadmin");
 
   const [summaryResult, tripsResult] = await Promise.all([

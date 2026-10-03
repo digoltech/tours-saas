@@ -1,15 +1,15 @@
 "use client";
 
-import { cn } from "../../src/lib/utils";
+import { cn } from "../../../src/lib/utils";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { requestPasswordReset, resetPassword, verifyPasswordResetOtp } from "../../src/features/auth/services/api-client";
-import { AuthLayout } from "../../src/features/auth/components/AuthLayout";
-import { PasswordInput } from "../../src/features/auth/components/PasswordInput";
-import { Button } from "../../src/ui/Button";
-import { Card } from "../../src/ui/Card";
-import { Input } from "../../src/ui/Input";
+import { requestPasswordReset, resetPassword, verifyPasswordResetOtp } from "../../../src/features/auth/services/api-client";
+import { AuthLayout } from "../../../src/features/auth/components/AuthLayout";
+import { PasswordInput } from "../../../src/features/auth/components/PasswordInput";
+import { Button } from "../../../src/ui/Button";
+import { Card } from "../../../src/ui/Card";
+import { Input } from "../../../src/ui/Input";
 
 const emailSchema = z.string().email("Enter a valid email address");
 const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
@@ -102,9 +102,9 @@ export default function ForgotPasswordPage() {
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
             <Button type="submit" disabled={loading}>{loading ? "Updating password…" : "Reset password"}</Button>
           </form>}
-          {step === 3 && <Link className={cn("button button-primary reset-login")} href="/login">Return to sign in</Link>}
+          {step === 3 && <Link className={cn("button button-primary reset-login")} href="/auth/login">Return to sign in</Link>}
         </Card>
-        <p className={cn("auth-bottom-link")}><Link href="/login">Back to sign in</Link></p>
+        <p className={cn("auth-bottom-link")}><Link href="/auth/login">Back to sign in</Link></p>
       </div>
     </AuthLayout>
   );

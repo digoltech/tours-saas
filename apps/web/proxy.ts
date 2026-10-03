@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPaths = [
   "/dashboard",
-  "/onboarding",
+  "/auth/onboarding",
   "/agencies",
   "/agents",
   "/bookings",
@@ -43,12 +43,12 @@ export async function proxy(request: NextRequest) {
         };
         authenticated = true;
         if (payload.data?.emailVerified !== true)
-          return NextResponse.redirect(new URL("/verify-email", request.url));
+          return NextResponse.redirect(new URL("/auth/verify-email", request.url));
         const onboardingDone = payload.data?.onboardingCompleted === true;
-        if (request.nextUrl.pathname === "/onboarding" && onboardingDone)
+        if (request.nextUrl.pathname === "/auth/onboarding" && onboardingDone)
           return NextResponse.redirect(new URL("/dashboard/home", request.url));
-        if (request.nextUrl.pathname !== "/onboarding" && !onboardingDone)
-          return NextResponse.redirect(new URL("/onboarding", request.url));
+        if (request.nextUrl.pathname !== "/auth/onboarding" && !onboardingDone)
+          return NextResponse.redirect(new URL("/auth/onboarding", request.url));
         if (payload.data) {
           const requestHeaders = new Headers(request.headers);
           requestHeaders.set(userHeader, JSON.stringify(payload.data));
@@ -60,7 +60,7 @@ export async function proxy(request: NextRequest) {
     }
   }
   if (!authenticated) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -70,7 +70,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/onboarding",
+    "/auth/onboarding",
     "/agencies/:path*",
     "/agents/:path*",
     "/bookings/:path*",

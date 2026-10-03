@@ -1,31 +1,30 @@
 import { createHash } from "node:crypto";
 import type { Request, RequestHandler } from "express";
-import { createClient } from "redis";
-import { environment } from "../config/env.js";
 import { sendError } from "../utils/api-response.js";
 
-const redis = environment.REDIS_URL ? createClient({ url: environment.REDIS_URL, socket: { reconnectStrategy: false, connectTimeout: 2000 } }) : null;
-redis?.on("error", (error) => console.error("Rate limit Redis error", error));
-let connecting: Promise<unknown> | null = null;
 const local = new Map<string, { count: number; expiresAt: number }>();
-const script = "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; return count";
+const maxKeys = 50_000;
+let requests = 0;
 
 function hash(value: string) { return createHash("sha256").update(value).digest("hex"); }
 
 export async function consumeRate(key: string, windowSeconds: number): Promise<number> {
-  if (!redis) {
-    if (environment.NODE_ENV === "production") throw new Error("Rate limit storage is unavailable");
-    const now = Date.now();
-    const current = local.get(key);
-    const count = current && current.expiresAt > now ? current.count + 1 : 1;
-    local.set(key, { count, expiresAt: current && current.expiresAt > now ? current.expiresAt : now + windowSeconds * 1000 });
-    return count;
+  const now = Date.now();
+  const current = local.get(key);
+  const active = current && current.expiresAt > now;
+  const count = active ? current.count + 1 : 1;
+  local.set(key, { count, expiresAt: active ? current.expiresAt : now + windowSeconds * 1000 });
+  if (++requests % 1_000 === 0) {
+    for (const [entryKey, entry] of local) {
+      if (entry.expiresAt <= now) local.delete(entryKey);
+    }
   }
-  if (!redis.isOpen) {
-    connecting ??= redis.connect().finally(() => { connecting = null; });
-    await connecting;
+  while (local.size > maxKeys) {
+    const oldest = local.keys().next().value;
+    if (oldest === undefined) break;
+    local.delete(oldest);
   }
-  return Number(await redis.eval(script, { keys: [key], arguments: [String(windowSeconds)] }));
+  return count;
 }
 
 export function rateLimit(group: string, limit: number, windowSeconds: number, identity?: (request: Request) => string, consume = consumeRate): RequestHandler {

@@ -1,14 +1,14 @@
 "use client";
 
-import { cn } from "../../src/lib/utils";
+import { cn } from "../../../src/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Building2, Check, MapPin, Phone, Sparkles } from "lucide-react";
-import { completeOnboarding } from "../../src/features/auth/services/api-client";
-import { Button } from "../../src/ui/Button";
-import { Card } from "../../src/ui/Card";
-import { Input } from "../../src/ui/Input";
-import { AuthLayout } from "../../src/features/auth/components/AuthLayout";
+import { completeOnboarding } from "../../../src/features/auth/services/api-client";
+import { Button } from "../../../src/ui/Button";
+import { Card } from "../../../src/ui/Card";
+import { Input } from "../../../src/ui/Input";
+import { AuthLayout } from "../../../src/features/auth/components/AuthLayout";
 
 type FormState = { agencyName: string; branchName: string; phone: string };
 const steps = [

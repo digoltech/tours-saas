@@ -1,6 +1,6 @@
 # Security deployment runbook
 
-The application is designed for one public HTTPS origin. Nginx routes `/api/` to Express on `127.0.0.1:4000` and other paths to Next.js on `127.0.0.1:3000`. Use the templates in `deploy/hostinger/`, replace the domain and certificate paths, then run `nginx -t` before reload. Keep both Bun processes and Redis bound to loopback. Set `WEB_URL=https://your-domain`, `NEXT_PUBLIC_API_URL=` (empty), and `API_INTERNAL_URL=http://127.0.0.1:4000`. Build Next.js with that public API setting, since `NEXT_PUBLIC_*` is compiled into browser assets.
+The application is designed for one public HTTPS origin. Nginx routes `/api/` to Express on `127.0.0.1:4000` and other paths to Next.js on `127.0.0.1:3000`. Use the templates in `deploy/hostinger/`, replace the domain and certificate paths, then run `nginx -t` before reload. Keep both Bun processes bound to loopback. Set `WEB_URL=https://your-domain`, `NEXT_PUBLIC_API_URL=` (empty), and `API_INTERNAL_URL=http://127.0.0.1:4000`. Build Next.js with that public API setting, since `NEXT_PUBLIC_*` is compiled into browser assets.
 
 ## Release order
 
@@ -9,10 +9,9 @@ The application is designed for one public HTTPS origin. Nginx routes `/api/` to
 3. Create a database runtime role limited to the objects Prisma needs. Run the migrations with a separate migration role that can create and alter schema objects. Grant runtime `USAGE` on schema `public`, `SELECT, INSERT, UPDATE, DELETE` on the application tables, and sequence `USAGE` only where required. Do not give the runtime role `BYPASSRLS`, `CREATEROLE`, `CREATEDB`, or schema ownership. Test migration and runtime roles on staging. Rotate the current database password after cutover.
 4. Apply pending migrations with `bunx prisma migrate deploy --config prisma.config.ts` using the migration URL. The second new migration revokes `anon` and `authenticated` grants on all public tables and sequences. Run `bun run security:supabase-audit` afterward; no application table should show those roles with table privileges. Check new objects too because existing default privileges may have been set by more than one creator role.
 5. In the Supabase dashboard, disable the Data API if no other client uses it. Enable SSL enforcement after all clients have moved to TLS; this causes a database restart. Restrict database network access to the VPS egress IP and approved maintenance IPs when feasible. Recheck pooled and direct connection modes after changes.
-6. Start Redis with `bind 127.0.0.1`, `protected-mode yes`, and no public port; rate-limit state can be disposable. Configure `REDIS_URL=redis://127.0.0.1:6379` for the API. The API fails closed on protected requests when Redis is unavailable in production.
-7. Install the systemd service units, run as a dedicated non-root account, and allow it only read access to its environment and CA files. Set file permissions on `/etc/a-one-tours/*` to prevent other accounts reading secrets. Verify both app listeners with `ss -lntp`.
-8. Open only ports 80 and 443 publicly in the Hostinger firewall. Restrict SSH to administrator IPs, use key authentication, disable root login and password authentication after confirming a working key session. Enable unattended security updates. Add health, process restart, TLS expiry, disk, database connectivity, and 429/5xx rate alerts. Protect backups and periodically perform a timed restore test.
-9. Test from outside the VPS: HTTP redirects to HTTPS; `/api/health` works; API and web ports and Redis cannot be reached directly; HSTS and security headers are present; cookie has `Secure`, `HttpOnly`, `SameSite=Lax`; cross-origin writes fail; excessive controlled requests return 429 then recover after their window. Do not send load tests to production.
+6. Install the systemd service units, run as a dedicated non-root account, and allow it only read access to its environment and CA files. Set file permissions on `/etc/a-one-tours/*` to prevent other accounts reading secrets. Verify both app listeners with `ss -lntp`.
+7. Open only ports 80 and 443 publicly in the Hostinger firewall. Restrict SSH to administrator IPs, use key authentication, disable root login and password authentication after confirming a working key session. Enable unattended security updates. Add health, process restart, TLS expiry, disk, database connectivity, and 429/5xx rate alerts. Protect backups and periodically perform a timed restore test.
+8. Test from outside the VPS: HTTP redirects to HTTPS; `/api/health` works; API and web ports cannot be reached directly; HSTS and security headers are present; cookie has `Secure`, `HttpOnly`, `SameSite=Lax`; cross-origin writes fail; excessive controlled requests return 429 then recover after their window. Do not send load tests to production.
 
 ## Privacy release gate
 
@@ -20,7 +19,7 @@ The `/privacy` notice returns 404 until `PRIVACY_POLICY_APPROVED=true` and `PRIV
 
 ## Availability boundary
 
-Nginx and Redis limits protect normal abusive clients and application resources. Hostinger's VPS firewall does not absorb a large volumetric DDoS. Arrange upstream CDN/WAF protection and a provider escalation path if that availability risk is unacceptable.
+Nginx and in-process API limits protect normal abusive clients and application resources. The API counters reset on restart and are independent for each process, so deploy a single API process until shared storage is added. Hostinger's VPS firewall does not absorb a large volumetric DDoS. Arrange upstream CDN/WAF protection and a provider escalation path if that availability risk is unacceptable.
 
 ## Acceptance evidence to collect in staging
 

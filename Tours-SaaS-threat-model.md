@@ -4,7 +4,7 @@ The highest risks are direct exposure of Supabase tables through existing `anon`
 
 ## Scope and assumptions
 
-Scope: `apps/web`, `apps/api`, `prisma`, and `deploy/hostinger`. Runtime is a public Next.js frontend and Express API on one Hostinger HTTPS origin, with Prisma connecting to Supabase PostgreSQL, Redis on loopback, and optional email/SMS/WhatsApp providers. Passengers have no accounts; staff are authenticated. India is the first market. Hostinger and Supabase dashboard settings are outside repository control. Scale, approved legal retention periods, provider locations, and actual upstream DDoS capacity remain open questions.
+Scope: `apps/web`, `apps/api`, `prisma`, and `deploy/hostinger`. Runtime is a public Next.js frontend and Express API on one Hostinger HTTPS origin, with Prisma connecting to Supabase PostgreSQL and optional email/SMS/WhatsApp providers. Passengers have no accounts; staff are authenticated. India is the first market. Hostinger and Supabase dashboard settings are outside repository control. Scale, approved legal retention periods, provider locations, and actual upstream DDoS capacity remain open questions.
 
 ## System model
 
@@ -12,7 +12,7 @@ Scope: `apps/web`, `apps/api`, `prisma`, and `deploy/hostinger`. Runtime is a pu
 
 - Next.js pages, proxy, and server API helper (`apps/web/proxy.ts`, `apps/web/src/lib/server-api.ts`).
 - Express routes, authentication, tenant checks, and services (`apps/api/src/app.ts`, `apps/api/src/middleware`, `apps/api/src/services`).
-- Supabase PostgreSQL through Prisma (`apps/api/src/config/prisma.ts`, `prisma/schema.prisma`) and Redis rate-limit state (`apps/api/src/middleware/rate-limit.ts`).
+- Supabase PostgreSQL through Prisma (`apps/api/src/config/prisma.ts`, `prisma/schema.prisma`) and in-process rate-limit state (`apps/api/src/middleware/rate-limit.ts`).
 - Nginx and systemd deployment templates (`deploy/hostinger`).
 
 ### Data flows and trust boundaries
@@ -20,7 +20,7 @@ Scope: `apps/web`, `apps/api`, `prisma`, and `deploy/hostinger`. Runtime is a pu
 - Internet → Nginx → Next.js: HTTPS, public pages and staff UI; TLS and edge limits depend on deployment configuration. Form input is then sent to the API.
 - Browser → Express `/api`: same origin in production, cookie sessions, CSRF Origin check on writes, JSON size cap, Helmet, request limits; Zod validation in controllers.
 - Staff/API → PostgreSQL: Prisma queries use credentials in `DATABASE_URL`. Production now requires `sslmode=verify-full` and a CA path; this has not been configured on the sampled live connection.
-- API → Redis: rate-limit counters use a loopback service and fail closed in production if unavailable.
+- API request → in-process counter: rate limits are local to one API process and reset on restart.
 - API → email/SMS/WhatsApp providers: registration/reset tokens and passenger notifications cross provider boundaries; provider credentials are environment secrets.
 - Public passenger → privacy request queue → Super Admin: PNR and contact details enter a pending queue; manual identity verification and a recorded review precede export or erasure.
 
@@ -35,7 +35,6 @@ flowchart LR
   subgraph VPS
     Nginx --> Web
     Nginx --> API
-    API --> Redis
   end
   subgraph Services
     Database
@@ -86,7 +85,7 @@ No attacker is assumed to hold Supabase dashboard access, a database owner crede
 2. Network observer intercepts a current plaintext database connection and learns or modifies sensitive data.
 3. Attacker steals a staff cookie, attempts cross-tenant exports, and gains another agency's data if any route omits its tenant predicate.
 4. Agency admin changes a role's permissions; an existing session retains privilege unless role members' sessions are revoked.
-5. Bot distributes login or OTP attempts across IPs to guess credentials or exhaust email capacity; Redis account limits reduce this but upstream limits remain important.
+5. Bot distributes login or OTP attempts across IPs to guess credentials or exhaust email capacity; process-local account limits reduce this but restart or multiple processes weaken them.
 6. Passenger impersonator submits a real PNR and matching contact, then pressures an admin to release an export without independent identity verification.
 7. High-volume traffic exhausts VPS or database capacity before application limits can respond; Nginx limits do not stop volumetric DDoS.
 
@@ -98,7 +97,7 @@ No attacker is assumed to hold Supabase dashboard access, a database owner crede
 | TM-002 | Network observer | Position on DB path | Read or alter plaintext PostgreSQL traffic | Data and credential exposure | Database and records | Production URL gate in `config/env.ts` | Sampled live connection lacked TLS | Install project CA, verify-full, enforce SSL | Check `pg_stat_ssl` and connection failures | Medium | High | High |
 | TM-003 | Compromised staff | Valid staff account | Manipulate tenant IDs or export path | Cross-agency disclosure | Bookings, finance | Tenant policy and service tests | Full two-agency integration matrix pending | Run staging matrix for all read/write/export/bulk routes | Audit cross-tenant 403 and exports | Medium | High | High |
 | TM-004 | Stolen session | Cookie disclosure | Reuse privilege after role change or logout | Account takeover | Staff and admin access | Server-side Session revocation, 8h Super Admin TTL in `auth.service.ts` | MFA deferred | Deploy migration, consider MFA later, monitor privileged logins | SecurityEvent and login anomalies | Medium | High | High |
-| TM-005 | Bot | Public form or auth access | Credential stuffing or resource exhaustion | Account and availability harm | Accounts, VPS | Redis and Nginx limits | No CDN/WAF; distributed attacks possible | Configure edge limits and upstream protection | 429/5xx, Redis and CPU alerts | High | Medium | High |
+| TM-005 | Bot | Public form or auth access | Credential stuffing or resource exhaustion | Account and availability harm | Accounts, VPS | In-process and Nginx limits | No CDN/WAF; counters reset and are not shared | Use one API process for now; add shared limits and upstream protection before scaling | 429/5xx and CPU alerts | High | Medium | High |
 | TM-006 | Impersonator | Knows PNR and contact | Convince reviewer to export/delete | Personal data disclosure or erasure | Passenger data | Pending queue, manual note, matching checks in `privacy.service.ts` | Human verification quality varies | Written verification procedure and two-person review for deletion | Review notes and export events | Medium | High | High |
 | TM-007 | Attacker website | Victim has session cookie | Send cross-site write | Unauthorized mutation | Tenant data | Same-origin check, SameSite cookie in `csrf.ts` and `cookies.ts` | Browser origin deployment must match `WEB_URL` | Staging CSRF tests on real origin | Invalid-origin 403 counts | Medium | Medium | Medium |
 

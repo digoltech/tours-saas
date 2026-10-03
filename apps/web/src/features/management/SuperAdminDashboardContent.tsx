@@ -8,7 +8,7 @@ import { DashboardOverview } from "./DashboardOverview";
 
 export async function SuperAdminDashboardContent() {
   const user = await getRequestUser();
-  if (!user) redirect("/login?from=%2Fdashboard%2Fsuperadmin");
+  if (!user) redirect("/auth/login?from=%2Fdashboard%2Fsuperadmin");
   if (user.role !== "SUPER_ADMIN") redirect("/dashboard/home");
 
   const [summaryResult, tripsResult] = await Promise.all([

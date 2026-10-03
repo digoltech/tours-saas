@@ -61,7 +61,7 @@ export function AuthProvider({
     await requestLogout();
     setUser(null);
     setStatus("unauthenticated");
-    router.push("/login");
+    router.push("/auth/login");
     router.refresh();
   }
 

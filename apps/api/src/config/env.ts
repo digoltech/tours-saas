@@ -11,7 +11,6 @@ const environmentSchema = z
     DIRECT_URL: z.string().url().optional(),
     JWT_SECRET: z.string().min(32),
     WEB_URL: z.string().url().default("http://localhost:3000"),
-    REDIS_URL: z.string().url().optional(),
     RESEND_API_KEY: z.string().optional(),
     MAIL_FROM: z.string().min(3).default("onboarding@resend.dev"),
     SMS_PROVIDER_URL: z.string().url().optional(),
@@ -46,8 +45,6 @@ const environmentSchema = z
       if (url.searchParams.get("sslmode") !== "verify-full" || !url.searchParams.get("sslrootcert"))
         context.addIssue({ code: "custom", path: [key], message: `${key} must use sslmode=verify-full and sslrootcert in production` });
     }
-    if (!value.REDIS_URL)
-      context.addIssue({ code: "custom", path: ["REDIS_URL"], message: "REDIS_URL is required in production" });
     if (
       value.MAIL_FROM.includes("resend.dev") ||
       value.MAIL_FROM.includes("your-verified-domain")

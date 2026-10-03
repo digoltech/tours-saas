@@ -80,7 +80,7 @@ export async function register(request: Request, response: Response) {
     const user = await registerUser(result.data);
     const context = toAuthContext(user);
     const verificationToken = await createEmailVerificationToken(user.id);
-    const verificationUrl = `${environment.WEB_URL}/verify-email?token=${encodeURIComponent(verificationToken)}`;
+    const verificationUrl = `${environment.WEB_URL}/auth/verify-email?token=${encodeURIComponent(verificationToken)}`;
     void sendRegistrationConfirmation({
       email: user.email,
       firstName: user.firstName,
@@ -192,7 +192,7 @@ export function me(request: Request, response: Response) {
 export async function resendVerification(request: Request, response: Response) {
   const pending = await resendEmailVerification(request.auth!.userId);
   if (pending) {
-    const verificationUrl = `${environment.WEB_URL}/verify-email?token=${encodeURIComponent(pending.token)}`;
+    const verificationUrl = `${environment.WEB_URL}/auth/verify-email?token=${encodeURIComponent(pending.token)}`;
     await sendRegistrationConfirmation({ email: pending.user.email, firstName: pending.user.firstName, agencyName: pending.user.agency?.name ?? "your workspace", verificationUrl });
   }
   return response.json({ success: true, data: { sent: true } });

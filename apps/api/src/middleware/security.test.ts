@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import { requireSameOrigin } from "./csrf.js";
-import { rateLimit } from "./rate-limit.js";
+import { consumeRate, rateLimit } from "./rate-limit.js";
 import { authCookieValue } from "../utils/cookies.js";
 import { environment } from "../config/env.js";
 import { publicSubmit } from "../controllers/privacy.controller.js";
@@ -64,5 +64,11 @@ describe("HTTP security controls", () => {
     const { state, res } = response();
     await limiter(req, res, (() => undefined) as NextFunction);
     expect(state.code).toBe(200);
+  });
+
+  test("process-local counters work without an external service", async () => {
+    const key = `test:${crypto.randomUUID()}`;
+    expect(await consumeRate(key, 60)).toBe(1);
+    expect(await consumeRate(key, 60)).toBe(2);
   });
 });

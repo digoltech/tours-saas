@@ -1,4 +1,8 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { formatDecimal, getFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
 
 import { useEffect, useState } from "react";
 import { Check, Save } from "lucide-react";
@@ -87,7 +91,7 @@ export function SettingsWorkspace() {
       .catch((cause) => {
         if (active)
           setError(
-            cause instanceof Error ? cause.message : "Unable to load settings",
+            cause instanceof Error ? cause.message : localizeText("Unable to load settings"),
           );
       });
     return () => {
@@ -109,7 +113,7 @@ export function SettingsWorkspace() {
       setSaved(true);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to save settings",
+        cause instanceof Error ? cause.message : localizeText("Unable to save settings"),
       );
     }
   }
@@ -119,7 +123,7 @@ export function SettingsWorkspace() {
       setSubscription(await requestSubscriptionPlan(planName, Number(price)));
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to request plan",
+        cause instanceof Error ? cause.message : localizeText("Unable to request plan"),
       );
     }
   }
@@ -133,7 +137,7 @@ export function SettingsWorkspace() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to record invoice payment",
+          : localizeText("Unable to record invoice payment"),
       );
     }
   }
@@ -160,8 +164,8 @@ export function SettingsWorkspace() {
       )}
       {user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update") && (
         <Card className={cn("settings-card")}>
-          <p className={cn("eyebrow")}>AGENCY BRANDING</p>
-          <h2>Agency and ticket details</h2>
+          <p className={cn("eyebrow")}><Translate text={"AGENCY BRANDING"} /></p>
+          <h2><Translate text={"Agency and ticket details"} /></h2>
           {field("name", "Agency name")}
           {field("email", "Contact email", "email")}
           {field("phone", "Contact phone", "tel")}
@@ -169,30 +173,27 @@ export function SettingsWorkspace() {
           <div className="settings-style-169">
             {field("brandColor", "Brand color", "color")}
             <label>
-              Currency
-              <select
+              <Translate text={"Currency"} /><select
                 value={values.currency}
                 onChange={(e) =>
                   setValues((v) => ({ ...v, currency: e.target.value }))
                 }
               >
-                <option>INR</option>
-                <option>USD</option>
-                <option>EUR</option>
-                <option>GBP</option>
+                <option><Translate text={"INR"} /></option>
+                <option><Translate text={"USD"} /></option>
+                <option><Translate text={"EUR"} /></option>
+                <option><Translate text={"GBP"} /></option>
               </select>
             </label>
           </div>
           {field("defaultFare", "Default one-way fare", "number")}
           <div className="settings-style-187">
             <Button onClick={() => void save()}>
-              <Save size={15} /> Save settings
-            </Button>
+              <Save size={15} /> <Translate text={"Save settings"} /></Button>
           </div>
           {saved && (
             <p role="status">
-              <Check size={15} /> Settings saved.
-            </p>
+              <Check size={15} /> <Translate text={"Settings saved."} /></p>
           )}
         </Card>
       )}
@@ -201,28 +202,26 @@ export function SettingsWorkspace() {
       ) : (
         <>
           <Card className={cn("settings-card", "settings-style-203")}>
-            <p className={cn("eyebrow")}>SUBSCRIPTION</p>
+            <p className={cn("eyebrow")}><Translate text={"SUBSCRIPTION"} /></p>
             <h2>
               {subscription?.planName ?? "Plan"} ·{" "}
               {subscription?.status ?? "Loading"}
             </h2>
             <p>
-              {subscription?.status === "TRIAL" && subscription.trialEndsAt
-                ? `Trial ends ${new Date(subscription.trialEndsAt).toLocaleDateString()}.`
-                : "Plan activation and payment are handled by your account administrator."}
+              <LocalizedValue value={subscription?.status === "TRIAL" && subscription.trialEndsAt
+                ? `Trial ends ${new Date(subscription.trialEndsAt).toLocaleDateString(getFormattingLocale())}.`
+                : "Plan activation and payment are handled by your account administrator."} />
             </p>
             <div className="settings-style-214">
               <label>
-                Requested plan
-                <input
+                <Translate text={"Requested plan"} /><input
                   value={planName}
                   onChange={(e) => setPlanName(e.target.value)}
                   maxLength={80}
                 />
               </label>
               <label>
-                Monthly price (INR)
-                <input
+                <Translate text={"Monthly price (INR)"} /><input
                   type="number"
                   min="0"
                   step="0.01"
@@ -233,32 +232,30 @@ export function SettingsWorkspace() {
             </div>
             <div className="settings-style-234">
               <Button variant="secondary" onClick={() => void requestPlan()}>
-                Request plan
-              </Button>
+                <Translate text={"Request plan"} /></Button>
             </div>
           </Card>
           <section className="settings-style-240">
             {user?.role === "AGENCY_ADMIN" && (
               <label>
-                Offline payment method
-                <select
+                <Translate text={"Offline payment method"} /><select
                   value={paymentMethod}
                   onChange={(event) =>
                     setPaymentMethod(event.target.value as typeof paymentMethod)
                   }
                 >
-                  <option value="CASH">Cash</option>
-                  <option value="BANK_TRANSFER">Bank transfer</option>
-                  <option value="CARD">Card (offline)</option>
-                  <option value="UPI">UPI (offline)</option>
-                  <option value="OTHER">Other</option>
+                  <option value="CASH"><Translate text={"Cash"} /></option>
+                  <option value="BANK_TRANSFER"><Translate text={"Bank transfer"} /></option>
+                  <option value="CARD"><Translate text={"Card (offline)"} /></option>
+                  <option value="UPI"><Translate text={"UPI (offline)"} /></option>
+                  <option value="OTHER"><Translate text={"Other"} /></option>
                 </select>
               </label>
             )}
             <div className={cn("card-heading")}>
               <div>
-                <p className={cn("eyebrow")}>MANUAL BILLING</p>
-                <h2>Invoices</h2>
+                <p className={cn("eyebrow")}><Translate text={"MANUAL BILLING"} /></p>
+                <h2><Translate text={"Invoices"} /></h2>
               </div>
             </div>
             {invoices.length ? (
@@ -268,13 +265,13 @@ export function SettingsWorkspace() {
                     <strong>{bill.number}</strong>
                     <p>
                       {bill.description} · {bill.currency}{" "}
-                      {Number(bill.amount).toFixed(2)}
+                      {formatDecimal(Number(bill.amount))}
                     </p>
                     <div className="settings-style-273">
                       <span>
                         {bill.status}
                         {bill.dueAt
-                          ? ` · Due ${new Date(bill.dueAt).toLocaleDateString()}`
+                          ? ` · Due ${new Date(bill.dueAt).toLocaleDateString(getFormattingLocale())}`
                           : ""}
                       </span>
                       {user?.role === "AGENCY_ADMIN" &&
@@ -283,15 +280,14 @@ export function SettingsWorkspace() {
                             variant="secondary"
                             onClick={() => void markPaid(bill.id)}
                           >
-                            Record offline payment
-                          </Button>
+                            <Translate text={"Record offline payment"} /></Button>
                         )}
                     </div>
                   </Card>
                 ))}
               </div>
             ) : (
-              <Card>No invoices yet.</Card>
+              <Card><Translate text={"No invoices yet."} /></Card>
             )}
           </section>
         </>

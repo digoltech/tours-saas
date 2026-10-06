@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/transport.css";
 
@@ -85,15 +87,14 @@ export function SeatLayoutEditor({
       <Card className="layout-setup-card">
         <div className={cn("layout-setup-heading")}>
           <div>
-            <p className={cn("eyebrow")}>LAYOUT SETUP</p>
-            <h2>Plan the passenger seats</h2>
+            <p className={cn("eyebrow")}><Translate text={"LAYOUT SETUP"} /></p>
+            <h2><Translate text={"Plan the passenger seats"} /></h2>
           </div>
-          <span className={cn("layout-seat-count")}>{seatCount} seats</span>
+          <span className={cn("layout-seat-count")}>{seatCount} <Translate text={"seats"} /></span>
         </div>
         <div className={cn("form-grid")}>
           <label>
-            Rows
-            <input
+            <Translate text={"Rows"} /><input
               type="number"
               min="1"
               max="26"
@@ -102,8 +103,7 @@ export function SeatLayoutEditor({
             />
           </label>
           <label>
-            Seats per row
-            <input
+            <Translate text={"Seats per row"} /><input
               type="number"
               min="1"
               max="8"
@@ -114,24 +114,24 @@ export function SeatLayoutEditor({
         </div>
         <div className={cn("seat-layout-controls")}>
           <div className={cn("layout-mode-switch")} role="group" aria-label="Bus layout type">
-            <button type="button" className={cn(value.columns === 4 ? "active" : "")} onClick={() => update({ columns: 4 })}><Armchair size={15} /> Seater</button>
-            <button type="button" className={cn(value.columns === 2 ? "active" : "")} onClick={() => selectSleeperLayout(2)}><Bed size={15} /> Sleeper coach</button>
+            <button type="button" className={cn(value.columns === 4 ? "active" : "")} onClick={() => update({ columns: 4 })}><Armchair size={15} /> <Translate text={"Seater"} /></button>
+            <button type="button" className={cn(value.columns === 2 ? "active" : "")} onClick={() => selectSleeperLayout(2)}><Bed size={15} /> <Translate text={"Sleeper coach"} /></button>
           </div>
-          <span className={cn("muted")}>Select seats to edit their type, passenger rules, or availability.</span>
+          <span className={cn("muted")}><Translate text={"Select seats to edit their type, passenger rules, or availability."} /></span>
         </div>
       </Card>
 
       <Card className="seat-layout-card">
         <div className={cn("card-heading")}>
           <div>
-            <p className={cn("eyebrow")}>BUS SEAT MAP · FRONT</p>
-            <h2>Seat plan</h2>
+            <p className={cn("eyebrow")}><Translate text={"BUS SEAT MAP · FRONT"} /></p>
+            <h2><Translate text={"Seat plan"} /></h2>
           </div>
-          <Badge>{seatCount - value.disabledSeats.length} available</Badge>
+          <Badge>{seatCount - value.disabledSeats.length} <Translate text={"available"} /></Badge>
         </div>
         <div className={cn("bus-editor")}>
           <div className={cn("bus-outline")}>
-            <div className={cn("driver-cab")}><Armchair size={18} /> Driver</div>
+            <div className={cn("driver-cab")}><Armchair size={18} /> <Translate text={"Driver"} /></div>
             <div
               className={cn("seat-grid")}
               style={{ gridTemplateColumns: value.columns === 4 ? "repeat(2, minmax(54px, 1fr)) 28px repeat(2, minmax(54px, 1fr))" : `repeat(${value.columns}, minmax(44px, 1fr))` }}
@@ -153,7 +153,7 @@ export function SeatLayoutEditor({
                       onClick={() => setSelectedSeat(name)}
                     >
                       <b>{name}</b>
-                      <small>{detail.restriction !== "ALL" ? (detail.restriction === "SENIOR" ? "Senior" : `${detail.restriction.toLowerCase()} only`) : type.startsWith("SLEEPER") ? (type.includes("LOWER") ? "Lower berth" : "Upper berth") : type === "DOUBLE" ? "Double" : "Seat"}</small>
+                      <small><LocalizedValue value={detail.restriction !== "ALL" ? (detail.restriction === "SENIOR" ? "Senior" : `${detail.restriction.toLowerCase()} only`) : type.startsWith("SLEEPER") ? (type.includes("LOWER") ? "Lower berth" : "Upper berth") : type === "DOUBLE" ? "Double" : "Seat"} /></small>
                     </button>
                   </div>
                 );
@@ -163,16 +163,14 @@ export function SeatLayoutEditor({
           <aside className={cn("seat-inspector")}>
             {selectedSeat ? (
               <>
-                <p className={cn("eyebrow")}>EDIT SEAT</p>
+                <p className={cn("eyebrow")}><Translate text={"EDIT SEAT"} /></p>
                 <h3>{selectedSeat}</h3>
-                <label>Seat or berth type
-                  <select value={selectedDetail.type} onChange={(event) => setSeatDetail({ type: event.target.value as SeatType })}>
-                    <option value="SINGLE">Single seat</option><option value="DOUBLE">Double seat</option><option value="SLEEPER_LOWER">Lower berth</option><option value="SLEEPER_UPPER">Upper berth</option>
+                <label><Translate text={"Seat or berth type"} /><select value={selectedDetail.type} onChange={(event) => setSeatDetail({ type: event.target.value as SeatType })}>
+                    <option value="SINGLE"><Translate text={"Single seat"} /></option><option value="DOUBLE"><Translate text={"Double seat"} /></option><option value="SLEEPER_LOWER"><Translate text={"Lower berth"} /></option><option value="SLEEPER_UPPER"><Translate text={"Upper berth"} /></option>
                   </select>
                 </label>
-                <label>Passenger eligibility
-                  <select value={selectedDetail.restriction} onChange={(event) => setSeatDetail({ restriction: event.target.value as Restriction })}>
-                    <option value="ALL">Open to all</option><option value="FEMALE">Female only</option><option value="MALE">Male only</option><option value="SENIOR">Senior only</option>
+                <label><Translate text={"Passenger eligibility"} /><select value={selectedDetail.restriction} onChange={(event) => setSeatDetail({ restriction: event.target.value as Restriction })}>
+                    <option value="ALL"><Translate text={"Open to all"} /></option><option value="FEMALE"><Translate text={"Female only"} /></option><option value="MALE"><Translate text={"Male only"} /></option><option value="SENIOR"><Translate text={"Senior only"} /></option>
                   </select>
                 </label>
                 <button
@@ -180,15 +178,15 @@ export function SeatLayoutEditor({
                   className={cn("seat-inspector-disable")}
                   onClick={() => update({ disabledSeats: value.disabledSeats.includes(selectedSeat) ? value.disabledSeats.filter((name) => name !== selectedSeat) : [...value.disabledSeats, selectedSeat] })}
                 >
-                  {value.disabledSeats.includes(selectedSeat) ? "Restore this seat" : "Mark unavailable"}
+                  <LocalizedValue value={value.disabledSeats.includes(selectedSeat) ? "Restore this seat" : "Mark unavailable"} />
                 </button>
               </>
             ) : (
-              <div className={cn("seat-inspector-empty")}><Armchair size={23} /><strong>Select a seat</strong><span>Choose any position on the map to edit its settings.</span></div>
+              <div className={cn("seat-inspector-empty")}><Armchair size={23} /><strong><Translate text={"Select a seat"} /></strong><span><Translate text={"Choose any position on the map to edit its settings."} /></span></div>
             )}
           </aside>
         </div>
-        <div className={cn("seat-legend")}><span><i /> Available</span><span><i className={cn("seat-legend-unavailable")} /> Unavailable</span><span><i className={cn("legend-seat-sleeper")} /> Berths</span><span><i className={cn("legend-seat-female")} /> Female only</span><span><i className={cn("legend-seat-senior")} /> Senior only</span></div>
+        <div className={cn("seat-legend")}><span><i /> <Translate text={"Available"} /></span><span><i className={cn("seat-legend-unavailable")} /> <Translate text={"Unavailable"} /></span><span><i className={cn("legend-seat-sleeper")} /> <Translate text={"Berths"} /></span><span><i className={cn("legend-seat-female")} /> <Translate text={"Female only"} /></span><span><i className={cn("legend-seat-senior")} /> <Translate text={"Senior only"} /></span></div>
       </Card>
     </div>
   );

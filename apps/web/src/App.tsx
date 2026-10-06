@@ -1,9 +1,15 @@
 "use client";
+import { LocalizedValue } from "./i18n/LocalizedValue";
+import { localizeText } from "./i18n/errors";
+import { getFormattingLocale } from "./i18n/format-client";
+import { Translate } from "./i18n/Translate";
 
 import { cn } from "./lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Brand } from "./ui/Brand";
+import { LanguageSelector } from "./i18n/LanguageSelector";
+import { useTranslations } from "./i18n/LocaleProvider";
 import { Button } from "./ui/Button";
 import {
   useCallback,
@@ -179,7 +185,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
             page.data.map((trip) => ({
               id: trip.id,
               title: trip.tripCode,
-              detail: `${trip.route.source} → ${trip.route.destination} · ${new Date(trip.travelDate).toLocaleDateString()}`,
+              detail: `${trip.route.source} → ${trip.route.destination} · ${new Date(trip.travelDate).toLocaleDateString(getFormattingLocale())}`,
               kind: "Trip",
               href: `/dashboard/trips/${trip.id}`,
             })),
@@ -334,7 +340,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
           <X size={15} />
         </button>
       ) : (
-        <kbd>Ctrl K</kbd>
+        <kbd><Translate text={"Ctrl K"} /></kbd>
       )}
       {open && normalized.length >= 2 && (
         <div
@@ -343,11 +349,11 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
           aria-label="Search results"
         >
           <div className={cn("header-search-caption")}>
-            {loading
+            <LocalizedValue value={loading
               ? "Searching records…"
               : results.length
                 ? `${results.length} matching records`
-                : "No matching records"}
+                : "No matching records"} />
           </div>
           {results.map((item) => (
             <Link
@@ -374,10 +380,11 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
 }
 
 function moneySearch(value: number | string) {
-  return `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return `₹${Number(value).toLocaleString(getFormattingLocale(), { maximumFractionDigits: 2 })}`;
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  const t = useTranslations();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -434,7 +441,7 @@ export function Shell({ children }: { children: ReactNode }) {
     label:
       index === pathParts.length - 1 && workspaceHeading
         ? workspaceHeading.title
-        : (pageLabels[part] ??
+        : t(pageLabels[part] ??
           (index === pathParts.length - 1 ? "Details" : part)),
     current: index === pathParts.length - 1,
   }));
@@ -463,15 +470,13 @@ export function Shell({ children }: { children: ReactNode }) {
               <strong>
                 {agencyBranding?.name ?? user?.agencyName ?? "Digol Tours"}
               </strong>
-              <span>Organization</span>
+              <span>{t("Organization")}</span>
             </div>
             <ChevronDown size={24} />
             <button
               className={cn("sidebar-collapse-toggle")}
               type="button"
-              aria-label={
-                sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
-              }
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
             >
@@ -486,7 +491,7 @@ export function Shell({ children }: { children: ReactNode }) {
             {navGroups.map((group) => (
               <div className={cn("nav-group")} key={group.label}>
                 {group.label && (
-                  <p className={cn("nav-label")}>{group.label}</p>
+                  <p className={cn("nav-label")}>{t(group.label)}</p>
                 )}
                 {group.items
                   .filter(
@@ -516,10 +521,10 @@ export function Shell({ children }: { children: ReactNode }) {
                           className={cn(
                             `nav-item ${active ? "nav-item-active" : ""}`,
                           )}
-                          title={sidebarCollapsed ? item.label : undefined}
+                          title={sidebarCollapsed ? t(item.label) : undefined}
                         >
                           <item.icon size={18} />
-                          <span>{item.label}</span>
+                          <span>{t(item.label)}</span>
                         </Link>
                       );
                     })(),
@@ -546,7 +551,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
             <div className={cn("topbar-page-meta")} aria-live="polite">
               <nav className={cn("breadcrumb")} aria-label="Breadcrumb">
-                <Link href={dashboardPath}>Home</Link>
+                <Link href={dashboardPath}>{t("Home")}</Link>
                 {breadcrumbParts.map((part) => (
                   <span className={cn("breadcrumb-part")} key={part.href}>
                     <span aria-hidden="true">/</span>
@@ -570,20 +575,21 @@ export function Shell({ children }: { children: ReactNode }) {
               </div>
             )}
             <div className={cn("topbar-actions")}>
+              <LanguageSelector />
               <HeaderSearch user={user} />
               <Link
                 className={cn("icon-button notification-button")}
                 href="/dashboard/notifications"
-                aria-label="Notifications"
-                title="Notifications"
+                aria-label={t("Notifications")}
+                title={t("Notifications")}
               >
                 <Bell size={19} />
               </Link>
               <Link
                 className={cn("icon-button")}
                 href="/dashboard/settings"
-                aria-label="Settings"
-                title="Settings"
+                aria-label={t("Settings")}
+                title={t("Settings")}
               >
                 <Settings size={19} />
               </Link>
@@ -595,17 +601,17 @@ export function Shell({ children }: { children: ReactNode }) {
                   <div className={cn("profile-info")}>
                     <strong>
                       {status === "loading"
-                        ? "Loading account..."
+                        ? t("Loading account...")
                         : user
                           ? `${user.firstName} ${user.lastName}`
-                          : "Unauthenticated"}
+                          : t("Unauthenticated")}
                     </strong>
                     <span>
                       {user?.roleName ?? (user?.role
                         .replaceAll("_", " ")
                         .toLowerCase()
                         .replace(/\b\w/g, (letter) => letter.toUpperCase()) ??
-                        "Sign in required")}
+                        t("Sign in required"))}
                     </span>
                   </div>
                   <ChevronDown size={16} />
@@ -614,15 +620,15 @@ export function Shell({ children }: { children: ReactNode }) {
                   <div className={cn("profile-dropdown")}>
                     <div className={cn("profile-dropdown-identity")}>
                       <span className="profile-dropdown-avatar" aria-hidden="true">{user.firstName?.[0]}{user.lastName?.[0]}</span>
-                      <span className="profile-dropdown-eyebrow">Signed in as</span>
+                      <span className="profile-dropdown-eyebrow"><Translate text={"Signed in as"} /></span>
                       <strong>
                         {user.firstName} {user.lastName}
                       </strong>
                       <span>{user.email}</span>
                       <span>{user.agencyName ?? "Digol Tours"}</span>
                     </div>
-                    <Link href="/dashboard/profile"><UserRound size={16} /> My profile</Link>
-                    <Link href="/dashboard/settings"><Settings size={16} /> Settings</Link>
+                    <Link href="/dashboard/profile"><UserRound size={16} /> {t("My profile")}</Link>
+                    <Link href="/dashboard/settings"><Settings size={16} /> {t("Settings")}</Link>
                     <button
                       type="button"
                       onClick={() => {
@@ -630,7 +636,7 @@ export function Shell({ children }: { children: ReactNode }) {
                         setLogoutOpen(true);
                       }}
                     >
-                      <LogOut size={15} /> Log out
+                      <LogOut size={15} /> {t("Log out")}
                     </button>
                   </div>
                 )}
@@ -649,17 +655,17 @@ export function Shell({ children }: { children: ReactNode }) {
               }
             }}>
               <div className="logout-dialog-icon"><LogOut size={23} /></div>
-              <h2 id="logout-title">Log out of your account?</h2>
-              <p id="logout-description">You’ll need to sign in again to access your workspace.</p>
+              <h2 id="logout-title"><Translate text={"Log out of your account?"} /></h2>
+              <p id="logout-description"><Translate text={"You’ll need to sign in again to access your workspace."} /></p>
               {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
               <div className="logout-dialog-actions">
-                <Button variant="secondary" onClick={() => setLogoutOpen(false)} disabled={loggingOut} autoFocus>Stay signed in</Button>
-                <Button variant="destructive" loading={loggingOut} loadingLabel="Logging out…" onClick={async () => { setLoggingOut(true); setLogoutError(""); try { await logout(); } catch (error) { setLogoutError(error instanceof Error ? error.message : "Unable to log out. Please try again."); setLoggingOut(false); } }}><LogOut size={16} /> Log out</Button>
+                <Button variant="secondary" onClick={() => setLogoutOpen(false)} disabled={loggingOut} autoFocus><Translate text={"Stay signed in"} /></Button>
+                <Button variant="destructive" loading={loggingOut} loadingLabel="Logging out…" onClick={async () => { setLoggingOut(true); setLogoutError(""); try { await logout(); } catch (error) { setLogoutError(error instanceof Error ? error.message : localizeText("Unable to log out. Please try again.")); setLoggingOut(false); } }}><LogOut size={16} /> <Translate text={"Log out"} /></Button>
               </div>
             </div>
           </div>}
           <div className={cn("content")}>{children}</div>
-          <footer className="dashboard-footer"><span>© {new Date().getFullYear()} Digol Tours · Digol TravelOS</span><nav aria-label="Support and legal"><Link href="/contact">Contact</Link><Link href="/privacy-policy">Privacy Policy</Link><Link href="/terms-and-conditions">Terms</Link></nav></footer>
+          <footer className="dashboard-footer"><span>© {new Date().getFullYear()} Digol Tours · Digol TravelOS</span><nav aria-label="Support and legal"><Link href="/contact"><Translate text={"Contact"} /></Link><Link href="/privacy-policy"><Translate text={"Privacy Policy"} /></Link><Link href="/terms-and-conditions"><Translate text={"Terms"} /></Link></nav></footer>
         </main>
       </div>
     </WorkspaceHeadingContext.Provider>

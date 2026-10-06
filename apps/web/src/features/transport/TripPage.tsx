@@ -1,4 +1,9 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { useFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
+import { useTranslations } from "../../i18n/LocaleProvider";
 
 import "../../styles/transport.css";
 
@@ -39,6 +44,8 @@ export function TripPage({
   initialPage?: PageResult<Trip> | null;
   initialError?: string;
 }) {
+  const t = useTranslations();
+  const formattingLocale = useFormattingLocale();
   const { user } = useAuth();
   const [trips, setTrips] = useState<Trip[]>(initialPage?.data ?? []);
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -75,7 +82,7 @@ export function TripPage({
       setTrips(result.data);
       setPages(result.meta.totalPages);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load trips");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to load trips"));
     } finally {
       setLoading(false);
     }
@@ -120,7 +127,7 @@ export function TripPage({
           setError(
             cause instanceof Error
               ? cause.message
-              : "Unable to load trip options",
+              : localizeText("Unable to load trip options"),
           ),
         );
     }, 0);
@@ -130,9 +137,9 @@ export function TripPage({
     const required = [[form.tripCode, "Trip code"], [form.branchId, "Branch"], [form.routeId, "Route"], [form.busId, "Bus"], [form.driverId, "Driver"], [form.travelDate, "Travel date"], [form.departureTime, "Departure"], [form.arrivalTime, "Arrival"]] as const;
     const missing = required.find(([value]) => !value.trim());
     if (missing) { setError(`${missing[1]} is required.`); return; }
-    if (user?.role === "SUPER_ADMIN" && !form.agencyId) { setError("Agency is required."); return; }
-    if (!Number.isFinite(Number(form.fare ?? "0")) || Number(form.fare ?? "0") < 0) { setError("Fare must be zero or greater."); return; }
-    if (new Date(form.arrivalTime) <= new Date(form.departureTime)) { setError("Arrival must be after departure."); return; }
+    if (user?.role === "SUPER_ADMIN" && !form.agencyId) { setError(localizeText("Agency is required.")); return; }
+    if (!Number.isFinite(Number(form.fare ?? "0")) || Number(form.fare ?? "0") < 0) { setError(localizeText("Fare must be zero or greater.")); return; }
+    if (new Date(form.arrivalTime) <= new Date(form.departureTime)) { setError(localizeText("Arrival must be after departure.")); return; }
     setSaving(true);
     setError("");
     setMessage("");
@@ -157,7 +164,7 @@ export function TripPage({
       setEditingId(null);
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save trip");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to save trip"));
     } finally {
       setSaving(false);
     }
@@ -172,8 +179,8 @@ export function TripPage({
   }
   async function generateRecurring() {
     setSaving(true); setError("");
-    try { const result = await createRecurringTrips(recurrencePayload()); setMessage(`${result.created.length} trips created; ${result.skipped.length} skipped. ${result.skipped.slice(0, 3).map((item) => `${item.date}: ${item.reason}`).join(" · ")}`); setForm({}); setOpen(false); setRepeatWeekly(false); setRecurrencePreview([]); await load(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to generate recurring trips"); }
+    try { const result = await createRecurringTrips(recurrencePayload()); setMessage(`${result.created.length} ${t("trips created")}; ${result.skipped.length} ${t("skipped")}. ${result.skipped.slice(0, 3).map((item) => `${item.date}: ${item.reason}`).join(" · ")}`); setForm({}); setOpen(false); setRepeatWeekly(false); setRecurrencePreview([]); await load(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to generate recurring trips")); }
     finally { setSaving(false); }
   }
   function editTrip(trip: Trip) {
@@ -203,23 +210,22 @@ export function TripPage({
           <div className={cn("card-heading")}>
             <div>
               <p className={cn("eyebrow")}>
-                {editingId ? "Update schedule" : "New schedule"}
+                <LocalizedValue value={editingId ? "Update schedule" : "New schedule"} />
               </p>
-              <h2>{editingId ? "Edit trip" : "Create trip"}</h2>
+              <h2><LocalizedValue value={editingId ? "Edit trip" : "Create trip"} /></h2>
             </div>
           </div>
           <div className={cn("form-grid")}>
             {user?.role === "SUPER_ADMIN" && (
               <label>
-                Agency
-                <select
+                <Translate text={"Agency"} /><select
                   value={form.agencyId ?? ""}
                   onChange={(e) => {
                     update("agencyId", e.target.value);
                     update("branchId", "");
                   }}
                 >
-                  <option value="">Select agency</option>
+                  <option value=""><Translate text={"Select agency"} /></option>
                   {agencies.map((agency) => (
                     <option key={agency.id} value={agency.id}>
                       {agency.name}
@@ -229,15 +235,13 @@ export function TripPage({
               </label>
             )}
             <label>
-              Trip code
-              <input
+              <Translate text={"Trip code"} /><input
                 value={form.tripCode ?? ""}
                 onChange={(e) => update("tripCode", e.target.value)}
               />
             </label>
             <label>
-              Fare per seat (INR)
-              <input
+              <Translate text={"Fare per seat (INR)"} /><input
                 type="number"
                 min="0"
                 step="0.01"
@@ -247,25 +251,23 @@ export function TripPage({
             </label>
             {editingId && (
               <label>
-                Status
-                <select
+                <Translate text={"Status"} /><select
                   value={form.status ?? "SCHEDULED"}
                   onChange={(e) => update("status", e.target.value)}
                 >
-                  <option>SCHEDULED</option>
-                  <option>IN_PROGRESS</option>
-                  <option>COMPLETED</option>
-                  <option>CANCELLED</option>
+                  <option><Translate text={"SCHEDULED"} /></option>
+                  <option><Translate text={"IN_PROGRESS"} /></option>
+                  <option><Translate text={"COMPLETED"} /></option>
+                  <option><Translate text={"CANCELLED"} /></option>
                 </select>
               </label>
             )}
             <label>
-              Branch
-              <select
+              <Translate text={"Branch"} /><select
                 value={form.branchId ?? ""}
                 onChange={(e) => update("branchId", e.target.value)}
               >
-                <option value="">Select branch</option>
+                <option value=""><Translate text={"Select branch"} /></option>
                 {branches
                   .filter(
                     (branch) =>
@@ -280,12 +282,11 @@ export function TripPage({
               </select>
             </label>
             <label>
-              Route
-              <select
+              <Translate text={"Route"} /><select
                 value={form.routeId ?? ""}
                 onChange={(e) => update("routeId", e.target.value)}
               >
-                <option value="">Select route</option>
+                <option value=""><Translate text={"Select route"} /></option>
                 {routes
                   .filter(
                     (route) =>
@@ -301,12 +302,11 @@ export function TripPage({
               </select>
             </label>
             <label>
-              Bus
-              <select
+              <Translate text={"Bus"} /><select
                 value={form.busId ?? ""}
                 onChange={(e) => update("busId", e.target.value)}
               >
-                <option value="">Select active bus</option>
+                <option value=""><Translate text={"Select active bus"} /></option>
                 {buses
                   .filter(
                     (bus) =>
@@ -323,12 +323,11 @@ export function TripPage({
               </select>
             </label>
             <label>
-              Driver
-              <select
+              <Translate text={"Driver"} /><select
                 value={form.driverId ?? ""}
                 onChange={(e) => update("driverId", e.target.value)}
               >
-                <option value="">Select active driver</option>
+                <option value=""><Translate text={"Select active driver"} /></option>
                 {drivers
                   .filter(
                     (driver) =>
@@ -345,35 +344,32 @@ export function TripPage({
               </select>
             </label>
             <label>
-              Travel date
-              <input
+              <Translate text={"Travel date"} /><input
                 type="date"
                 value={form.travelDate ?? ""}
                 onChange={(e) => update("travelDate", e.target.value)}
               />
             </label>
             <label>
-              Departure
-              <input
+              <Translate text={"Departure"} /><input
                 type="datetime-local"
                 value={form.departureTime ?? ""}
                 onChange={(e) => update("departureTime", e.target.value)}
               />
             </label>
             <label>
-              Arrival
-              <input
+              <Translate text={"Arrival"} /><input
                 type="datetime-local"
                 value={form.arrivalTime ?? ""}
                 onChange={(e) => update("arrivalTime", e.target.value)}
               />
             </label>
           </div>
-          {!editingId && <section className="trip-style-370"><label className="trip-style-370-2"><input type="checkbox" checked={repeatWeekly} onChange={(event) => { setRepeatWeekly(event.target.checked); setRecurrencePreview([]); }} />Repeat weekly</label>{repeatWeekly && <div className="trip-style-370-3"><label>Repeat until<input type="date" min={form.travelDate} value={repeatEndDate} onChange={(event) => { setRepeatEndDate(event.target.value); setRecurrencePreview([]); }} /></label><fieldset><legend className="trip-style-370-4">Days of week</legend><div className="trip-style-370-5">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => <label className="trip-style-370-6" key={day}><input type="checkbox" checked={weekdays.includes(index)} onChange={(event) => { setWeekdays((current) => event.target.checked ? [...current, index].sort() : current.filter((value) => value !== index)); setRecurrencePreview([]); }} />{day}</label>)}</div></fieldset>{recurrencePreview.length > 0 && <div className="trip-style-370-7"><strong>{recurrencePreview.filter((item) => item.create).length} trips can be created · {recurrencePreview.filter((item) => !item.create).length} skipped</strong><ul className="trip-style-370-8">{recurrencePreview.map((item) => <li key={item.date} className={item.create ? "trip-style-370-9" : "trip-style-370-10"}>{item.date} · {item.tripCode}{item.reason ? ` · ${item.reason}` : ""}</li>)}</ul><Button className="trip-style-370-11" onClick={() => void generateRecurring()} disabled={saving}>Create valid trips</Button></div>}</div>}</section>}
+          {!editingId && <section className="trip-style-370"><label className="trip-style-370-2"><input type="checkbox" checked={repeatWeekly} onChange={(event) => { setRepeatWeekly(event.target.checked); setRecurrencePreview([]); }} /><Translate text={"Repeat weekly"} /></label>{repeatWeekly && <div className="trip-style-370-3"><label><Translate text={"Repeat until"} /><input type="date" min={form.travelDate} value={repeatEndDate} onChange={(event) => { setRepeatEndDate(event.target.value); setRecurrencePreview([]); }} /></label><fieldset><legend className="trip-style-370-4"><Translate text={"Days of week"} /></legend><div className="trip-style-370-5">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => <label className="trip-style-370-6" key={day}><input type="checkbox" checked={weekdays.includes(index)} onChange={(event) => { setWeekdays((current) => event.target.checked ? [...current, index].sort() : current.filter((value) => value !== index)); setRecurrencePreview([]); }} />{day}</label>)}</div></fieldset>{recurrencePreview.length > 0 && <div className="trip-style-370-7"><strong>{recurrencePreview.filter((item) => item.create).length} <Translate text={"trips can be created ·"} />{" "}{recurrencePreview.filter((item) => !item.create).length} <Translate text={"skipped"} /></strong><ul className="trip-style-370-8">{recurrencePreview.map((item) => <li key={item.date} className={item.create ? "trip-style-370-9" : "trip-style-370-10"}>{item.date} · {item.tripCode}{item.reason ? ` · ${item.reason}` : ""}</li>)}</ul><Button className="trip-style-370-11" onClick={() => void generateRecurring()} disabled={saving}><Translate text={"Create valid trips"} /></Button></div>}</div>}</section>}
           <div className="trip-style-371">
             <Button onClick={() => void save()} disabled={saving}>
               <Save size={15} />
-              {saving ? "Saving..." : editingId ? "Save changes" : repeatWeekly ? "Preview weekly trips" : "Save trip"}
+              <LocalizedValue value={saving ? "Saving..." : editingId ? "Save changes" : repeatWeekly ? "Preview weekly trips" : "Save trip"} />
             </Button>
             <Button
               variant="secondary"
@@ -382,12 +378,11 @@ export function TripPage({
                 setEditingId(null);
               }}
             >
-              <X size={15} /> Cancel
-            </Button>
+              <X size={15} /> <Translate text={"Cancel"} /></Button>
           </div>
         </Card>
       )}
-      {message && <div className="state-message" role="status"><strong>{message}</strong></div>}
+      {message && <div className="state-message" role="status"><strong><LocalizedValue value={message} /></strong></div>}
       {error && (
         <div className={cn("state-message state-error")}>
           <strong>{error}</strong>
@@ -413,35 +408,35 @@ export function TripPage({
               setPage(1);
             }}
           >
-            <option value="">All statuses</option>
-            <option>SCHEDULED</option>
-            <option>IN_PROGRESS</option>
-            <option>COMPLETED</option>
-            <option>CANCELLED</option>
+            <option value=""><Translate text={"All statuses"} /></option>
+            <option><Translate text={"SCHEDULED"} /></option>
+            <option><Translate text={"IN_PROGRESS"} /></option>
+            <option><Translate text={"COMPLETED"} /></option>
+            <option><Translate text={"CANCELLED"} /></option>
           </select>
-          {can("create") && <Button onClick={() => { setEditingId(null); setForm({}); setRepeatWeekly(false); setRepeatEndDate(""); setWeekdays([]); setRecurrencePreview([]); setOpen((value) => !value); }}><Plus size={16} /> Add trip</Button>}
+          {can("create") && <Button onClick={() => { setEditingId(null); setForm({}); setRepeatWeekly(false); setRepeatEndDate(""); setWeekdays([]); setRecurrencePreview([]); setOpen((value) => !value); }}><Plus size={16} /> <Translate text={"Add trip"} /></Button>}
         </div>
         {loading ? (
-          <div className={cn("state-message")}>Loading trips...</div>
+          <div className={cn("state-message")}><Translate text={"Loading trips..."} /></div>
         ) : trips.length === 0 ? (
           <div className={cn("state-message")}>
-            <strong>No trips found</strong>
-            <span>Schedule a trip or adjust the filters.</span>
+            <strong><Translate text={"No trips found"} /></strong>
+            <span><Translate text={"Schedule a trip or adjust the filters."} /></span>
           </div>
         ) : (
           <div className={cn("table-wrapper")}>
             <table>
               <thead>
                 <tr>
-                  <th>Trip</th>
-                  <th>Route</th>
-                  <th>Travel date</th>
-                  <th>Departure</th>
-                  <th>Arrival</th>
-                  <th>Bus</th>
-                  <th>Driver</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th><Translate text={"Trip"} /></th>
+                  <th><Translate text={"Route"} /></th>
+                  <th><Translate text={"Travel date"} /></th>
+                  <th><Translate text={"Departure"} /></th>
+                  <th><Translate text={"Arrival"} /></th>
+                  <th><Translate text={"Bus"} /></th>
+                  <th><Translate text={"Driver"} /></th>
+                  <th><Translate text={"Status"} /></th>
+                  <th><Translate text={"Actions"} /></th>
                 </tr>
               </thead>
               <tbody>
@@ -451,15 +446,15 @@ export function TripPage({
                       <Link href={`/trips/${trip.id}`}>{trip.tripCode}</Link>
                     </td>
                     <td>{trip.route.name}</td>
-                    <td>{new Date(trip.travelDate).toLocaleDateString()}</td>
+                    <td>{new Date(trip.travelDate).toLocaleDateString(formattingLocale)}</td>
                     <td>
-                      {new Date(trip.departureTime).toLocaleTimeString([], {
+                      {new Date(trip.departureTime).toLocaleTimeString(formattingLocale, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </td>
                     <td>
-                      {new Date(trip.arrivalTime).toLocaleTimeString([], {
+                      {new Date(trip.arrivalTime).toLocaleTimeString(formattingLocale, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
@@ -493,13 +488,12 @@ export function TripPage({
                                 setError(
                                   cause instanceof Error
                                     ? cause.message
-                                    : "Unable to cancel trip",
+                                    : localizeText("Unable to cancel trip"),
                                 ),
                               )
                           }
                         >
-                          <Ban size={15} /> Cancel trip
-                        </button>
+                          <Ban size={15} /> <Translate text={"Cancel trip"} /></button>
                         )}
                       </div>
                     </td>
@@ -511,7 +505,7 @@ export function TripPage({
         )}
         <div className={cn("management-toolbar")}>
           <span>
-            Page {page} of {pages}
+            <Translate text={"Page"} />{" "}{page} <Translate text={"of"} />{" "}{pages}
           </span>
           <div className="trip-style-514">
             <Button
@@ -519,14 +513,13 @@ export function TripPage({
               disabled={page <= 1}
               onClick={() => setPage((value) => value - 1)}
             >
-              <ChevronLeft size={15} /> Previous
-            </Button>
+              <ChevronLeft size={15} /> <Translate text={"Previous"} /></Button>
             <Button
               variant="secondary"
               disabled={page >= pages}
               onClick={() => setPage((value) => value + 1)}
             >
-              Next <ChevronRight size={15} />
+              <Translate text={"Next"} />{" "}<ChevronRight size={15} />
             </Button>
           </div>
         </div>

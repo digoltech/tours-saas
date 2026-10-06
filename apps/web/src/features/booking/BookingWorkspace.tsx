@@ -1,4 +1,8 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { formatDecimal, getFormattingLocale, useFormatDecimal, useFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/booking.css";
 
@@ -91,7 +95,7 @@ export function BookingWorkspace() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to refresh seat availability",
+          : localizeText("Unable to refresh seat availability"),
       );
     }
   }, []);
@@ -115,7 +119,7 @@ export function BookingWorkspace() {
         setHold(null);
         setSelectedSeats([]);
         setPassengers([]);
-        setError("Your seat hold expired. Select the seats again.");
+        setError(localizeText("Your seat hold expired. Select the seats again."));
       }
     };
     tick();
@@ -131,7 +135,7 @@ export function BookingWorkspace() {
         .then(setBooking)
         .catch((cause) =>
           setError(
-            cause instanceof Error ? cause.message : "Unable to find this PNR",
+            cause instanceof Error ? cause.message : localizeText("Unable to find this PNR"),
           ),
         );
     }, 0);
@@ -159,7 +163,7 @@ export function BookingWorkspace() {
         }),
       );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to find trips");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to find trips"));
     } finally {
       setLoading(false);
     }
@@ -170,7 +174,7 @@ export function BookingWorkspace() {
       setBooking(await getBookingByPnr(lookupPnr.trim()));
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to find this PNR",
+        cause instanceof Error ? cause.message : localizeText("Unable to find this PNR"),
       );
     }
   }
@@ -184,7 +188,7 @@ export function BookingWorkspace() {
       setAvailability(data);
       setDiscountType(data.discountCap.type);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load trip");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to load trip"));
     }
   }
   function toggleSeat(name: string) {
@@ -222,7 +226,7 @@ export function BookingWorkspace() {
           )?.id ?? "",
       );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to lock seats");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to lock seats"));
       await loadAvailability(availability.trip.id);
     } finally {
       setSaving(false);
@@ -253,7 +257,7 @@ export function BookingWorkspace() {
       setHold(null);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to confirm booking",
+        cause instanceof Error ? cause.message : localizeText("Unable to confirm booking"),
       );
     } finally {
       setSaving(false);
@@ -284,8 +288,7 @@ export function BookingWorkspace() {
         <div id="printable-ticket">
           <Card className={cn("ticket-card")}>
             <p className={cn("eyebrow")}>
-              {agencyBrand?.name ?? "Digol Tours"} · E-ticket
-            </p>
+              {agencyBrand?.name ?? "Digol Tours"} <Translate text={"· E-ticket"} /></p>
             {agencyBrand?.logoUrl && (
               <Image
                 unoptimized
@@ -298,9 +301,9 @@ export function BookingWorkspace() {
             )}
             <div className={cn("card-heading")}>
               <div>
-                <h2>PNR {booking.pnr}</h2>
+                <h2><Translate text={"PNR"} />{" "}{booking.pnr}</h2>
                 <p>
-                  {booking.trip.tripCode} · {booking.trip.route.source} to{" "}
+                  {booking.trip.tripCode} · {booking.trip.route.source} <Translate text={"to"} />{" "}
                   {booking.trip.route.destination}
                 </p>
               </div>
@@ -310,54 +313,52 @@ export function BookingWorkspace() {
                   color: agencyBrand?.brandColor ?? "#c62828",
                 }}
               >
-                CONFIRMED
-              </Badge>
+                <Translate text={"CONFIRMED"} /></Badge>
             </div>
             <div className={cn("form-grid")}>
               <p>
-                <strong>Travel date</strong>
+                <strong><Translate text={"Travel date"} /></strong>
                 <br />
-                {new Date(booking.trip.travelDate).toLocaleDateString()}
+                {new Date(booking.trip.travelDate).toLocaleDateString(getFormattingLocale())}
               </p>
               <p>
-                <strong>Departure</strong>
+                <strong><Translate text={"Departure"} /></strong>
                 <br />
-                {new Date(booking.trip.departureTime).toLocaleString()}
+                {new Date(booking.trip.departureTime).toLocaleString(getFormattingLocale())}
               </p>
               <p>
-                <strong>Bus</strong>
+                <strong><Translate text={"Bus"} /></strong>
                 <br />
                 {booking.trip.bus.busNumber}
               </p>
               <p>
-                <strong>Boarding</strong>
+                <strong><Translate text={"Boarding"} /></strong>
                 <br />
                 {booking.boardingStop.name}
               </p>
               <p>
-                <strong>Drop-off</strong>
+                <strong><Translate text={"Drop-off"} /></strong>
                 <br />
                 {booking.dropOffStop.name}
               </p>
               <p>
-                <strong>Total</strong>
+                <strong><Translate text={"Total"} /></strong>
                 <br />
-                {booking.currency} {Number(booking.totalAmount).toFixed(2)}
+                {booking.currency} {formatDecimal(Number(booking.totalAmount))}
               </p>
             </div>
-            <h3>Passengers</h3>
+            <h3><Translate text={"Passengers"} /></h3>
             {booking.passengers.map((p) => (
               <p key={p.seatName}>
-                {p.firstName} {p.lastName} · Seat {p.seatName} · {p.phone}
+                {p.firstName} {p.lastName} <Translate text={"· Seat"} />{" "}{p.seatName} · {p.phone}
               </p>
             ))}
-            <p className={cn("muted")}>Present this PNR at boarding.</p>
+            <p className={cn("muted")}><Translate text={"Present this PNR at boarding."} /></p>
           </Card>
         </div>
         <div className="booking-style-355">
           <Button onClick={() => window.print()}>
-            <Printer size={16} /> Print ticket
-          </Button>
+            <Printer size={16} /> <Translate text={"Print ticket"} /></Button>
           <Button
             variant="secondary"
             onClick={() => {
@@ -366,8 +367,7 @@ export function BookingWorkspace() {
               setTrips([]);
             }}
           >
-            <Plus size={15} /> Create another booking
-          </Button>
+            <Plus size={15} /> <Translate text={"Create another booking"} /></Button>
         </div>
       </>
     );
@@ -392,8 +392,7 @@ export function BookingWorkspace() {
         >
           <div className={cn("form-grid")}>
             <label>
-              Look up an existing PNR
-              <input
+              <Translate text={"Look up an existing PNR"} /><input
                 value={lookupPnr}
                 onChange={(e) => setLookupPnr(e.target.value)}
                 placeholder="Enter PNR"
@@ -405,8 +404,7 @@ export function BookingWorkspace() {
             disabled={!lookupPnr.trim()}
             type="submit"
           >
-            <Ticket size={15} /> Find ticket
-          </Button>
+            <Ticket size={15} /> <Translate text={"Find ticket"} /></Button>
         </form>
       </Card>
       <Card className={cn("management-form")}>
@@ -418,8 +416,7 @@ export function BookingWorkspace() {
         >
           <div className={cn("form-grid")}>
             <label>
-              From
-              <input
+              <Translate text={"From"} /><input
                 value={source}
                 required
                 onChange={(e) => setSource(e.target.value)}
@@ -427,8 +424,7 @@ export function BookingWorkspace() {
               />
             </label>
             <label>
-              To
-              <input
+              <Translate text={"To"} /><input
                 value={destination}
                 required
                 onChange={(e) => setDestination(e.target.value)}
@@ -436,8 +432,7 @@ export function BookingWorkspace() {
               />
             </label>
             <label>
-              Travel date
-              <input
+              <Translate text={"Travel date"} /><input
                 type="date"
                 min={today}
                 value={date}
@@ -450,13 +445,13 @@ export function BookingWorkspace() {
             type="submit"
             disabled={loading || !source.trim() || !destination.trim()}
           >
-            <Search size={16} /> {loading ? "Searching..." : "Search buses"}
+            <Search size={16} /> <LocalizedValue value={loading ? "Searching..." : "Search buses"} />
           </Button>
         </form>
       </Card>
       {trips.length > 0 && (
         <Card className={cn("management-card")}>
-          <h2>Available buses</h2>
+          <h2><Translate text={"Available buses"} /></h2>
           {trips.map((trip) => (
             <div className={cn("setup-row")} key={trip.id}>
               <Bus size={19} />
@@ -466,16 +461,14 @@ export function BookingWorkspace() {
                   {trip.bus.busNumber}
                 </strong>
                 <span>
-                  {new Date(trip.departureTime).toLocaleTimeString([], {
+                  {new Date(trip.departureTime).toLocaleTimeString(getFormattingLocale(), {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}{" "}
-                  · {trip.bus.busType} · {trip.availableSeats} seats · ₹
-                  {Number(trip.fare).toFixed(2)} / seat
-                </span>
+                  · {trip.bus.busType} · {trip.availableSeats} <Translate text={"seats · ₹"} />{formatDecimal(Number(trip.fare))} <Translate text={"/ seat"} /></span>
               </div>
               <Button variant="secondary" onClick={() => void chooseTrip(trip)}>
-                Select bus <ArrowRight size={15} />
+                <Translate text={"Select bus"} />{" "}<ArrowRight size={15} />
               </Button>
             </div>
           ))}
@@ -486,14 +479,12 @@ export function BookingWorkspace() {
           <div className={cn("card-heading")}>
             <div>
               <p className={cn("eyebrow")}>{availability.trip.tripCode}</p>
-              <h2>Select seats</h2>
+              <h2><Translate text={"Select seats"} /></h2>
             </div>
             <Badge>{availability.trip.bus.busType}</Badge>
           </div>
           <p className={cn("muted booking-seat-help")}>
-            Seat labels show the berth type and any passenger eligibility. Check
-            these before assigning passengers.
-          </p>
+            <Translate text={"Seat labels show the berth type and any passenger eligibility. Check these before assigning passengers."} /></p>
           <div
             className={cn("seat-grid")}
             role="group"
@@ -537,9 +528,9 @@ export function BookingWorkspace() {
                   </small>
                   {seat.restriction !== "ALL" && (
                     <small className={cn("booking-seat-restriction")}>
-                      {seat.restriction === "SENIOR"
+                      <LocalizedValue value={seat.restriction === "SENIOR"
                         ? "Senior only"
-                        : `${seat.restriction.toLowerCase()} only`}
+                        : `${seat.restriction.toLowerCase()} only`} />
                     </small>
                   )}
                 </button>
@@ -548,16 +539,13 @@ export function BookingWorkspace() {
           </div>
           <div className={cn("seat-legend")}>
             <span>
-              <i /> Available
-            </span>
+              <i /> <Translate text={"Available"} /></span>
             <span>
-              <i className={cn("seat-legend-unavailable")} /> Held or booked
-            </span>
-            <span className={cn("booking-seat-restriction")}>Female only</span>
+              <i className={cn("seat-legend-unavailable")} /> <Translate text={"Held or booked"} /></span>
+            <span className={cn("booking-seat-restriction")}><Translate text={"Female only"} /></span>
             <span className={cn("booking-seat-restriction booking-senior")}>
-              Senior only
-            </span>
-            <span>Selected: {selectedSeats.join(", ") || "none"}</span>
+              <Translate text={"Senior only"} /></span>
+            <span><Translate text={"Selected:"} />{" "}{selectedSeats.join(", ") || "none"}</span>
           </div>
           {!hold && (
             <Button
@@ -565,9 +553,9 @@ export function BookingWorkspace() {
               disabled={!selectedSeats.length || saving}
             >
               <Lock size={15} />{" "}
-              {saving
+              <LocalizedValue value={saving
                 ? "Locking seats..."
-                : "Lock selected seats for 10 minutes"}
+                : "Lock selected seats for 10 minutes"} />
             </Button>
           )}
         </Card>
@@ -582,24 +570,21 @@ export function BookingWorkspace() {
           >
             <div className={cn("card-heading")}>
               <div>
-                <p className={cn("eyebrow")}>Seat hold active</p>
+                <p className={cn("eyebrow")}><Translate text={"Seat hold active"} /></p>
                 <h2>
                   <Clock3 size={18} />{" "}
                   <span role="timer" aria-live="off">
                     {Math.floor(secondsLeft / 60)}:
                     {String(secondsLeft % 60).padStart(2, "0")}
                   </span>{" "}
-                  remaining
-                </h2>
+                  <Translate text={"remaining"} /></h2>
               </div>
               <Button variant="secondary" onClick={() => void cancelHold()}>
-                <Unlock size={15} /> Release seats
-              </Button>
+                <Unlock size={15} /> <Translate text={"Release seats"} /></Button>
             </div>
             <div className={cn("form-grid")}>
               <label>
-                Boarding point
-                <select
+                <Translate text={"Boarding point"} /><select
                   required
                   value={boardingStopId}
                   onChange={(e) => {
@@ -616,7 +601,7 @@ export function BookingWorkspace() {
                     setBoardingStopId(nextId);
                   }}
                 >
-                  <option value="">Select boarding</option>
+                  <option value=""><Translate text={"Select boarding"} /></option>
                   {points
                     .filter(
                       (s) =>
@@ -636,13 +621,12 @@ export function BookingWorkspace() {
                 </select>
               </label>
               <label>
-                Drop-off point
-                <select
+                <Translate text={"Drop-off point"} /><select
                   required
                   value={dropOffStopId}
                   onChange={(e) => setDropOffStopId(e.target.value)}
                 >
-                  <option value="">Select drop-off</option>
+                  <option value=""><Translate text={"Select drop-off"} /></option>
                   {points
                     .filter(
                       (s) =>
@@ -662,13 +646,13 @@ export function BookingWorkspace() {
                 </select>
               </label>
             </div>
-            <h3>Passenger details</h3>
+            <h3><Translate text={"Passenger details"} /></h3>
             {passengers.map((passenger, index) => (
               <div
                 className={cn("form-grid passenger-form")}
                 key={passenger.seatName}
               >
-                <strong>Seat {passenger.seatName}</strong>
+                <strong><Translate text={"Seat"} />{" "}{passenger.seatName}</strong>
                 {(
                   [
                     "firstName",
@@ -682,11 +666,11 @@ export function BookingWorkspace() {
                   ] as const
                 ).map((field) => (
                   <label key={field}>
-                    {field === "documentReference"
+                    <LocalizedValue value={field === "documentReference"
                       ? "Document reference"
                       : field === "documentType"
                         ? "Document type"
-                        : field[0].toUpperCase() + field.slice(1)}
+                        : field[0].toUpperCase() + field.slice(1)} />
                     {field === "gender" ? (
                       <select
                         required
@@ -701,10 +685,10 @@ export function BookingWorkspace() {
                           )
                         }
                       >
-                        <option value="">Select gender</option>
-                        <option value="Female">Female</option>
-                        <option value="Male">Male</option>
-                        <option value="Other">Other</option>
+                        <option value=""><Translate text={"Select gender"} /></option>
+                        <option value="Female"><Translate text={"Female"} /></option>
+                        <option value="Male"><Translate text={"Male"} /></option>
+                        <option value="Other"><Translate text={"Other"} /></option>
                       </select>
                     ) : field === "documentType" ? (
                       <select
@@ -719,22 +703,20 @@ export function BookingWorkspace() {
                           )
                         }
                       >
-                        <option value="">No document</option>
-                        <option value="National ID">National ID</option>
-                        <option value="Passport">Passport</option>
-                        <option value="Other">Other</option>
+                        <option value=""><Translate text={"No document"} /></option>
+                        <option value="National ID"><Translate text={"National ID"} /></option>
+                        <option value="Passport"><Translate text={"Passport"} /></option>
+                        <option value="Other"><Translate text={"Other"} /></option>
                       </select>
                     ) : (
                       <input
-                        type={
-                          field === "age"
+                        type={field === "age"
                             ? "number"
                             : field === "email"
                               ? "email"
                               : field === "phone"
                                 ? "tel"
-                                : "text"
-                        }
+                                : "text"}
                         min={field === "age" ? 0 : undefined}
                         max={field === "age" ? 120 : undefined}
                         pattern={
@@ -778,20 +760,19 @@ export function BookingWorkspace() {
             ))}
             <div className={cn("form-grid")}>
               <label>
-                Discount type
-                <select
+                <Translate text={"Discount type"} /><select
                   value={discountType}
                   onChange={(e) =>
                     setDiscountType(e.target.value as "FIXED" | "PERCENTAGE")
                   }
                 >
                   <option value={cap?.type ?? "PERCENTAGE"}>
-                    {cap?.type === "FIXED" ? "Fixed amount" : "Percentage"}
+                    <LocalizedValue value={cap?.type === "FIXED" ? "Fixed amount" : "Percentage"} />
                   </option>
                 </select>
               </label>
               <label>
-                Discount {discountType === "PERCENTAGE" ? "%" : "₹"} (cap{" "}
+                <Translate text={"Discount"} />{" "}{discountType === "PERCENTAGE" ? "%" : "₹"} <Translate text={"(cap"} />{" "}
                 {cap?.type === discountType ? cap.value : 0})
                 <input
                   type="number"
@@ -804,16 +785,13 @@ export function BookingWorkspace() {
               </label>
             </div>
             <p>
-              <strong>Fare:</strong> ₹{baseFare.toFixed(2)} ·{" "}
-              <strong>Discount:</strong> ₹{discount.toFixed(2)} ·{" "}
-              <strong>Total:</strong> ₹
-              {Math.max(0, baseFare - discount).toFixed(2)}
+              <strong><Translate text={"Fare:"} /></strong> ₹{formatDecimal(baseFare)} ·{" "}
+              <strong><Translate text={"Discount:"} /></strong> ₹{formatDecimal(discount)} ·{" "}
+              <strong><Translate text={"Total:"} /></strong> ₹
+              {formatDecimal(Math.max(0, baseFare - discount))}
             </p>
             <p className={cn("muted")}>
-              <strong>Payment methods:</strong> Cash, bank transfer, card, UPI,
-              or other. Payment is collected offline and recorded in Finance; no
-              online charge is made at checkout.
-            </p>
+              <strong><Translate text={"Payment methods:"} /></strong> <Translate text={"Cash, bank transfer, card, UPI, or other. Payment is collected offline and recorded in Finance; no online charge is made at checkout."} /></p>
             <Button
               type="submit"
               disabled={
@@ -821,21 +799,19 @@ export function BookingWorkspace() {
                 discountValue > (cap?.type === discountType ? cap.value : 0)
               }
             >
-              {saving ? (
+              <LocalizedValue value={saving ? (
                 "Confirming..."
               ) : (
                 <>
-                  <Ticket size={15} /> Confirm booking and issue ticket
-                </>
-              )}
+                  <Ticket size={15} /> <Translate text={"Confirm booking and issue ticket"} /></>
+              )} />
             </Button>
           </form>
         </Card>
       )}
       {trips.length === 0 && !loading && (
         <p className={cn("muted")}>
-          Search by source, destination, and date to view available trips.
-        </p>
+          <Translate text={"Search by source, destination, and date to view available trips."} /></p>
       )}
       <BookingHistory />
     </>
@@ -853,6 +829,8 @@ export function AgentBookingsDashboard({
   trips: Trip[];
   tripsError?: string;
 }) {
+  const formatDecimal = useFormatDecimal();
+  const formattingLocale = useFormattingLocale();
   return (
     <>
       <PageHeader
@@ -866,35 +844,33 @@ export function AgentBookingsDashboard({
       )}
       <div className={cn("metric-grid metric-grid-three")}>
         <Card className={cn("metric-card")}>
-          <p>Bookings today</p>
-          <strong>{summary?.todayBookings ?? "—"}</strong>
-          <span>Confirmed passenger bookings</span>
+          <p><Translate text={"Bookings today"} /></p>
+          <strong>{summary?.todayBookings.toLocaleString(formattingLocale) ?? "—"}</strong>
+          <span><Translate text={"Confirmed passenger bookings"} /></span>
         </Card>
         <Card className={cn("metric-card")}>
-          <p>Sales today</p>
-          <strong>{summary ? `₹${summary.todaySales.toFixed(2)}` : "—"}</strong>
-          <span>Confirmed booking value</span>
+          <p><Translate text={"Sales today"} /></p>
+          <strong>{summary ? `₹${formatDecimal(summary.todaySales)}` : "—"}</strong>
+          <span><Translate text={"Confirmed booking value"} /></span>
         </Card>
         <Card className={cn("metric-card")}>
-          <p>Upcoming trips</p>
-          <strong>{summary?.upcomingTrips ?? "—"}</strong>
-          <span>Scheduled departures ahead</span>
+          <p><Translate text={"Upcoming trips"} /></p>
+          <strong>{summary?.upcomingTrips.toLocaleString(formattingLocale) ?? "—"}</strong>
+          <span><Translate text={"Scheduled departures ahead"} /></span>
         </Card>
       </div>
       <UpcomingTrips initialTrips={trips} initialError={tripsError} />
       <div className={cn("dashboard-grid")}>
         <Card className={cn("setup-card")}>
-          <p className={cn("eyebrow")}>Booking desk</p>
-          <h2>Ready to book a trip?</h2>
+          <p className={cn("eyebrow")}><Translate text={"Booking desk"} /></p>
+          <h2><Translate text={"Ready to book a trip?"} /></h2>
           <p className={cn("muted")}>
-            Search live scheduled trips, lock seats while you enter passenger
-            details, and print the ticket with its PNR.
-          </p>
+            <Translate text={"Search live scheduled trips, lock seats while you enter passenger details, and print the ticket with its PNR."} /></p>
           <Link
             className={cn("button button-primary")}
             href="/dashboard/bookings"
           >
-            Start booking <ArrowRight size={16} />
+            <Translate text={"Start booking"} />{" "}<ArrowRight size={16} />
           </Link>
         </Card>
       </div>

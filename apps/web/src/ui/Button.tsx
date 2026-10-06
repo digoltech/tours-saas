@@ -1,6 +1,9 @@
+"use client";
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../lib/utils";
+import { useTranslations } from "../i18n/LocaleProvider";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
@@ -28,6 +31,7 @@ export function Button({
   loadingLabel,
   ...props
 }: ButtonProps) {
+  const t = useTranslations();
   return (
     <button
       className={cn(buttonVariants({ variant }), className)}
@@ -36,7 +40,7 @@ export function Button({
       disabled={loading || props.disabled}
       aria-busy={loading || undefined}
     >
-      {loading ? <><span className="button-spinner" aria-hidden="true" />{loadingLabel ?? children}</> : children}
+      {loading ? <><span className="button-spinner" aria-hidden="true" />{loadingLabel ? t(loadingLabel) : children}</> : children}
     </button>
   );
 }

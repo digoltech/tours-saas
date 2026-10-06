@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedValue } from "../../../src/i18n/LocalizedValue";
+import { Translate } from "../../../src/i18n/Translate";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -40,12 +42,12 @@ export default function VerifyEmailPage() {
 
   const title = status === "success" ? "Email confirmed" : status === "loading" ? "Checking your link" : status === "error" ? "That link isn’t available" : "Check your inbox";
   const description = status === "success" ? emailChanged ? "Your new address is active. Sign in again to continue." : "Your email is confirmed. Next, let’s set up your travel business." : status === "loading" ? "This takes just a moment." : status === "error" ? "It may have expired or already been used. You can request another one." : "We’ve sent you a link to confirm your email address. Open it to keep going.";
-  return <AuthLayout><div className="auth-card-stack auth-card-stack-narrow"><div className="auth-heading"><p className="eyebrow">ACCOUNT CONFIRMATION</p><h2>{title}</h2><p>{description}</p></div><Card className="login-card email-result">
+  return <AuthLayout><div className="auth-card-stack auth-card-stack-narrow"><div className="auth-heading"><p className="eyebrow"><Translate text={"ACCOUNT CONFIRMATION"} /></p><h2>{title}</h2><p>{description}</p></div><Card className="login-card email-result">
     <div className={`auth-result-icon ${status === "success" ? "success" : ""}`}>{status === "success" ? <Check size={28} /> : status === "loading" ? <span className="auth-spinner" /> : <MailCheck size={28} />}</div>
-    {status === "pending" && <><h3>One quick check</h3><p>Look for an email from Digol TravelOS. The link is valid for 24 hours.</p><div className="auth-info-row"><ShieldCheck size={16} /> This helps protect your account.</div></>}
-    {status === "error" && <p>Need a new link? Use the button below while signed in.</p>}
-    {status === "success" && <p>Thanks for confirming your address. Your next step is ready.</p>}
-    {message && <p role="status" className="auth-status-message">{message}</p>}
-    {status === "success" ? <Link className="button button-primary auth-result-action" href={emailChanged ? "/auth/login" : "/onboaridng/"}>{emailChanged ? "Sign in" : "Continue to setup"}<ArrowRight size={16} /></Link> : status !== "loading" ? <button type="button" className="button button-secondary auth-result-action" onClick={() => void resend()} disabled={resending}><RefreshCw size={16} />{resending ? "Sending…" : "Resend confirmation email"}</button> : null}
-  </Card><p className="auth-bottom-link">Need help? <Link href="/contact">Contact us</Link></p></div></AuthLayout>;
+    {status === "pending" && <><h3><Translate text={"One quick check"} /></h3><p><Translate text={"Look for an email from Digol TravelOS. The link is valid for 24 hours."} /></p><div className="auth-info-row"><ShieldCheck size={16} /> <Translate text={"This helps protect your account."} /></div></>}
+    {status === "error" && <p><Translate text={"Need a new link? Use the button below while signed in."} /></p>}
+    {status === "success" && <p><Translate text={"Thanks for confirming your address. Your next step is ready."} /></p>}
+    {message && <p role="status" className="auth-status-message"><LocalizedValue value={message} /></p>}
+    {status === "success" ? <Link className="button button-primary auth-result-action" href={emailChanged ? "/auth/login" : "/onboaridng/"}><LocalizedValue value={emailChanged ? "Sign in" : "Continue to setup"} /><ArrowRight size={16} /></Link> : status !== "loading" ? <button type="button" className="button button-secondary auth-result-action" onClick={() => void resend()} disabled={resending}><RefreshCw size={16} /><LocalizedValue value={resending ? "Sending…" : "Resend confirmation email"} /></button> : null}
+  </Card><p className="auth-bottom-link"><Translate text={"Need help?"} />{" "}<Link href="/contact"><Translate text={"Contact us"} /></Link></p></div></AuthLayout>;
 }

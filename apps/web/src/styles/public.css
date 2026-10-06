@@ -341,6 +341,7 @@
   padding: 28px;
   background: #f8f9f6;
 }
+.simple-result-header { display: flex; align-items: center; justify-content: space-between; gap: 2rem; width: min(100%, 500px); }
 .simple-result section {
   max-width: 500px;
   padding: 38px;

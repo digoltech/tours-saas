@@ -1,4 +1,5 @@
 import type { AuthUser } from "../types";
+import { localizeApiError } from "../../../i18n/errors";
 import type {
   FinanceMethod,
   FinanceReportFilters,
@@ -33,7 +34,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   const payload = (await response.json()) as ApiResponse<T>;
   if (!response.ok || !payload.success)
-    throw new Error(payload.success ? "Request failed" : payload.error.message);
+    throw new Error(payload.success ? localizeApiError("UNKNOWN", "Request failed") : localizeApiError(payload.error.code, payload.error.message));
   return payload.data;
 }
 

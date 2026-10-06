@@ -1,4 +1,6 @@
 "use client";
+import { localizeText } from "../../../i18n/errors";
+import { Translate } from "../../../i18n/Translate";
 
 import { cn } from "../../../lib/utils";
 import { useState } from "react";
@@ -10,6 +12,7 @@ import { Button } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Input } from "../../../ui/Input";
 import { PasswordInput } from "./PasswordInput";
+import { useTranslations } from "../../../i18n/LocaleProvider";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -17,6 +20,7 @@ const loginSchema = z.object({
 });
 
 export function LoginForm() {
+  const t = useTranslations();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +31,7 @@ export function LoginForm() {
     event.preventDefault();
     const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
-      setError(result.error.issues[0]?.message ?? "Check your details");
+      setError(t(result.error.issues[0]?.message ?? localizeText("Check your details")));
       return;
     }
     setError("");
@@ -40,7 +44,7 @@ export function LoginForm() {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Unable to sign in",
+          : t(localizeText("Unable to sign in")),
       );
     } finally {
       setLoading(false);
@@ -76,8 +80,7 @@ export function LoginForm() {
         )}
         <Button type="submit" loading={loading} loadingLabel="Signing in…">
           <LogIn size={15} />
-          Sign in
-        </Button>
+          <Translate text={"Sign in"} /></Button>
       </form>
     </Card>
   );

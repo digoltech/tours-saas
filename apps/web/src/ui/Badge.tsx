@@ -1,6 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 import type { CSSProperties } from "react";
 import { cn } from "../lib/utils";
+import { useTranslations } from "../i18n/LocaleProvider";
 
 export function Badge({
   children,
@@ -11,9 +14,10 @@ export function Badge({
   className?: string;
   style?: CSSProperties;
 }) {
+  const t = useTranslations();
   return (
     <span className={cn("badge", className)} style={style}>
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </span>
   );
 }

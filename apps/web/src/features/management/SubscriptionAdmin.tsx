@@ -1,4 +1,7 @@
 "use client";
+import { formatDecimal } from "../../i18n/format-client";
+import { localizeText } from "../../i18n/errors";
+import { Translate } from "../../i18n/Translate";
 
 import { useEffect, useState } from "react";
 import { Card } from "../../ui/Card";
@@ -33,7 +36,7 @@ export function SubscriptionAdmin() {
       .then((rows) => setAgencies(rows as AgencyOption[]))
       .catch((cause) =>
         setError(
-          cause instanceof Error ? cause.message : "Unable to load agencies",
+          cause instanceof Error ? cause.message : localizeText("Unable to load agencies"),
         ),
       );
   }, []);
@@ -56,7 +59,7 @@ export function SubscriptionAdmin() {
         setError(
           cause instanceof Error
             ? cause.message
-            : "Unable to load subscription",
+            : localizeText("Unable to load subscription"),
         ),
       );
   }, [agencyId]);
@@ -74,7 +77,7 @@ export function SubscriptionAdmin() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to update subscription",
+          : localizeText("Unable to update subscription"),
       );
     }
   }
@@ -89,19 +92,18 @@ export function SubscriptionAdmin() {
       setInvoices(await getSubscriptionInvoices(agencyId));
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to create invoice",
+        cause instanceof Error ? cause.message : localizeText("Unable to create invoice"),
       );
     }
   }
   return (
     <>
       <Card className="settings-card">
-        <p className="eyebrow">SUPER ADMIN</p>
-        <h2>Agency subscription management</h2>
+        <p className="eyebrow"><Translate text={"SUPER ADMIN"} /></p>
+        <h2><Translate text={"Agency subscription management"} /></h2>
         {error && <p role="alert">{error}</p>}
         <label>
-          Agency
-          <select
+          <Translate text={"Agency"} /><select
             value={agencyId}
             onChange={(e) => {
               const selected = e.target.value;
@@ -112,7 +114,7 @@ export function SubscriptionAdmin() {
               }
             }}
           >
-            <option value="">Select agency</option>
+            <option value=""><Translate text={"Select agency"} /></option>
             {agencies.map((agency) => (
               <option key={agency.id} value={agency.id}>
                 {agency.name}
@@ -122,24 +124,22 @@ export function SubscriptionAdmin() {
         </label>
         {agencyId && (
           <>
-            <p>Current status: {subscription?.status ?? "No subscription"}</p>
+            <p><Translate text={"Current status:"} />{" "}{subscription?.status ?? "No subscription"}</p>
             {subscription?.requestedPlanName && (
               <p>
-                Requested: {subscription.requestedPlanName} · INR{" "}
-                {Number(subscription.requestedPrice).toFixed(2)}
+                <Translate text={"Requested:"} />{" "}{subscription.requestedPlanName} <Translate text={"· INR"} />{" "}
+                {formatDecimal(Number(subscription.requestedPrice))}
               </p>
             )}
             <div className="subscription-admin-style-132">
               <label>
-                Plan
-                <input
+                <Translate text={"Plan"} /><input
                   value={planName}
                   onChange={(e) => setPlanName(e.target.value)}
                 />
               </label>
               <label>
-                Price (INR)
-                <input
+                <Translate text={"Price (INR)"} /><input
                   type="number"
                   min="0"
                   value={price}
@@ -147,36 +147,33 @@ export function SubscriptionAdmin() {
                 />
               </label>
               <label>
-                Status
-                <select
+                <Translate text={"Status"} /><select
                   value={status}
                   onChange={(e) =>
                     setStatus(e.target.value as SubscriptionContract["status"])
                   }
                 >
-                  <option value="TRIAL">Trial</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="PAST_DUE">Past due</option>
-                  <option value="CANCELED">Canceled</option>
+                  <option value="TRIAL"><Translate text={"Trial"} /></option>
+                  <option value="ACTIVE"><Translate text={"Active"} /></option>
+                  <option value="PAST_DUE"><Translate text={"Past due"} /></option>
+                  <option value="CANCELED"><Translate text={"Canceled"} /></option>
                 </select>
               </label>
             </div>
             <div className="subscription-admin-style-164">
-              <Button onClick={() => void save()}>Save subscription</Button>
+              <Button onClick={() => void save()}><Translate text={"Save subscription"} /></Button>
             </div>
             <hr className="subscription-admin-style-167" />
-            <h3>Create manual invoice</h3>
+            <h3><Translate text={"Create manual invoice"} /></h3>
             <div className="subscription-admin-style-169">
               <label>
-                Description
-                <input
+                <Translate text={"Description"} /><input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </label>
               <label>
-                Amount (INR)
-                <input
+                <Translate text={"Amount (INR)"} /><input
                   type="number"
                   min="0.01"
                   step="0.01"
@@ -187,13 +184,12 @@ export function SubscriptionAdmin() {
             </div>
             <div className="subscription-admin-style-188">
               <Button variant="secondary" onClick={() => void createInvoice()}>
-                Create invoice
-              </Button>
+                <Translate text={"Create invoice"} /></Button>
             </div>
             {invoices.map((invoice) => (
               <p key={invoice.id}>
-                {invoice.number} · {invoice.status} · INR{" "}
-                {Number(invoice.amount).toFixed(2)}
+                {invoice.number} · {invoice.status} <Translate text={"· INR"} />{" "}
+                {formatDecimal(Number(invoice.amount))}
               </p>
             ))}
           </>

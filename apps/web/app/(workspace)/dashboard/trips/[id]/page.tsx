@@ -1,4 +1,7 @@
 "use client";
+import { localizeText } from "../../../../../src/i18n/errors";
+import { getFormattingLocale } from "../../../../../src/i18n/format-client";
+import { Translate } from "../../../../../src/i18n/Translate";
 
 import { cn } from "../../../../../src/lib/utils";
 import { useEffect, useState } from "react";
@@ -27,7 +30,7 @@ export default function TripDetailPage() {
       .then(setTrip)
       .catch((cause) =>
         setError(
-          cause instanceof Error ? cause.message : "Unable to load trip",
+          cause instanceof Error ? cause.message : localizeText("Unable to load trip"),
         ),
       );
   }, [id]);
@@ -35,11 +38,9 @@ export default function TripDetailPage() {
     <>
       <PageHeader
         title={trip?.tripCode ?? "Trip detail"}
-        description={
-          trip
-            ? `${trip.route.name} · ${new Date(trip.travelDate).toLocaleDateString()}`
-            : "Loading trip"
-        }
+        description={trip
+            ? `${trip.route.name} · ${new Date(trip.travelDate).toLocaleDateString(getFormattingLocale())}`
+            : "Loading trip"}
       />
       {error && <div className={cn("state-message state-error")}>{error}</div>}
       {trip && (
@@ -47,46 +48,46 @@ export default function TripDetailPage() {
           <Card>
             <div className={cn("card-heading")}>
               <div>
-                <p className={cn("eyebrow")}>Scheduled operation</p>
+                <p className={cn("eyebrow")}><Translate text={"Scheduled operation"} /></p>
                 <h2>
-                  {trip.route.source} to {trip.route.destination}
+                  {trip.route.source} <Translate text={"to"} />{" "}{trip.route.destination}
                 </h2>
               </div>
               <Badge>{trip.status}</Badge>
             </div>
             <div className={cn("form-grid")}>
               <p>
-                <strong>Bus</strong>
+                <strong><Translate text={"Bus"} /></strong>
                 <br />
                 {trip.bus.registrationNumber}
               </p>
               <p>
-                <strong>Driver</strong>
+                <strong><Translate text={"Driver"} /></strong>
                 <br />
                 {trip.driver.firstName} {trip.driver.lastName}
               </p>
               <p>
-                <strong>Branch</strong>
+                <strong><Translate text={"Branch"} /></strong>
                 <br />
                 {trip.branch.name}
               </p>
               <p>
-                <strong>Timing</strong>
+                <strong><Translate text={"Timing"} /></strong>
                 <br />
-                {new Date(trip.departureTime).toLocaleString()} to{" "}
-                {new Date(trip.arrivalTime).toLocaleString()}
+                {new Date(trip.departureTime).toLocaleString(getFormattingLocale())} <Translate text={"to"} />{" "}
+                {new Date(trip.arrivalTime).toLocaleString(getFormattingLocale())}
               </p>
             </div>
           </Card>
           <Card>
             <div className={cn("card-heading")}>
               <div>
-                <p className={cn("eyebrow")}>Route sequence</p>
-                <h2>Stops</h2>
+                <p className={cn("eyebrow")}><Translate text={"Route sequence"} /></p>
+                <h2><Translate text={"Stops"} /></h2>
               </div>
             </div>
             {trip.route.stops.length === 0 ? (
-              <div className={cn("state-message")}>No stops configured.</div>
+              <div className={cn("state-message")}><Translate text={"No stops configured."} /></div>
             ) : (
               <ol>
                 {trip.route.stops.map((stop) => (

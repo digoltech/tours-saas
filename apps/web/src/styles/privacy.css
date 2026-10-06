@@ -420,6 +420,7 @@
   padding: 3rem 1.5rem;
   line-height: 1.75;
 }
+.privacy-notice-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .privacy-notice-title {
   margin-top: 2rem;
   font-size: 1.875rem;

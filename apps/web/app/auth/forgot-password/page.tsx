@@ -1,4 +1,7 @@
 "use client";
+import { LocalizedValue } from "../../../src/i18n/LocalizedValue";
+import { localizeText } from "../../../src/i18n/errors";
+import { Translate } from "../../../src/i18n/Translate";
 
 import { cn } from "../../../src/lib/utils";
 import Link from "next/link";
@@ -35,14 +38,14 @@ export default function ForgotPasswordPage() {
   async function submitEmail(event: React.FormEvent) {
     event.preventDefault();
     const result = emailSchema.safeParse(email);
-    if (!result.success) { setError(result.error.issues[0]?.message ?? "Enter a valid email"); return; }
+    if (!result.success) { setError(result.error.issues[0]?.message ?? localizeText("Enter a valid email")); return; }
     setLoading(true); setError("");
     try {
       await requestPasswordReset(email);
       setStep(1);
       setResendSeconds(60);
       setNotice("If an account exists for this email, a reset code has been sent.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to send reset code"); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to send reset code")); }
     finally { setLoading(false); }
   }
 
@@ -53,27 +56,27 @@ export default function ForgotPasswordPage() {
       await requestPasswordReset(email);
       setResendSeconds(60);
       setNotice("If an account exists for this email, a new reset code has been sent.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to resend reset code"); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to resend reset code")); }
     finally { setLoading(false); }
   }
 
   async function submitOtp(event: React.FormEvent) {
     event.preventDefault();
-    if (!/^\d{6}$/.test(otp)) { setError("Enter the 6-digit code from your email"); return; }
+    if (!/^\d{6}$/.test(otp)) { setError(localizeText("Enter the 6-digit code from your email")); return; }
     setLoading(true); setError("");
     try { await verifyPasswordResetOtp(email, otp); setStep(2); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "The code is invalid or expired"); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("The code is invalid or expired")); }
     finally { setLoading(false); }
   }
 
   async function submitPassword(event: React.FormEvent) {
     event.preventDefault();
     const result = passwordSchema.safeParse(password);
-    if (!result.success) { setError(result.error.issues[0]?.message ?? "Choose a stronger password"); return; }
-    if (password !== passwordConfirmation) { setError("Passwords do not match"); return; }
+    if (!result.success) { setError(result.error.issues[0]?.message ?? localizeText("Choose a stronger password")); return; }
+    if (password !== passwordConfirmation) { setError(localizeText("Passwords do not match")); return; }
     setLoading(true); setError("");
     try { await resetPassword(email, otp, password); setStep(3); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to reset password"); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to reset password")); }
     finally { setLoading(false); }
   }
 
@@ -82,32 +85,32 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <div className={cn("auth-card-stack auth-card-stack-narrow")}>
-        <div className={cn("auth-heading")}><p className={cn("eyebrow")}>ACCOUNT RECOVERY</p><h2>{step === 1 ? "Check your email" : step === 2 ? "Choose a new password" : step === 3 ? "Password updated" : "Reset your password"}</h2><p>{step === 0 ? "We’ll send a one-time code to help you get back in." : step === 1 ? notice : step === 2 ? "Your code is confirmed. Create a new password for your account." : "Your password has been reset. You can now sign in securely."}</p></div>
+        <div className={cn("auth-heading")}><p className={cn("eyebrow")}><Translate text={"ACCOUNT RECOVERY"} /></p><h2><LocalizedValue value={step === 1 ? "Check your email" : step === 2 ? "Choose a new password" : step === 3 ? "Password updated" : "Reset your password"} /></h2><p><LocalizedValue value={step === 0 ? "We’ll send a one-time code to help you get back in." : step === 1 ? notice : step === 2 ? "Your code is confirmed. Create a new password for your account." : "Your password has been reset. You can now sign in securely."} /></p></div>
         <Card className={cn("login-card reset-card")}>
           <div className="auth-step-indicator" aria-label={`Recovery step ${Math.min(step + 1, 3)} of 3`}>{[0, 1, 2].map((index) => <i className={index <= step ? "active" : ""} key={index} />)}</div>
           {step === 0 && <form onSubmit={submitEmail}>
             <Input label="Email address" id="reset-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={loading} placeholder="you@company.com" />
-            <p className="auth-hint"><ShieldCheck size={14} /> We’ll only send a code if an account exists for this address.</p>
+            <p className="auth-hint"><ShieldCheck size={14} /> <Translate text={"We’ll only send a code if an account exists for this address."} /></p>
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
-            <Button type="submit" loading={loading} loadingLabel="Sending code…">Send reset code<ArrowRight size={16} /></Button>
+            <Button type="submit" loading={loading} loadingLabel="Sending code…"><Translate text={"Send reset code"} /><ArrowRight size={16} /></Button>
           </form>}
           {step === 1 && <form onSubmit={submitOtp}>
             <Input label="6-digit reset code" id="reset-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))} disabled={loading} placeholder="000000" />
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
-            <Button type="submit" loading={loading} loadingLabel="Confirming…"><MailCheck size={16} />Confirm code</Button>
-            <div className={cn("resend-row")} role="status" aria-live="polite"><span>{resendSeconds > 0 ? `Resend code in ${formattedTime}` : "Didn’t receive a code?"}</span><button type="button" className={cn("auth-text-button")} disabled={loading || resendSeconds > 0} onClick={() => void resendCode()}>{loading ? "Sending…" : "Resend code"}</button></div>
-            <button className={cn("auth-text-button reset-back")} type="button" onClick={() => { setStep(0); setError(""); }}>Use a different email</button>
+            <Button type="submit" loading={loading} loadingLabel="Confirming…"><MailCheck size={16} /><Translate text={"Confirm code"} /></Button>
+            <div className={cn("resend-row")} role="status" aria-live="polite"><span><LocalizedValue value={resendSeconds > 0 ? `Resend code in ${formattedTime}` : "Didn’t receive a code?"} /></span><button type="button" className={cn("auth-text-button")} disabled={loading || resendSeconds > 0} onClick={() => void resendCode()}><LocalizedValue value={loading ? "Sending…" : "Resend code"} /></button></div>
+            <button className={cn("auth-text-button reset-back")} type="button" onClick={() => { setStep(0); setError(""); }}><Translate text={"Use a different email"} /></button>
           </form>}
           {step === 2 && <form onSubmit={submitPassword}>
             <PasswordInput label="New password" id="new-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={loading} />
             <PasswordInput label="Confirm password" id="confirm-password" autoComplete="new-password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} disabled={loading} />
-            <p className={cn("password-hint")}>Use at least 8 characters.</p>
+            <p className={cn("password-hint")}><Translate text={"Use at least 8 characters."} /></p>
             {error && <p className={cn("form-error")} role="alert">{error}</p>}
-            <Button type="submit" loading={loading} loadingLabel="Updating password…"><KeyRound size={16} />Reset password</Button>
+            <Button type="submit" loading={loading} loadingLabel="Updating password…"><KeyRound size={16} /><Translate text={"Reset password"} /></Button>
           </form>}
-          {step === 3 && <Link className={cn("button button-primary reset-login")} href="/auth/login">Return to sign in</Link>}
+          {step === 3 && <Link className={cn("button button-primary reset-login")} href="/auth/login"><Translate text={"Return to sign in"} /></Link>}
         </Card>
-        <p className={cn("auth-bottom-link")}><Link href="/auth/login">Back to sign in</Link></p>
+        <p className={cn("auth-bottom-link")}><Link href="/auth/login"><Translate text={"Back to sign in"} /></Link></p>
       </div>
     </AuthLayout>
   );

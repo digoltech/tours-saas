@@ -1,4 +1,8 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { getFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/activity.css";
 
@@ -46,7 +50,7 @@ export function ActivityPage() {
         ])).values()).sort((a, b) => a.name.localeCompare(b.name)));
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load agency activity.");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to load agency activity."));
     } finally { setLoading(false); }
   }, [applied, hasFilters]);
 
@@ -55,7 +59,7 @@ export function ActivityPage() {
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (filters.from && filters.to && filters.from > filters.to) {
-      setError("The start date must be before the end date.");
+      setError(localizeText("The start date must be before the end date."));
       return;
     }
     setApplied({ ...filters, action: filters.action.trim(), entityType: filters.entityType.trim() });
@@ -70,25 +74,25 @@ export function ActivityPage() {
   return <>
     <PageHeader title="Agency activity" description="Review changes made across your agency." />
     <Card className="activity-filter-card">
-      <div className="activity-card-heading"><div><span className="activity-heading-icon"><SlidersHorizontal size={18} /></span><div><h2>Filter activity</h2><p>Narrow the timeline by date, team member, action or record.</p></div></div>{hasFilters && <button type="button" className="activity-clear" onClick={clear}><FilterX size={16} /> Clear filters</button>}</div>
+      <div className="activity-card-heading"><div><span className="activity-heading-icon"><SlidersHorizontal size={18} /></span><div><h2><Translate text={"Filter activity"} /></h2><p><Translate text={"Narrow the timeline by date, team member, action or record."} /></p></div></div>{hasFilters && <button type="button" className="activity-clear" onClick={clear}><FilterX size={16} /> <Translate text={"Clear filters"} /></button>}</div>
       <form onSubmit={apply}>
         <div className="activity-filter-grid">
-          <label>From date <span className="activity-input-wrap"><CalendarDays size={16} /><input type="date" value={filters.from} max={filters.to || undefined} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></span></label>
-          <label>To date <span className="activity-input-wrap"><CalendarDays size={16} /><input type="date" value={filters.to} min={filters.from || undefined} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></span></label>
-          <label>Team member <span className="activity-input-wrap"><UserRound size={16} /><select value={filters.actorId} onChange={(event) => setFilters((current) => ({ ...current, actorId: event.target.value }))}><option value="">Anyone</option>{actors.map((actor) => <option key={actor.id} value={actor.id}>{actor.name}</option>)}</select></span></label>
-          <label>Action <span className="activity-input-wrap"><Search size={16} /><input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="e.g. TRIP_CREATED" /></span></label>
-          <label>Record type <span className="activity-input-wrap"><Search size={16} /><input value={filters.entityType} onChange={(event) => setFilters((current) => ({ ...current, entityType: event.target.value }))} placeholder="Bus, Trip, Role…" /></span></label>
+          <label><Translate text={"From date"} />{" "}<span className="activity-input-wrap"><CalendarDays size={16} /><input type="date" value={filters.from} max={filters.to || undefined} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></span></label>
+          <label><Translate text={"To date"} />{" "}<span className="activity-input-wrap"><CalendarDays size={16} /><input type="date" value={filters.to} min={filters.from || undefined} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></span></label>
+          <label><Translate text={"Team member"} />{" "}<span className="activity-input-wrap"><UserRound size={16} /><select value={filters.actorId} onChange={(event) => setFilters((current) => ({ ...current, actorId: event.target.value }))}><option value=""><Translate text={"Anyone"} /></option>{actors.map((actor) => <option key={actor.id} value={actor.id}>{actor.name}</option>)}</select></span></label>
+          <label><Translate text={"Action"} />{" "}<span className="activity-input-wrap"><Search size={16} /><input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="e.g. TRIP_CREATED" /></span></label>
+          <label><Translate text={"Record type"} />{" "}<span className="activity-input-wrap"><Search size={16} /><input value={filters.entityType} onChange={(event) => setFilters((current) => ({ ...current, entityType: event.target.value }))} placeholder="Bus, Trip, Role…" /></span></label>
         </div>
-        <div className="activity-filter-actions"><Button type="submit" loading={loading} loadingLabel="Loading activity…"><Search size={16} /> Apply filters</Button><span>Showing the most recent matching activity</span></div>
+        <div className="activity-filter-actions"><Button type="submit" loading={loading} loadingLabel="Loading activity…"><Search size={16} /> <Translate text={"Apply filters"} /></Button><span><Translate text={"Showing the most recent matching activity"} /></span></div>
       </form>
     </Card>
     {error && <div className="state-message state-error" role="alert">{error}</div>}
     <Card className="activity-results">
-      <div className="activity-results-heading"><div><p className="eyebrow">EVENT HISTORY</p><h2>Activity timeline</h2></div><span>{loading ? "Loading" : `${rows.length} shown`}</span></div>
+      <div className="activity-results-heading"><div><p className="eyebrow"><Translate text={"EVENT HISTORY"} /></p><h2><Translate text={"Activity timeline"} /></h2></div><span><LocalizedValue value={loading ? "Loading" : `${rows.length} shown`} /></span></div>
       {loading ? <SkeletonList rows={5} /> : rows.length ? <div className="activity-timeline">{rows.map((row) => <article className="activity-event" key={row.id}>
         <span className="activity-event-icon"><Activity size={18} /></span>
-        <div className="activity-event-body"><div className="activity-event-title"><h3>{formatAction(row.action)}</h3><time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString()}</time></div><p><strong>{row.actor ? `${row.actor.firstName} ${row.actor.lastName}` : "System"}</strong> updated <span className="activity-entity">{row.entityType}</span>{row.entityId && <span className="activity-entity-id" title={row.entityId}> · {row.entityId}</span>}</p></div>
-      </article>)}</div> : <div className="activity-empty"><span className="activity-empty-icon"><Activity size={26} /></span><h3>{hasFilters ? "No matching activity" : "No activity yet"}</h3><p>{hasFilters ? "Try a wider date range or clear the filters to see more events." : "Changes to bookings, trips and your team will appear here."}</p>{hasFilters && <Button variant="secondary" onClick={clear}><FilterX size={16} /> Clear filters</Button>}</div>}
+        <div className="activity-event-body"><div className="activity-event-title"><h3>{formatAction(row.action)}</h3><time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString(getFormattingLocale())}</time></div><p><strong><LocalizedValue value={row.actor ? `${row.actor.firstName} ${row.actor.lastName}` : "System"} /></strong> <Translate text={"updated"} />{" "}<span className="activity-entity">{row.entityType}</span>{row.entityId && <span className="activity-entity-id" title={row.entityId}> · {row.entityId}</span>}</p></div>
+      </article>)}</div> : <div className="activity-empty"><span className="activity-empty-icon"><Activity size={26} /></span><h3><LocalizedValue value={hasFilters ? "No matching activity" : "No activity yet"} /></h3><p><LocalizedValue value={hasFilters ? "Try a wider date range or clear the filters to see more events." : "Changes to bookings, trips and your team will appear here."} /></p>{hasFilters && <Button variant="secondary" onClick={clear}><FilterX size={16} /> <Translate text={"Clear filters"} /></Button>}</div>}
     </Card>
   </>;
 }

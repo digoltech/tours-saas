@@ -1,4 +1,7 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/transport.css";
 
@@ -83,7 +86,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
       setPages(result.meta.totalPages);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to load records",
+        cause instanceof Error ? cause.message : localizeText("Unable to load records"),
       );
     } finally {
       setLoading(false);
@@ -122,8 +125,8 @@ export function TransportPage({ resource }: { resource: Resource }) {
         : [[form.name, "Route name"], [form.code, "Route code"], [form.source, "Source"], [form.destination, "Destination"]];
     const missing = requiredFields.find(([value]) => !value?.trim());
     if (missing) { setError(`${missing[1]} is required.`); return; }
-    if (resource === "buses" && Number(form.totalSeats) < 1) { setError("Seat count must be at least 1."); return; }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address."); return; }
+    if (resource === "buses" && Number(form.totalSeats) < 1) { setError(localizeText("Seat count must be at least 1.")); return; }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError(localizeText("Enter a valid email address.")); return; }
     setSaving(true);
     setError("");
     try {
@@ -148,7 +151,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
       await load();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to save record",
+        cause instanceof Error ? cause.message : localizeText("Unable to save record"),
       );
     } finally {
       setSaving(false);
@@ -177,7 +180,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
       await load();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to update record",
+        cause instanceof Error ? cause.message : localizeText("Unable to update record"),
       );
     }
   }
@@ -197,50 +200,44 @@ export function TransportPage({ resource }: { resource: Resource }) {
       />
       {open && resource !== "buses" && (
         <Card className={cn("management-form")}>
-          <div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{editing ? "Update record" : "New record"}</p><h2>{editing ? "Edit" : "Add"} {resource.slice(0, -1)}</h2></div></div>
+          <div className={cn("card-heading")}><div><p className={cn("eyebrow")}><LocalizedValue value={editing ? "Update record" : "New record"} /></p><h2><LocalizedValue value={editing ? "Edit" : "Add"} /> {resource.slice(0, -1)}</h2></div></div>
           <div className={cn("form-grid")}>
-            {user?.role === "SUPER_ADMIN" && <label>Agency<select value={selectedAgencyId} onChange={(e) => { setSelectedAgencyId(e.target.value); update("branchId", ""); }}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
+            {user?.role === "SUPER_ADMIN" && <label><Translate text={"Agency"} /><select value={selectedAgencyId} onChange={(e) => { setSelectedAgencyId(e.target.value); update("branchId", ""); }}><option value=""><Translate text={"Select agency"} /></option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
             {resource === "drivers" && (
               <>
                 <label>
-                  First name
-                  <input
+                  <Translate text={"First name"} /><input
                     value={form.firstName ?? ""}
                     onChange={(e) => update("firstName", e.target.value)}
                   />
                 </label>
                 <label>
-                  Last name
-                  <input
+                  <Translate text={"Last name"} /><input
                     value={form.lastName ?? ""}
                     onChange={(e) => update("lastName", e.target.value)}
                   />
                 </label>
                 <label>
-                  Phone
-                  <input
+                  <Translate text={"Phone"} /><input
                     value={form.phone ?? ""}
                     onChange={(e) => update("phone", e.target.value)}
                   />
                 </label>
                 <label>
-                  Email
-                  <input
+                  <Translate text={"Email"} /><input
                     type="email"
                     value={form.email ?? ""}
                     onChange={(e) => update("email", e.target.value)}
                   />
                 </label>
                 <label>
-                  License number
-                  <input
+                  <Translate text={"License number"} /><input
                     value={form.licenseNumber ?? ""}
                     onChange={(e) => update("licenseNumber", e.target.value)}
                   />
                 </label>
                 <label>
-                  License expiry
-                  <input
+                  <Translate text={"License expiry"} /><input
                     type="date"
                     value={form.licenseExpiryDate ?? ""}
                     onChange={(e) =>
@@ -256,36 +253,31 @@ export function TransportPage({ resource }: { resource: Resource }) {
             {resource === "routes" && (
               <>
                 <label>
-                  Route name
-                  <input
+                  <Translate text={"Route name"} /><input
                     value={form.name ?? ""}
                     onChange={(e) => update("name", e.target.value)}
                   />
                 </label>
                 <label>
-                  Code
-                  <input
+                  <Translate text={"Code"} /><input
                     value={form.code ?? ""}
                     onChange={(e) => update("code", e.target.value)}
                   />
                 </label>
                 <label>
-                  Source
-                  <input
+                  <Translate text={"Source"} /><input
                     value={form.source ?? ""}
                     onChange={(e) => update("source", e.target.value)}
                   />
                 </label>
                 <label>
-                  Destination
-                  <input
+                  <Translate text={"Destination"} /><input
                     value={form.destination ?? ""}
                     onChange={(e) => update("destination", e.target.value)}
                   />
                 </label>
                 <label>
-                  Description
-                  <input
+                  <Translate text={"Description"} /><input
                     value={form.description ?? ""}
                     onChange={(e) => update("description", e.target.value)}
                   />
@@ -294,12 +286,11 @@ export function TransportPage({ resource }: { resource: Resource }) {
             )}
             {resource !== "routes" && (
               <label>
-                Branch
-                <select
+                <Translate text={"Branch"} /><select
                   value={form.branchId ?? ""}
                   onChange={(e) => update("branchId", e.target.value)}
                 >
-                  <option value="">Select branch</option>
+                  <option value=""><Translate text={"Select branch"} /></option>
                   {branches.filter((branch) => user?.role !== "SUPER_ADMIN" || branch.agencyId === selectedAgencyId).map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
@@ -308,14 +299,14 @@ export function TransportPage({ resource }: { resource: Resource }) {
                 </select>
               </label>
             )}
-            {editing && <label>Status<select value={form.status ?? "ACTIVE"} onChange={(e) => update("status", e.target.value)}><option>ACTIVE</option><option>INACTIVE</option></select></label>}
+            {editing && <label><Translate text={"Status"} /><select value={form.status ?? "ACTIVE"} onChange={(e) => update("status", e.target.value)}><option><Translate text={"ACTIVE"} /></option><option><Translate text={"INACTIVE"} /></option></select></label>}
           </div>
           <div className="transport-style-311">
             <Button onClick={() => void save()} disabled={saving}>
               <Save size={15} />
-              {saving ? "Saving..." : editing ? "Save changes" : "Save record"}
+              <LocalizedValue value={saving ? "Saving..." : editing ? "Save changes" : "Save record"} />
             </Button>
-            <Button variant="secondary" onClick={() => { setOpen(false); setEditing(null); }}><X size={15} /> Cancel</Button>
+            <Button variant="secondary" onClick={() => { setOpen(false); setEditing(null); }}><X size={15} /> <Translate text={"Cancel"} /></Button>
           </div>
         </Card>
       )}
@@ -324,7 +315,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
           <strong>{error}</strong>
         </div>
       )}
-      {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{resource.slice(0, -1)} details</p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><div className="transport-style-325"><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> Edit</Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> Close</Button></div></Card>}
+      {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{resource.slice(0, -1)} <Translate text={"details"} /></p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><div className="transport-style-325"><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> <Translate text={"Edit"} /></Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> <Translate text={"Close"} /></Button></div></Card>}
       <Card className={cn("management-card")}>
         <div className={cn("management-toolbar")}>
           <label className={cn("search-field")}>
@@ -345,22 +336,22 @@ export function TransportPage({ resource }: { resource: Resource }) {
               setPage(1);
             }}
           >
-            <option value="">All statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
+            <option value=""><Translate text={"All statuses"} /></option>
+            <option value="ACTIVE"><Translate text={"Active"} /></option>
+            <option value="INACTIVE"><Translate text={"Inactive"} /></option>
           </select>
           {canCreate && (resource === "buses" ? (
-            <Link href="/dashboard/buses/new" className={cn("button button-primary")}><Plus size={16} /> Add bus</Link>
+            <Link href="/dashboard/buses/new" className={cn("button button-primary")}><Plus size={16} /> <Translate text={"Add bus"} /></Link>
           ) : (
-            <Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> Add {resource.slice(0, -1)}</Button>
+            <Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> <Translate text={"Add"} />{" "}{resource.slice(0, -1)}</Button>
           ))}
         </div>
         {loading ? (
-          <div className={cn("state-message")}>Loading records...</div>
+          <div className={cn("state-message")}><Translate text={"Loading records..."} /></div>
         ) : rows.length === 0 ? (
           <div className={cn("state-message")}>
-            <strong>No {resource} found</strong>
-            <span>Adjust your filters or add a record.</span>
+            <strong><Translate text={"No"} />{" "}{resource} <Translate text={"found"} /></strong>
+            <span><Translate text={"Adjust your filters or add a record."} /></span>
           </div>
         ) : (
           <div className={cn("table-wrapper")}>
@@ -369,30 +360,30 @@ export function TransportPage({ resource }: { resource: Resource }) {
                 <tr>
                   {resource === "buses" ? (
                     <>
-                      <th>Bus</th>
-                      <th>Registration</th>
-                      <th>Type</th>
-                      <th>Seats</th>
-                      <th>Branch</th>
+                      <th><Translate text={"Bus"} /></th>
+                      <th><Translate text={"Registration"} /></th>
+                      <th><Translate text={"Type"} /></th>
+                      <th><Translate text={"Seats"} /></th>
+                      <th><Translate text={"Branch"} /></th>
                     </>
                   ) : resource === "drivers" ? (
                     <>
-                      <th>Name</th>
-                      <th>Phone</th>
-                      <th>License</th>
-                      <th>Branch</th>
+                      <th><Translate text={"Name"} /></th>
+                      <th><Translate text={"Phone"} /></th>
+                      <th><Translate text={"License"} /></th>
+                      <th><Translate text={"Branch"} /></th>
                     </>
                   ) : (
                     <>
-                      <th>Route</th>
-                      <th>Code</th>
-                      <th>From</th>
-                      <th>To</th>
-                      <th>Stops</th>
+                      <th><Translate text={"Route"} /></th>
+                      <th><Translate text={"Code"} /></th>
+                      <th><Translate text={"From"} /></th>
+                      <th><Translate text={"To"} /></th>
+                      <th><Translate text={"Stops"} /></th>
                     </>
                   )}
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th><Translate text={"Status"} /></th>
+                  <th><Translate text={"Actions"} /></th>
                 </tr>
               </thead>
               <tbody>
@@ -431,14 +422,14 @@ export function TransportPage({ resource }: { resource: Resource }) {
                       {resource === "buses" ? (
                         <div className="transport-style-430">
                           {can("update") && <>
-                            <Link className={cn("button button-secondary")} href={`/dashboard/buses/${row.id}/edit`} aria-label={`Edit bus ${(row as Bus).busNumber}`}><Pencil size={15} /> Edit</Link>
-                            <Link className={cn("button button-ghost")} href={`/dashboard/buses/${row.id}/edit?step=layout`} aria-label={`Edit seat layout for ${(row as Bus).busNumber}`}><Armchair size={15} /> Seat layout</Link>
+                            <Link className={cn("button button-secondary")} href={`/dashboard/buses/${row.id}/edit`} aria-label={`Edit bus ${(row as Bus).busNumber}`}><Pencil size={15} /> <Translate text={"Edit"} /></Link>
+                            <Link className={cn("button button-ghost")} href={`/dashboard/buses/${row.id}/edit?step=layout`} aria-label={`Edit seat layout for ${(row as Bus).busNumber}`}><Armchair size={15} /> <Translate text={"Seat layout"} /></Link>
                           </>}
-                          <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> Deactivate</button>
+                          <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> <Translate text={"Deactivate"} /></button>
                         </div>
                       ) : <div className="transport-style-437">
-                        <button className={cn("button button-ghost")} onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /><span className="transport-style-438">Edit</span></button>
-                        <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> Deactivate</button>
+                        <button className={cn("button button-ghost")} onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /><span className="transport-style-438"><Translate text={"Edit"} /></span></button>
+                        <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> <Translate text={"Deactivate"} /></button>
                       </div>}
                     </td>
                   </tr>
@@ -449,7 +440,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
         )}
         <div className={cn("management-toolbar")}>
           <span>
-            Page {page} of {pages}
+            <Translate text={"Page"} />{" "}{page} <Translate text={"of"} />{" "}{pages}
           </span>
           <div className="transport-style-452">
             <Button
@@ -457,14 +448,13 @@ export function TransportPage({ resource }: { resource: Resource }) {
               disabled={page <= 1}
               onClick={() => setPage((value) => value - 1)}
             >
-              <ChevronLeft size={15} /> Previous
-            </Button>
+              <ChevronLeft size={15} /> <Translate text={"Previous"} /></Button>
             <Button
               variant="secondary"
               disabled={page >= pages}
               onClick={() => setPage((value) => value + 1)}
             >
-              Next <ChevronRight size={15} />
+              <Translate text={"Next"} />{" "}<ChevronRight size={15} />
             </Button>
           </div>
         </div>

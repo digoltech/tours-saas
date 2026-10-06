@@ -1,4 +1,7 @@
 "use client";
+import { useFormattingLocale } from "../../i18n/format-client";
+import { useTranslations } from "../../i18n/LocaleProvider";
+import { Translate } from "../../i18n/Translate";
 
 import { cn } from "../../lib/utils";
 import Link from "next/link";
@@ -24,6 +27,8 @@ export function WorkspaceDashboard({
   tripsError?: string;
 }) {
   const { user } = useAuth();
+  const formattingLocale = useFormattingLocale();
+  const t = useTranslations();
 
   const isAgencyAdmin = user?.role === "AGENCY_ADMIN";
   const title = isAgencyAdmin ? "Agency dashboard" : "Branch dashboard";
@@ -36,16 +41,16 @@ export function WorkspaceDashboard({
   ];
   const metrics: { label: string; value: string | number | undefined; detail: string; icon: LucideIcon }[] = [
     { label: "Bookings today", value: summary?.todayBookings, detail: "Confirmed bookings", icon: Armchair },
-    { label: "Sales today", value: summary?.todaySales == null ? undefined : `₹${summary.todaySales.toLocaleString("en-IN")}`, detail: "Confirmed booking value", icon: CircleDollarSign },
+    { label: "Sales today", value: summary?.todaySales == null ? undefined : `₹${summary.todaySales.toLocaleString(formattingLocale)}`, detail: "Confirmed booking value", icon: CircleDollarSign },
     { label: "Upcoming trips", value: summary?.upcomingTrips, detail: "Scheduled departures", icon: CalendarDays },
   ];
 
   return <>
     <PageHeader title={title} description={`A live overview of ${isAgencyAdmin ? "your agency" : "your branch"} operations.`} />
     {summaryError ? <div className={cn("state-message state-error")} role="alert"><strong>{summaryError}</strong></div> : <div className={cn("metric-grid metric-grid-three")}>
-      {metrics.map(({ label, value, detail, icon: Icon }) => <Card className={cn("metric-card")} key={label}><Icon size={18} /><p>{label}</p><strong>{value ?? "…"}</strong><span>{detail}</span></Card>)}
+      {metrics.map(({ label, value, detail, icon: Icon }) => <Card className={cn("metric-card")} key={label}><Icon size={18} /><p>{t(label)}</p><strong>{typeof value === "number" ? value.toLocaleString(formattingLocale) : (value ?? "…")}</strong><span>{t(detail)}</span></Card>)}
     </div>}
     <UpcomingTrips initialTrips={trips} initialError={tripsError} />
-    <Card className={cn("workspace-shortcuts")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>OPERATIONS</p><h2>Manage your operations</h2></div></div><div className={cn("workspace-shortcut-list")}>{shortcuts.map(([label, href, Icon]) => <Link className={cn("setup-row")} href={href} key={href}><Icon size={18} /><strong>{label}</strong><ArrowRight size={17} /></Link>)}</div></Card>
+    <Card className={cn("workspace-shortcuts")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}><Translate text={"OPERATIONS"} /></p><h2><Translate text={"Manage your operations"} /></h2></div></div><div className={cn("workspace-shortcut-list")}>{shortcuts.map(([label, href, Icon]) => <Link className={cn("setup-row")} href={href} key={href}><Icon size={18} /><strong>{t(label)}</strong><ArrowRight size={17} /></Link>)}</div></Card>
   </>;
 }

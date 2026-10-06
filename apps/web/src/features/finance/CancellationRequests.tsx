@@ -1,4 +1,7 @@
 "use client";
+import { localizeText } from "../../i18n/errors";
+import { getFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/finance.css";
 
@@ -25,7 +28,7 @@ export function CancellationRequests() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to load cancellation requests",
+          : localizeText("Unable to load cancellation requests"),
       );
     }
   }
@@ -41,7 +44,7 @@ export function CancellationRequests() {
       await refresh();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to review request",
+        cause instanceof Error ? cause.message : localizeText("Unable to review request"),
       );
     } finally {
       setBusy("");
@@ -51,13 +54,13 @@ export function CancellationRequests() {
     <section className="cancellation-requests-style-49">
       <div className="card-heading">
         <div>
-          <p className="eyebrow">CUSTOMER REQUESTS</p>
-          <h2>Cancellation review</h2>
+          <p className="eyebrow"><Translate text={"CUSTOMER REQUESTS"} /></p>
+          <h2><Translate text={"Cancellation review"} /></h2>
         </div>
       </div>
       {error && <p role="alert">{error}</p>}
       {rows.length === 0 ? (
-        <Card>No pending cancellation requests.</Card>
+        <Card><Translate text={"No pending cancellation requests."} /></Card>
       ) : (
         <div className="cancellation-requests-style-60">
           {rows.map((row) => (
@@ -67,8 +70,8 @@ export function CancellationRequests() {
                   <strong>{row.booking.pnr}</strong>
                   <p>{row.reason || "No reason provided"}</p>
                   <span className="muted">
-                    Requested {new Date(row.createdAt).toLocaleString()} ·{" "}
-                    {row.booking.trip.route.source} to{" "}
+                    <Translate text={"Requested"} />{" "}{new Date(row.createdAt).toLocaleString(getFormattingLocale())} ·{" "}
+                    {row.booking.trip.route.source} <Translate text={"to"} />{" "}
                     {row.booking.trip.route.destination}
                   </span>
                 </div>
@@ -77,15 +80,13 @@ export function CancellationRequests() {
                     disabled={busy === row.id}
                     onClick={() => void review(row.id, true)}
                   >
-                    <Check size={15} /> Approve
-                  </Button>
+                    <Check size={15} /> <Translate text={"Approve"} /></Button>
                   <Button
                     variant="secondary"
                     disabled={busy === row.id}
                     onClick={() => void review(row.id, false)}
                   >
-                    <X size={15} /> Reject
-                  </Button>
+                    <X size={15} /> <Translate text={"Reject"} /></Button>
                 </div>
               </div>
             </Card>

@@ -1,4 +1,9 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { formatDecimal, getFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
+import { useTranslations } from "../../i18n/LocaleProvider";
 
 import "../../styles/booking.css";
 
@@ -15,6 +20,7 @@ import {
 } from "../auth/services/api-client";
 
 export function BookingHistory({ compact = false }: { compact?: boolean }) {
+  const t = useTranslations();
   const [pnr, setPnr] = useState("");
   const [tripCode, setTripCode] = useState("");
   const [date, setDate] = useState("");
@@ -40,7 +46,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
       setPages(result.meta.totalPages);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to load bookings",
+        cause instanceof Error ? cause.message : localizeText("Unable to load bookings"),
       );
     } finally {
       setLoading(false);
@@ -63,28 +69,26 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
     const reason = input;
     try {
       await requestBookingCancellation(row.id, reason);
-      setNotice(`Cancellation request for ${row.pnr} sent for agency review.`);
+      setNotice(`${t("Cancellation request for")} ${row.pnr} ${t("sent for agency review.")}`);
       await load();
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to request cancellation",
+          : localizeText("Unable to request cancellation"),
       );
     }
   }
 
   return (
     <section
-      aria-labelledby={
-        compact ? "recent-bookings-title" : "booking-history-title"
-      }
+      aria-labelledby={compact ? "recent-bookings-title" : "booking-history-title"}
     >
       <div className={cn("card-heading")}>
         <div>
-          <p className={cn("eyebrow")}>Operations</p>
+          <p className={cn("eyebrow")}><Translate text={"Operations"} /></p>
           <h2 id={compact ? "recent-bookings-title" : "booking-history-title"}>
-            {compact ? "Recent bookings" : "Booking history"}
+            <LocalizedValue value={compact ? "Recent bookings" : "Booking history"} />
           </h2>
         </div>
       </div>
@@ -92,8 +96,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
         <Card className={cn("management-form")}>
           <div className={cn("form-grid")}>
             <label>
-              PNR
-              <input
+              <Translate text={"PNR"} /><input
                 value={pnr}
                 onChange={(event) => {
                   setPnr(event.target.value);
@@ -103,8 +106,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
               />
             </label>
             <label>
-              Trip code
-              <input
+              <Translate text={"Trip code"} /><input
                 value={tripCode}
                 onChange={(event) => {
                   setTripCode(event.target.value);
@@ -114,8 +116,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
               />
             </label>
             <label>
-              Travel date
-              <input
+              <Translate text={"Travel date"} /><input
                 type="date"
                 value={date}
                 onChange={(event) => {
@@ -130,8 +131,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
             onClick={() => void load()}
             disabled={loading}
           >
-            <Search size={16} /> Apply filters
-          </Button>
+            <Search size={16} /> <Translate text={"Apply filters"} /></Button>
         </Card>
       )}
       {error && (
@@ -141,35 +141,34 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
       )}
       {notice && (
         <div className={cn("state-message")} role="status">
-          {notice}
+          <LocalizedValue value={notice} />
         </div>
       )}
       <Card className={cn("management-card")}>
         {loading ? (
           <div className={cn("state-message")} role="status">
-            Loading bookings…
-          </div>
+            <Translate text={"Loading bookings…"} /></div>
         ) : rows.length === 0 ? (
           <div className={cn("state-message")}>
-            <strong>No bookings found</strong>
-            <span>Bookings you create will appear here.</span>
+            <strong><Translate text={"No bookings found"} /></strong>
+            <span><Translate text={"Bookings you create will appear here."} /></span>
           </div>
         ) : (
           <div className={cn("table-wrapper")}>
             <table>
               <caption className={cn("visually-hidden")}>
-                {compact ? "Recent bookings" : "Booking history"}
+                <LocalizedValue value={compact ? "Recent bookings" : "Booking history"} />
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">PNR</th>
-                  <th scope="col">Trip</th>
-                  <th scope="col">Route</th>
-                  <th scope="col">Travel date</th>
-                  <th scope="col">Passengers</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Ticket</th>
+                  <th scope="col"><Translate text={"PNR"} /></th>
+                  <th scope="col"><Translate text={"Trip"} /></th>
+                  <th scope="col"><Translate text={"Route"} /></th>
+                  <th scope="col"><Translate text={"Travel date"} /></th>
+                  <th scope="col"><Translate text={"Passengers"} /></th>
+                  <th scope="col"><Translate text={"Total"} /></th>
+                  <th scope="col"><Translate text={"Status"} /></th>
+                  <th scope="col"><Translate text={"Ticket"} /></th>
                 </tr>
               </thead>
               <tbody>
@@ -183,11 +182,11 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                       {row.trip.route.source} → {row.trip.route.destination}
                     </td>
                     <td>
-                      {new Date(row.trip.travelDate).toLocaleDateString()}
+                      {new Date(row.trip.travelDate).toLocaleDateString(getFormattingLocale())}
                     </td>
                     <td>{row.passengers.length}</td>
                     <td>
-                      {row.currency} {Number(row.totalAmount).toFixed(2)}
+                      {row.currency} {formatDecimal(Number(row.totalAmount))}
                     </td>
                     <td>
                       <Badge>{row.status}</Badge>
@@ -199,7 +198,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                         aria-label={`Open ticket for PNR ${row.pnr}`}
                         onClick={() => void openTicket(row)}
                       >
-                        View <ArrowRight size={14} />
+                        <Translate text={"View"} />{" "}<ArrowRight size={14} />
                       </button>
                       {!compact && row.status === "CONFIRMED" && (
                         <button
@@ -210,9 +209,9 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                           }
                           onClick={() => void requestCancellation(row)}
                         >
-                          {row.cancellationRequest?.status === "PENDING"
+                          <LocalizedValue value={row.cancellationRequest?.status === "PENDING"
                             ? "Cancellation pending"
-                            : "Request cancellation"}
+                            : "Request cancellation"} />
                         </button>
                       )}
                     </td>
@@ -225,7 +224,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
         {!compact && rows.length > 0 && (
           <div className={cn("management-toolbar")}>
             <span>
-              Page {page} of {pages}
+              <Translate text={"Page"} />{" "}{page} <Translate text={"of"} />{" "}{pages}
             </span>
             <div className="booking-history-style-228">
               <Button
@@ -233,14 +232,13 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                 disabled={page <= 1 || loading}
                 onClick={() => setPage((current) => current - 1)}
               >
-                <ChevronLeft size={15} /> Previous
-              </Button>
+                <ChevronLeft size={15} /> <Translate text={"Previous"} /></Button>
               <Button
                 variant="secondary"
                 disabled={page >= pages || loading}
                 onClick={() => setPage((current) => current + 1)}
               >
-                Next <ChevronRight size={15} />
+                <Translate text={"Next"} />{" "}<ChevronRight size={15} />
               </Button>
             </div>
           </div>

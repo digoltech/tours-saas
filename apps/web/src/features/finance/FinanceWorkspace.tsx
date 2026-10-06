@@ -1,4 +1,8 @@
 "use client";
+import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { localizeText } from "../../i18n/errors";
+import { getFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/finance.css";
 
@@ -85,7 +89,7 @@ const methods: FinanceMethodValue[] = [
   "OTHER",
 ];
 const money = (value: number | string) =>
-  `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `₹${Number(value).toLocaleString(getFormattingLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const localDate = (date: Date) => {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
@@ -146,7 +150,7 @@ export function FinanceWorkspace() {
       setLedger(entries);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to load finance data",
+        cause instanceof Error ? cause.message : localizeText("Unable to load finance data"),
       );
     } finally {
       setLoading(false);
@@ -263,7 +267,7 @@ export function FinanceWorkspace() {
       if (booking) setBooking(await getBookingFinanceByPnr(booking.pnr));
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Finance action failed",
+        cause instanceof Error ? cause.message : localizeText("Finance action failed"),
       );
     } finally {
       setBusy(false);
@@ -272,7 +276,7 @@ export function FinanceWorkspace() {
 
   async function findBooking() {
     if (!pnr.trim()) {
-      setError("Enter a booking PNR first.");
+      setError(localizeText("Enter a booking PNR first."));
       return;
     }
     setError("");
@@ -282,7 +286,7 @@ export function FinanceWorkspace() {
       setFormAmount("");
     } catch (cause) {
       setBooking(null);
-      setError(cause instanceof Error ? cause.message : "Booking not found");
+      setError(cause instanceof Error ? cause.message : localizeText("Booking not found"));
     }
   }
 
@@ -293,7 +297,7 @@ export function FinanceWorkspace() {
       (tier) => tier.hoursBeforeDeparture !== "" || tier.feePercent !== "",
     );
     if (!Number.isFinite(gst) || gst < 0 || gst > 100) {
-      setError("GST must be between 0% and 100%.");
+      setError(localizeText("GST must be between 0% and 100%."));
       return;
     }
     if (
@@ -302,7 +306,7 @@ export function FinanceWorkspace() {
       (settings.commissionType === "PERCENTAGE" && commission > 100)
     ) {
       setError(
-        "Commission must be zero or greater, and a percentage cannot exceed 100%.",
+        localizeText("Commission must be zero or greater, and a percentage cannot exceed 100%."),
       );
       return;
     }
@@ -317,7 +321,7 @@ export function FinanceWorkspace() {
       )
     ) {
       setError(
-        "Complete each cancellation tier and use a fee between 0% and 100%.",
+        localizeText("Complete each cancellation tier and use a fee between 0% and 100%."),
       );
       return;
     }
@@ -393,8 +397,8 @@ export function FinanceWorkspace() {
       <div className={cn("finance-toolbar-card")}>
         <div className={cn("finance-filter-heading")}>
           <div>
-            <span className={cn("finance-overline")}>REPORT PERIOD</span>
-            <strong>Filter your overview</strong>
+            <span className={cn("finance-overline")}><Translate text={"REPORT PERIOD"} /></span>
+            <strong><Translate text={"Filter your overview"} /></strong>
           </div>
           <div className={cn("finance-presets")} aria-label="Date presets">
             <button
@@ -404,8 +408,7 @@ export function FinanceWorkspace() {
                 setTo("");
               }}
             >
-              All time
-            </button>
+              <Translate text={"All time"} /></button>
             <button type="button" onClick={() => setDateRange(7)}>
               7 days
             </button>
@@ -425,13 +428,11 @@ export function FinanceWorkspace() {
               size={15}
               className={cn(loading ? "finance-spin" : "")}
             />{" "}
-            Refresh
-          </Button>
+            <Translate text={"Refresh"} /></Button>
         </div>
         <div className={cn("finance-filters")}>
           <label>
-            Date from
-            <input
+            <Translate text={"Date from"} /><input
               type="date"
               value={from}
               max={to || undefined}
@@ -439,8 +440,7 @@ export function FinanceWorkspace() {
             />
           </label>
           <label>
-            Date to
-            <input
+            <Translate text={"Date to"} /><input
               type="date"
               value={to}
               min={from || undefined}
@@ -449,8 +449,7 @@ export function FinanceWorkspace() {
           </label>
           {user?.role === "SUPER_ADMIN" && (
             <label>
-              Agency
-              <select
+              <Translate text={"Agency"} /><select
                 value={agencyId}
                 onChange={(event) => {
                   setAgencyId(event.target.value);
@@ -459,7 +458,7 @@ export function FinanceWorkspace() {
                   setTripId("");
                 }}
               >
-                <option value="">All agencies</option>
+                <option value=""><Translate text={"All agencies"} /></option>
                 {agencies.map((agency) => (
                   <option key={agency.id} value={agency.id}>
                     {agency.name}
@@ -469,12 +468,11 @@ export function FinanceWorkspace() {
             </label>
           )}
           <label>
-            Branch
-            <select
+            <Translate text={"Branch"} /><select
               value={branchId}
               onChange={(event) => setBranchId(event.target.value)}
             >
-              <option value="">All branches</option>
+              <option value=""><Translate text={"All branches"} /></option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
@@ -483,12 +481,11 @@ export function FinanceWorkspace() {
             </select>
           </label>
           <label>
-            Agent
-            <select
+            <Translate text={"Agent"} /><select
               value={agentId}
               onChange={(event) => setAgentId(event.target.value)}
             >
-              <option value="">All agents</option>
+              <option value=""><Translate text={"All agents"} /></option>
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
                   {agent.firstName} {agent.lastName}
@@ -497,16 +494,15 @@ export function FinanceWorkspace() {
             </select>
           </label>
           <label>
-            Trip
-            <select
+            <Translate text={"Trip"} /><select
               value={tripId}
               onChange={(event) => setTripId(event.target.value)}
             >
-              <option value="">All trips</option>
+              <option value=""><Translate text={"All trips"} /></option>
               {trips.map((trip) => (
                 <option key={trip.id} value={trip.id}>
                   {trip.route.name} ·{" "}
-                  {new Date(trip.travelDate).toLocaleDateString()}
+                  {new Date(trip.travelDate).toLocaleDateString(getFormattingLocale())}
                 </option>
               ))}
             </select>
@@ -516,20 +512,17 @@ export function FinanceWorkspace() {
             type="button"
             onClick={clearFilters}
           >
-            <FilterX size={15} /> Clear filters
-          </button>
+            <FilterX size={15} /> <Translate text={"Clear filters"} /></button>
           <a
             className={cn("button button-secondary finance-export-button")}
             href={financeExportUrl("excel", from, to, filters)}
           >
-            <FileSpreadsheet size={15} /> Export Excel
-          </a>
+            <FileSpreadsheet size={15} /> <Translate text={"Export Excel"} /></a>
           <a
             className={cn("button button-secondary finance-export-button")}
             href={financeExportUrl("pdf", from, to, filters)}
           >
-            <Download size={15} /> Export PDF
-          </a>
+            <Download size={15} /> <Translate text={"Export PDF"} /></a>
         </div>
       </div>
 
@@ -540,7 +533,7 @@ export function FinanceWorkspace() {
       )}
       {message && (
         <div className={cn("state-message finance-success")} role="status">
-          {message}
+          <LocalizedValue value={message} />
         </div>
       )}
 
@@ -560,20 +553,20 @@ export function FinanceWorkspace() {
       </div>
 
       <nav className={cn("finance-section-nav")} aria-label="Finance sections">
-        <a href="#finance-overview">Overview</a>
-        <a href="#finance-bookings">Bookings</a>
-        <a href="#finance-actions">Payments &amp; settlements</a>
-        {canSettings && <a href="#finance-policy">Policy</a>}
-        <a href="#finance-ledger">Ledger</a>
+        <a href="#finance-overview"><Translate text={"Overview"} /></a>
+        <a href="#finance-bookings"><Translate text={"Bookings"} /></a>
+        <a href="#finance-actions"><Translate text={"Payments &amp; settlements"} /></a>
+        {canSettings && <a href="#finance-policy"><Translate text={"Policy"} /></a>}
+        <a href="#finance-ledger"><Translate text={"Ledger"} /></a>
       </nav>
 
       <div className={cn("finance-chart-grid")} id="finance-overview">
         <Card className={cn("finance-panel finance-revenue-panel")}>
           <div className={cn("finance-panel-heading")}>
             <div>
-              <span className={cn("finance-overline")}>PERFORMANCE</span>
-              <h2>Booking value trend</h2>
-              <p>Daily confirmed booking value for the selected filters.</p>
+              <span className={cn("finance-overline")}><Translate text={"PERFORMANCE"} /></span>
+              <h2><Translate text={"Booking value trend"} /></h2>
+              <p><Translate text={"Daily confirmed booking value for the selected filters."} /></p>
             </div>
             <span className={cn("finance-panel-mark")}>
               <Activity size={17} />
@@ -640,8 +633,7 @@ export function FinanceWorkspace() {
                           >
                             <title>
                               {day}: {money(value.value)} · {value.count}{" "}
-                              bookings
-                            </title>
+                              <Translate text={"bookings"} /></title>
                           </circle>
                         );
                       })}
@@ -670,35 +662,32 @@ export function FinanceWorkspace() {
             </div>
           ) : (
             <div className={cn("finance-chart-empty")}>
-              {loading
+              <LocalizedValue value={loading
                 ? "Loading report data…"
-                : "No bookings match these filters yet."}
+                : "No bookings match these filters yet."} />
             </div>
           )}
           <div className={cn("finance-chart-footnote")}>
             <span>
-              <i className={cn("finance-legend-dot")} /> Booking value
-            </span>
+              <i className={cn("finance-legend-dot")} /> <Translate text={"Booking value"} /></span>
             <span>
-              {dailySales.reduce((sum, [, day]) => sum + day.count, 0)} bookings
-              in trend
-            </span>
+              {dailySales.reduce((sum, [, day]) => sum + day.count, 0)} <Translate text={"bookings in trend"} /></span>
           </div>
         </Card>
 
         <Card className={cn("finance-panel finance-mix-panel")}>
           <div className={cn("finance-panel-heading")}>
             <div>
-              <span className={cn("finance-overline")}>CASH FLOW</span>
-              <h2>Financial mix</h2>
-              <p>Collections and deductions at a glance.</p>
+              <span className={cn("finance-overline")}><Translate text={"CASH FLOW"} /></span>
+              <h2><Translate text={"Financial mix"} /></h2>
+              <p><Translate text={"Collections and deductions at a glance."} /></p>
             </div>
             <span className={cn("finance-panel-mark")}>
               <Wallet size={17} />
             </span>
           </div>
           <div className={cn("finance-mix-total")}>
-            <span>Net collections</span>
+            <span><Translate text={"Net collections"} /></span>
             <strong>
               {money(
                 Number(reports?.totals.revenue ?? 0) -
@@ -750,10 +739,9 @@ export function FinanceWorkspace() {
               <span>{Math.round(cancelledPercent)}%</span>
             </div>
             <div>
-              <strong>Cancellation rate</strong>
+              <strong><Translate text={"Cancellation rate"} /></strong>
               <span>
-                {cancelledCount} cancelled of {bookingCount} bookings
-              </span>
+                {cancelledCount} <Translate text={"cancelled of"} />{" "}{bookingCount} <Translate text={"bookings"} /></span>
             </div>
           </div>
         </Card>
@@ -765,25 +753,24 @@ export function FinanceWorkspace() {
       >
         <div className={cn("finance-panel-heading finance-table-heading")}>
           <div>
-            <span className={cn("finance-overline")}>TRANSACTIONS</span>
-            <h2>Recent bookings</h2>
-            <p>Booking amounts, tax and commission for the selected period.</p>
+            <span className={cn("finance-overline")}><Translate text={"TRANSACTIONS"} /></span>
+            <h2><Translate text={"Recent bookings"} /></h2>
+            <p><Translate text={"Booking amounts, tax and commission for the selected period."} /></p>
           </div>
           <span className={cn("finance-record-count")}>
-            {reports?.bookings.length ?? 0} records
-          </span>
+            {reports?.bookings.length ?? 0} <Translate text={"records"} /></span>
         </div>
         <div className={cn("table-wrapper")}>
           <table>
             <thead>
               <tr>
-                <th>Booking</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Tax</th>
-                <th>Commission</th>
-                <th>Refund</th>
+                <th><Translate text={"Booking"} /></th>
+                <th><Translate text={"Date"} /></th>
+                <th><Translate text={"Status"} /></th>
+                <th><Translate text={"Total"} /></th>
+                <th><Translate text={"Tax"} /></th>
+                <th><Translate text={"Commission"} /></th>
+                <th><Translate text={"Refund"} /></th>
               </tr>
             </thead>
             <tbody>
@@ -794,14 +781,14 @@ export function FinanceWorkspace() {
                     <td>
                       <strong className={cn("finance-pnr")}>{row.pnr}</strong>
                     </td>
-                    <td>{new Date(row.createdAt).toLocaleDateString()}</td>
+                    <td>{new Date(row.createdAt).toLocaleDateString(getFormattingLocale())}</td>
                     <td>
                       <span
                         className={cn(
                           `finance-status ${row.status === "CANCELLED" ? "cancelled" : "confirmed"}`,
                         )}
                       >
-                        {row.status.toLowerCase().replaceAll("_", " ")}
+                        <LocalizedValue value={row.status.toLowerCase().replaceAll("_", " ")} />
                       </span>
                     </td>
                     <td>{money(row.totalAmount)}</td>
@@ -821,29 +808,26 @@ export function FinanceWorkspace() {
           </table>
           {!loading && reports?.bookings.length === 0 && (
             <div className={cn("finance-chart-empty")}>
-              No bookings in this date range. Try widening the dates or clearing
-              a filter.
-            </div>
+              <Translate text={"No bookings in this date range. Try widening the dates or clearing a filter."} /></div>
           )}
         </div>
       </Card>
 
       <div className={cn("finance-section-heading")} id="finance-actions">
         <div>
-          <span className={cn("finance-overline")}>FINANCE OPERATIONS</span>
-          <h2>Payments, refunds and settlements</h2>
+          <span className={cn("finance-overline")}><Translate text={"FINANCE OPERATIONS"} /></span>
+          <h2><Translate text={"Payments, refunds and settlements"} /></h2>
         </div>
-        <p>Record manual transactions and manage your agency policy.</p>
+        <p><Translate text={"Record manual transactions and manage your agency policy."} /></p>
       </div>
       <div className={cn("finance-workflow-grid")}>
         <Card className={cn("finance-panel finance-operation-card")}>
           <div className={cn("finance-panel-heading")}>
             <div>
               <span className={cn("finance-overline")}>
-                BOOKING COLLECTIONS
-              </span>
-              <h2>Payment & refund records</h2>
-              <p>Find a booking to record a payment, cancellation or refund.</p>
+                <Translate text={"BOOKING COLLECTIONS"} /></span>
+              <h2><Translate text={"Payment & refund records"} /></h2>
+              <p><Translate text={"Find a booking to record a payment, cancellation or refund."} /></p>
             </div>
             <span className={cn("finance-panel-mark")}>
               <Banknote size={17} />
@@ -851,16 +835,14 @@ export function FinanceWorkspace() {
           </div>
           <div className={cn("finance-inline-search")}>
             <label>
-              Booking PNR
-              <input
+              <Translate text={"Booking PNR"} /><input
                 value={pnr}
                 onChange={(event) => setPnr(event.target.value)}
                 placeholder="Enter a booking PNR"
               />
             </label>
             <Button variant="secondary" onClick={() => void findBooking()}>
-              <Search size={15} /> Find booking
-            </Button>
+              <Search size={15} /> <Translate text={"Find booking"} /></Button>
           </div>
           {booking && (
             <div className={cn("finance-booking-detail")}>
@@ -871,25 +853,24 @@ export function FinanceWorkspace() {
                     `finance-status ${booking.status === "CANCELLED" ? "cancelled" : "confirmed"}`,
                   )}
                 >
-                  {booking.status.toLowerCase()}
+                  <LocalizedValue value={booking.status.toLowerCase()} />
                 </span>
                 <span>
-                  Booking total <b>{money(booking.totalAmount)}</b>
+                  <Translate text={"Booking total"} />{" "}<b>{money(booking.totalAmount)}</b>
                 </span>
                 <span>
-                  GST <b>{money(booking.taxAmount)}</b>
+                  <Translate text={"GST"} />{" "}<b>{money(booking.taxAmount)}</b>
                 </span>
                 {booking.cancellation && (
                   <span>
-                    Eligible refund{" "}
+                    <Translate text={"Eligible refund"} />{" "}
                     <b>{money(booking.cancellation.eligibleRefund)}</b>
                   </span>
                 )}
               </div>
               <div className={cn("finance-entry-grid")}>
                 <label>
-                  Amount
-                  <input
+                  <Translate text={"Amount"} /><input
                     type="number"
                     min="0.01"
                     step="0.01"
@@ -899,8 +880,7 @@ export function FinanceWorkspace() {
                   />
                 </label>
                 <label>
-                  Method
-                  <select
+                  <Translate text={"Method"} /><select
                     value={method}
                     onChange={(event) =>
                       setMethod(event.target.value as FinanceMethodValue)
@@ -914,8 +894,7 @@ export function FinanceWorkspace() {
                   </select>
                 </label>
                 <label>
-                  Reference
-                  <input
+                  <Translate text={"Reference"} /><input
                     value={reference}
                     onChange={(event) => setReference(event.target.value)}
                     placeholder="Optional receipt/reference"
@@ -941,8 +920,7 @@ export function FinanceWorkspace() {
                     )
                   }
                 >
-                  <Wallet size={15} /> Record payment
-                </Button>
+                  <Wallet size={15} /> <Translate text={"Record payment"} /></Button>
                 <Button
                   variant="secondary"
                   disabled={busy || booking.status === "CANCELLED"}
@@ -953,8 +931,7 @@ export function FinanceWorkspace() {
                     )
                   }
                 >
-                  <Ban size={15} /> Cancel booking
-                </Button>
+                  <Ban size={15} /> <Translate text={"Cancel booking"} /></Button>
                 <Button
                   variant="secondary"
                   disabled={
@@ -974,12 +951,11 @@ export function FinanceWorkspace() {
                     )
                   }
                 >
-                  <ArrowDownRight size={15} /> Record refund
-                </Button>
+                  <ArrowDownRight size={15} /> <Translate text={"Record refund"} /></Button>
               </div>
               <div className={cn("finance-history-lines")}>
                 <span>
-                  <ArrowUpRight size={14} /> Payments:{" "}
+                  <ArrowUpRight size={14} /> <Translate text={"Payments:"} />{" "}
                   {booking.payments
                     .map(
                       (payment) =>
@@ -988,7 +964,7 @@ export function FinanceWorkspace() {
                     .join(" · ") || "No payments recorded"}
                 </span>
                 <span>
-                  <ArrowDownRight size={14} /> Refunds:{" "}
+                  <ArrowDownRight size={14} /> <Translate text={"Refunds:"} />{" "}
                   {booking.refunds
                     .map(
                       (refund) =>
@@ -1006,10 +982,9 @@ export function FinanceWorkspace() {
             <div className={cn("finance-panel-heading")}>
               <div>
                 <span className={cn("finance-overline")}>
-                  AGENT & OPERATOR BALANCES
-                </span>
-                <h2>Post a settlement</h2>
-                <p>Record a direct payment against an agency balance.</p>
+                  <Translate text={"AGENT & OPERATOR BALANCES"} /></span>
+                <h2><Translate text={"Post a settlement"} /></h2>
+                <p><Translate text={"Record a direct payment against an agency balance."} /></p>
               </div>
               <span className={cn("finance-panel-mark")}>
                 <ShieldCheck size={17} />
@@ -1017,8 +992,7 @@ export function FinanceWorkspace() {
             </div>
             <div className={cn("finance-entry-grid")}>
               <label>
-                Settlement party
-                <select
+                <Translate text={"Settlement party"} /><select
                   value={party}
                   onChange={(event) => {
                     const next = event.target.value as "AGENT" | "OPERATOR";
@@ -1028,18 +1002,17 @@ export function FinanceWorkspace() {
                     );
                   }}
                 >
-                  <option value="AGENT">Agent commission</option>
-                  <option value="OPERATOR">Trip agency / operator</option>
+                  <option value="AGENT"><Translate text={"Agent commission"} /></option>
+                  <option value="OPERATOR"><Translate text={"Trip agency / operator"} /></option>
                 </select>
               </label>
               {party === "AGENT" ? (
                 <label>
-                  Agent
-                  <select
+                  <Translate text={"Agent"} /><select
                     value={partyId}
                     onChange={(event) => setPartyId(event.target.value)}
                   >
-                    <option value="">Select an agent</option>
+                    <option value=""><Translate text={"Select an agent"} /></option>
                     {agents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
                         {agent.firstName} {agent.lastName} · {agent.email}
@@ -1049,13 +1022,11 @@ export function FinanceWorkspace() {
                 </label>
               ) : (
                 <label>
-                  Operator agency
-                  <input value={user?.agencyName ?? ""} readOnly />
+                  <Translate text={"Operator agency"} /><input value={user?.agencyName ?? ""} readOnly />
                 </label>
               )}
               <label>
-                Amount
-                <input
+                <Translate text={"Amount"} /><input
                   type="number"
                   min="0.01"
                   step="0.01"
@@ -1065,8 +1036,7 @@ export function FinanceWorkspace() {
                 />
               </label>
               <label>
-                Method
-                <select
+                <Translate text={"Method"} /><select
                   value={method}
                   onChange={(event) =>
                     setMethod(event.target.value as FinanceMethodValue)
@@ -1080,8 +1050,7 @@ export function FinanceWorkspace() {
                 </select>
               </label>
               <label>
-                Reference
-                <input
+                <Translate text={"Reference"} /><input
                   value={reference}
                   onChange={(event) => setReference(event.target.value)}
                   placeholder="Optional reference"
@@ -1105,8 +1074,7 @@ export function FinanceWorkspace() {
                   )
                 }
               >
-                <ArrowUpRight size={15} /> Post settlement
-              </Button>
+                <ArrowUpRight size={15} /> <Translate text={"Post settlement"} /></Button>
             </div>
           </Card>
         )}
@@ -1120,22 +1088,20 @@ export function FinanceWorkspace() {
           >
             <div className={cn("finance-panel-heading")}>
               <div>
-                <span className={cn("finance-overline")}>AGENCY POLICY</span>
-                <h2>Tax, commission & cancellation</h2>
-                <p>Set the defaults applied to new bookings.</p>
+                <span className={cn("finance-overline")}><Translate text={"AGENCY POLICY"} /></span>
+                <h2><Translate text={"Tax, commission & cancellation"} /></h2>
+                <p><Translate text={"Set the defaults applied to new bookings."} /></p>
               </div>
               <Button onClick={() => void saveSettings()} disabled={busy}>
-                <Save size={15} /> Save policy
-              </Button>
+                <Save size={15} /> <Translate text={"Save policy"} /></Button>
             </div>
             {user?.role === "SUPER_ADMIN" && (
               <label className={cn("finance-policy-agency")}>
-                Agency
-                <select
+                <Translate text={"Agency"} /><select
                   value={agencyId}
                   onChange={(event) => setAgencyId(event.target.value)}
                 >
-                  <option value="">Select agency to manage policy</option>
+                  <option value=""><Translate text={"Select agency to manage policy"} /></option>
                   {agencies.map((agency) => (
                     <option key={agency.id} value={agency.id}>
                       {agency.name}
@@ -1146,8 +1112,7 @@ export function FinanceWorkspace() {
             )}
             <div className={cn("finance-entry-grid")}>
               <label>
-                GST rate (%)
-                <input
+                <Translate text={"GST rate (%)"} /><input
                   type="number"
                   min="0"
                   max="100"
@@ -1159,8 +1124,7 @@ export function FinanceWorkspace() {
                 />
               </label>
               <label>
-                GST basis
-                <select
+                <Translate text={"GST basis"} /><select
                   value={String(settings.gstAfterDiscount)}
                   onChange={(event) =>
                     setSettings({
@@ -1169,13 +1133,12 @@ export function FinanceWorkspace() {
                     })
                   }
                 >
-                  <option value="true">After discount</option>
-                  <option value="false">Before discount</option>
+                  <option value="true"><Translate text={"After discount"} /></option>
+                  <option value="false"><Translate text={"Before discount"} /></option>
                 </select>
               </label>
               <label>
-                Commission type
-                <select
+                <Translate text={"Commission type"} /><select
                   value={settings.commissionType}
                   onChange={(event) =>
                     setSettings({
@@ -1185,13 +1148,12 @@ export function FinanceWorkspace() {
                     })
                   }
                 >
-                  <option value="PERCENTAGE">Percentage</option>
-                  <option value="FIXED">Fixed per seat</option>
+                  <option value="PERCENTAGE"><Translate text={"Percentage"} /></option>
+                  <option value="FIXED"><Translate text={"Fixed per seat"} /></option>
                 </select>
               </label>
               <label>
-                Commission value
-                <input
+                <Translate text={"Commission value"} /><input
                   type="number"
                   min="0"
                   step="0.01"
@@ -1207,8 +1169,8 @@ export function FinanceWorkspace() {
             </div>
             <div className={cn("finance-tier-heading")}>
               <div>
-                <h3>Cancellation tiers</h3>
-                <p>Fee percentage applied by hours before departure.</p>
+                <h3><Translate text={"Cancellation tiers"} /></h3>
+                <p><Translate text={"Fee percentage applied by hours before departure."} /></p>
               </div>
               <Button
                 variant="secondary"
@@ -1222,19 +1184,16 @@ export function FinanceWorkspace() {
                   })
                 }
               >
-                <Plus size={15} /> Add tier
-              </Button>
+                <Plus size={15} /> <Translate text={"Add tier"} /></Button>
             </div>
             {settings.tiers.length === 0 && (
               <p className={cn("finance-policy-empty")}>
-                No cancellation tiers configured yet.
-              </p>
+                <Translate text={"No cancellation tiers configured yet."} /></p>
             )}
             {settings.tiers.map((tier, index) => (
               <div className={cn("finance-tier-row")} key={index}>
                 <label>
-                  Hours before departure
-                  <input
+                  <Translate text={"Hours before departure"} /><input
                     type="number"
                     min="0"
                     step="0.5"
@@ -1255,8 +1214,7 @@ export function FinanceWorkspace() {
                   />
                 </label>
                 <label>
-                  Cancellation fee (%)
-                  <input
+                  <Translate text={"Cancellation fee (%)"} /><input
                     type="number"
                     min="0"
                     max="100"
@@ -1286,7 +1244,7 @@ export function FinanceWorkspace() {
                   }
                 >
                   <Trash2 size={15} />
-                  <span className="finance-style-1287">Remove</span>
+                  <span className="finance-style-1287"><Translate text={"Remove"} /></span>
                 </button>
               </div>
             ))}
@@ -1298,13 +1256,12 @@ export function FinanceWorkspace() {
         >
           <div className={cn("finance-panel-heading")}>
             <div>
-              <span className={cn("finance-overline")}>ACCOUNT ACTIVITY</span>
-              <h2>Recent ledger entries</h2>
-              <p>Latest posted finance movements.</p>
+              <span className={cn("finance-overline")}><Translate text={"ACCOUNT ACTIVITY"} /></span>
+              <h2><Translate text={"Recent ledger entries"} /></h2>
+              <p><Translate text={"Latest posted finance movements."} /></p>
             </div>
             <span className={cn("finance-record-count")}>
-              {ledger.length} entries
-            </span>
+              {ledger.length} <Translate text={"entries"} /></span>
           </div>
           <div className={cn("finance-ledger-list")}>
             {ledger.slice(0, 8).map((entry, index) => (
@@ -1320,7 +1277,7 @@ export function FinanceWorkspace() {
                     {String(entry.description ?? entry.type ?? "Ledger entry")}
                   </strong>
                   <small>
-                    {new Date(String(entry.createdAt)).toLocaleDateString()} ·{" "}
+                    {new Date(String(entry.createdAt)).toLocaleDateString(getFormattingLocale())} ·{" "}
                     {String(entry.party ?? "Account")}
                   </small>
                 </div>
@@ -1329,8 +1286,7 @@ export function FinanceWorkspace() {
             ))}
             {ledger.length === 0 && (
               <div className={cn("finance-chart-empty")}>
-                No ledger activity for this agency yet.
-              </div>
+                <Translate text={"No ledger activity for this agency yet."} /></div>
             )}
           </div>
         </Card>

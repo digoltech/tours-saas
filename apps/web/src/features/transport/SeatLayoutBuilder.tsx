@@ -1,4 +1,6 @@
 "use client";
+import { localizeText } from "../../i18n/errors";
+import { Translate } from "../../i18n/Translate";
 
 import "../../styles/transport.css";
 
@@ -23,7 +25,7 @@ export function SeatLayoutBuilder() {
   useEffect(() => {
     getBuses({ limit: "100", status: "ACTIVE" })
       .then((data) => setBuses(data.data))
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load buses"));
+      .catch((cause) => setError(cause instanceof Error ? cause.message : localizeText("Unable to load buses")));
   }, []);
 
   const activeBus = buses.find((bus) => bus.id === busId);
@@ -38,7 +40,7 @@ export function SeatLayoutBuilder() {
       setLayout({ ...current, seatDetails: current.seatDetails ?? {} });
     } catch (cause) {
       setLayout(createDefaultSeatLayout(buses.find((bus) => bus.id === id)?.totalSeats ?? 40));
-      setError(cause instanceof Error ? cause.message : "Unable to load seat layout");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to load seat layout"));
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,7 @@ export function SeatLayoutBuilder() {
       await saveSeatLayout(busId, layout);
       setSaved(true);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save seat layout");
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to save seat layout"));
     }
   }
 
@@ -62,17 +64,16 @@ export function SeatLayoutBuilder() {
       />
       {error && <div className={cn("state-message state-error")} role="alert">{error}</div>}
       <Card className="layout-setup-card">
-        <div className="layout-setup-heading"><div><p className="eyebrow">LAYOUT SETUP</p><h2>Choose a bus</h2></div>{activeBus && <Badge>{activeBus.totalSeats} seats</Badge>}</div>
-        <label className="seat-layout-builder-style-64">Bus
-          <select value={busId} onChange={(event) => void selectBus(event.target.value)}>
-            <option value="">Select a bus</option>
-            {buses.map((bus) => <option key={bus.id} value={bus.id}>{bus.busNumber} · {bus.registrationNumber} ({bus.totalSeats} seats)</option>)}
+        <div className="layout-setup-heading"><div><p className="eyebrow"><Translate text={"LAYOUT SETUP"} /></p><h2><Translate text={"Choose a bus"} /></h2></div>{activeBus && <Badge>{activeBus.totalSeats} <Translate text={"seats"} /></Badge>}</div>
+        <label className="seat-layout-builder-style-64"><Translate text={"Bus"} /><select value={busId} onChange={(event) => void selectBus(event.target.value)}>
+            <option value=""><Translate text={"Select a bus"} /></option>
+            {buses.map((bus) => <option key={bus.id} value={bus.id}>{bus.busNumber} · {bus.registrationNumber} ({bus.totalSeats} <Translate text={"seats)"} /></option>)}
           </select>
         </label>
       </Card>
-      {busId ? loading ? <Card><div className={cn("state-message")}>Loading seat layout…</div></Card> : <SeatLayoutEditor totalSeats={activeBus?.totalSeats ?? 40} value={layout} onChange={(value) => { setLayout(value); setSaved(false); }} /> : <Card><div className={cn("state-message")}>Select a bus to build its seat layout.</div></Card>}
-      {busId && <div className="seat-layout-builder-style-72"><Button onClick={() => void save()} disabled={loading}><Save size={16} /> Save layout</Button></div>}
-      {saved && <p className={cn("save-confirmation")} role="status"><Check size={16} /> Layout saved for {activeBus?.busNumber}.</p>}
+      {busId ? loading ? <Card><div className={cn("state-message")}><Translate text={"Loading seat layout…"} /></div></Card> : <SeatLayoutEditor totalSeats={activeBus?.totalSeats ?? 40} value={layout} onChange={(value) => { setLayout(value); setSaved(false); }} /> : <Card><div className={cn("state-message")}><Translate text={"Select a bus to build its seat layout."} /></div></Card>}
+      {busId && <div className="seat-layout-builder-style-72"><Button onClick={() => void save()} disabled={loading}><Save size={16} /> <Translate text={"Save layout"} /></Button></div>}
+      {saved && <p className={cn("save-confirmation")} role="status"><Check size={16} /> <Translate text={"Layout saved for"} />{" "}{activeBus?.busNumber}.</p>}
     </>
   );
 }

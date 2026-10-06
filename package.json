@@ -29,14 +29,14 @@
     "typecheck": "bun run typecheck:web && bun run typecheck:api",
     "typecheck:web": "bun --cwd apps/web typecheck",
     "typecheck:api": "bun --cwd apps/api typecheck",
+    "styles:check": "node scripts/check-css-classes.cjs",
     "test": "bun --cwd apps/api test"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "dotenv": "^16.6.1",
     "prettier": "^3.6.2",
-    "prisma": "^7.0.0",
-    "tailwindcss": "^4.3.3"
+    "prisma": "^7.0.0"
   },
   "prisma": {
     "seed": "bun prisma/seed.ts"

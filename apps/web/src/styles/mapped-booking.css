@@ -1,0 +1,29 @@
+@layer mapped {
+  .booking-seat-help {
+    margin: 4px 0 14px;
+  }
+  .passenger-form {
+    margin: 12px 0;
+  }
+  .ticket-card {
+    max-width: 860px;
+  }
+  .passenger-form {
+    padding: 16px 0;
+  }
+  .booking-seat-restriction {
+    font-size: 10px;
+  }
+  .booking-seat-restriction {
+    font-weight: 700;
+  }
+  .booking-seat-restriction {
+    color: #8b3e64;
+  }
+  .booking-senior {
+    color: #775b16;
+  }
+  .passenger-form {
+    border-top: 1px solid #e5e7eb;
+  }
+}

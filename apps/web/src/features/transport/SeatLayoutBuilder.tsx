@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/transport.css";
+
 import { useEffect, useState } from "react";
 import { Check, Save } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -61,7 +63,7 @@ export function SeatLayoutBuilder() {
       {error && <div className={cn("state-message state-error")} role="alert">{error}</div>}
       <Card className="layout-setup-card">
         <div className="layout-setup-heading"><div><p className="eyebrow">LAYOUT SETUP</p><h2>Choose a bus</h2></div>{activeBus && <Badge>{activeBus.totalSeats} seats</Badge>}</div>
-        <label className="block max-w-xl">Bus
+        <label className="seat-layout-builder-style-64">Bus
           <select value={busId} onChange={(event) => void selectBus(event.target.value)}>
             <option value="">Select a bus</option>
             {buses.map((bus) => <option key={bus.id} value={bus.id}>{bus.busNumber} · {bus.registrationNumber} ({bus.totalSeats} seats)</option>)}
@@ -69,7 +71,7 @@ export function SeatLayoutBuilder() {
         </label>
       </Card>
       {busId ? loading ? <Card><div className={cn("state-message")}>Loading seat layout…</div></Card> : <SeatLayoutEditor totalSeats={activeBus?.totalSeats ?? 40} value={layout} onChange={(value) => { setLayout(value); setSaved(false); }} /> : <Card><div className={cn("state-message")}>Select a bus to build its seat layout.</div></Card>}
-      {busId && <div className="mt-4 flex justify-end"><Button onClick={() => void save()} disabled={loading}><Save size={16} /> Save layout</Button></div>}
+      {busId && <div className="seat-layout-builder-style-72"><Button onClick={() => void save()} disabled={loading}><Save size={16} /> Save layout</Button></div>}
       {saved && <p className={cn("save-confirmation")} role="status"><Check size={16} /> Layout saved for {activeBus?.busNumber}.</p>}
     </>
   );

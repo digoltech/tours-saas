@@ -1,4 +1,5 @@
 "use client";
+import "../../../src/styles/privacy.css";
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";

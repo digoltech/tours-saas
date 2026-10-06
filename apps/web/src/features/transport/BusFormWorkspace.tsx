@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/transport.css";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -42,8 +44,8 @@ const emptyForm: BusForm = {
   make: "", model: "", year: "", color: "", description: "", amenities: [], photos: [],
 };
 
-const inputClass = "mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100 disabled:bg-slate-100";
-const labelClass = "block text-sm font-semibold text-slate-700";
+const inputClass = "bus-form-input";
+const labelClass = "bus-form-label";
 
 export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; initialStep?: number }) {
   const router = useRouter();
@@ -200,23 +202,23 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
     }
   }
 
-  if (loading) return <Card><div className="flex min-h-48 items-center justify-center gap-3 text-sm text-slate-600"><LoaderCircle className="animate-spin" size={18} /> Loading bus details…</div></Card>;
+  if (loading) return <Card><div className="bus-form-style-203"><LoaderCircle className="bus-form-style-203-2" size={18} /> Loading bus details…</div></Card>;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/dashboard/buses" className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950">
+    <div className="bus-form-style-206">
+      <div className="bus-form-style-207">
+        <Link href="/dashboard/buses" className="bus-form-style-208">
           <ArrowLeft size={16} /> Back to buses
         </Link>
-        {(busId || createdBusId) && <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-500">Bus ID · {busId || createdBusId}</span>}
+        {(busId || createdBusId) && <span className="bus-form-style-211">Bus ID · {busId || createdBusId}</span>}
       </div>
       <PageHeader
         title={editing ? "Edit bus" : "Add a bus"}
         description={editing ? "Update vehicle information, photos, or passenger layout." : "Set up the vehicle, add optional fleet details, then map its seats."}
       />
 
-      <Card className="overflow-hidden border border-slate-200 bg-white p-0 shadow-sm">
-        <nav aria-label="Bus setup steps" className="grid grid-cols-2 border-b border-slate-200 md:grid-cols-4">
+      <Card className="bus-form-style-218">
+        <nav aria-label="Bus setup steps" className="bus-form-style-219">
           {steps.map(({ title, description, icon: Icon }, index) => (
             <button
               key={title}
@@ -224,77 +226,77 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
               disabled={index > step}
               onClick={() => setStep(index)}
               aria-current={step === index ? "step" : undefined}
-              className={cn("flex min-h-20 items-center gap-3 border-b-2 px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 md:px-5", step === index ? "border-rose-600 bg-rose-50/60 text-rose-800" : index < step ? "border-emerald-500 text-slate-800 hover:bg-slate-50" : "border-transparent text-slate-500")}
+              className={cn("bus-form-style-227", step === index ? "bus-form-style-227-2" : index < step ? "bus-form-style-227-3" : "bus-form-style-227-4")}
             >
-              <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", step === index ? "bg-rose-600 text-white" : index < step ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+              <span className={cn("bus-form-style-229", step === index ? "bus-form-style-229-2" : index < step ? "bus-form-style-229-3" : "bus-form-style-229-4")}>
                 {index < step ? <Check size={17} /> : <Icon size={17} />}
               </span>
-              <span className="min-w-0"><strong className="block text-sm">{title}</strong><small className="mt-0.5 hidden text-xs text-slate-500 sm:block">{description}</small></span>
+              <span className="bus-form-style-232"><strong className="bus-form-style-232-2">{title}</strong><small className="bus-form-style-232-3">{description}</small></span>
             </button>
           ))}
         </nav>
 
-        <div className="space-y-6 p-5 sm:p-8">
-          {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"><Info className="mt-0.5 shrink-0" size={17} /> {error}</div>}
+        <div className="bus-form-style-237">
+          {error && <div role="alert" className="bus-form-style-238"><Info className="bus-form-style-238-2" size={17} /> {error}</div>}
 
           {step === 0 && (
-            <section className="space-y-6" aria-labelledby="bus-details-heading">
-              <div><h2 id="bus-details-heading" className="text-xl font-bold tracking-tight text-slate-950">Vehicle and assignment</h2><p className="mt-1 text-sm text-slate-500">Enter the identifiers needed to add a vehicle to the fleet.</p></div>
-              {user?.role === "SUPER_ADMIN" && <label className={labelClass}>Agency <span className="text-rose-600">*</span><select className={inputClass} value={selectedAgencyId} onChange={(event) => { setSelectedAgencyId(event.target.value); setField("branchId", ""); }}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
-              <div className="grid gap-5 md:grid-cols-2">
-                <label className={labelClass}>Bus number <span className="text-rose-600">*</span><input className={inputClass} value={form.busNumber} onChange={(event) => setField("busNumber", event.target.value)} placeholder="e.g. AT-204" autoComplete="off" /></label>
-                <label className={labelClass}>Registration number <span className="text-rose-600">*</span><input className={inputClass} value={form.registrationNumber} onChange={(event) => setField("registrationNumber", event.target.value.toUpperCase())} placeholder="e.g. KA 01 AB 1234" autoComplete="off" /></label>
-                <label className={labelClass}>Operator name <span className="font-normal text-slate-400">Optional</span><input className={inputClass} value={form.operatorName} onChange={(event) => setField("operatorName", event.target.value)} placeholder="Company or owner" /></label>
-                <label className={labelClass}>Bus type <span className="text-rose-600">*</span><select className={inputClass} value={form.busType} onChange={(event) => setField("busType", event.target.value as BusForm["busType"])}><option value="SEATER">Seater</option><option value="SLEEPER">Sleeper</option><option value="SEATER_SLEEPER">Seater + sleeper</option></select></label>
-                <label className={labelClass}>Total seats / berths <span className="text-rose-600">*</span><input className={inputClass} type="number" min="1" max="1000" value={form.totalSeats} onChange={(event) => setField("totalSeats", event.target.value)} /></label>
-                <label className={labelClass}>Branch <span className="text-rose-600">*</span><select className={inputClass} value={form.branchId} onChange={(event) => setField("branchId", event.target.value)}><option value="">Select branch</option>{availableBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+            <section className="bus-form-style-241" aria-labelledby="bus-details-heading">
+              <div><h2 id="bus-details-heading" className="bus-form-style-242">Vehicle and assignment</h2><p className="bus-form-style-242-2">Enter the identifiers needed to add a vehicle to the fleet.</p></div>
+              {user?.role === "SUPER_ADMIN" && <label className={labelClass}>Agency <span className="bus-form-style-243">*</span><select className={inputClass} value={selectedAgencyId} onChange={(event) => { setSelectedAgencyId(event.target.value); setField("branchId", ""); }}><option value="">Select agency</option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
+              <div className="bus-form-style-244">
+                <label className={labelClass}>Bus number <span className="bus-form-style-245">*</span><input className={inputClass} value={form.busNumber} onChange={(event) => setField("busNumber", event.target.value)} placeholder="e.g. AT-204" autoComplete="off" /></label>
+                <label className={labelClass}>Registration number <span className="bus-form-style-246">*</span><input className={inputClass} value={form.registrationNumber} onChange={(event) => setField("registrationNumber", event.target.value.toUpperCase())} placeholder="e.g. KA 01 AB 1234" autoComplete="off" /></label>
+                <label className={labelClass}>Operator name <span className="bus-form-style-247">Optional</span><input className={inputClass} value={form.operatorName} onChange={(event) => setField("operatorName", event.target.value)} placeholder="Company or owner" /></label>
+                <label className={labelClass}>Bus type <span className="bus-form-style-248">*</span><select className={inputClass} value={form.busType} onChange={(event) => setField("busType", event.target.value as BusForm["busType"])}><option value="SEATER">Seater</option><option value="SLEEPER">Sleeper</option><option value="SEATER_SLEEPER">Seater + sleeper</option></select></label>
+                <label className={labelClass}>Total seats / berths <span className="bus-form-style-249">*</span><input className={inputClass} type="number" min="1" max="1000" value={form.totalSeats} onChange={(event) => setField("totalSeats", event.target.value)} /></label>
+                <label className={labelClass}>Branch <span className="bus-form-style-250">*</span><select className={inputClass} value={form.branchId} onChange={(event) => setField("branchId", event.target.value)}><option value="">Select branch</option>{availableBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
                 {editing && <label className={labelClass}>Status<select className={inputClass} value={form.status} onChange={(event) => setField("status", event.target.value)}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label>}
               </div>
             </section>
           )}
 
           {step === 1 && (
-            <section className="space-y-7" aria-labelledby="bus-features-heading">
-              <div><h2 id="bus-features-heading" className="text-xl font-bold tracking-tight text-slate-950">Fleet details and photos</h2><p className="mt-1 text-sm text-slate-500">Everything on this step is optional. Add useful specifications and public image links.</p></div>
-              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <section className="bus-form-style-257" aria-labelledby="bus-features-heading">
+              <div><h2 id="bus-features-heading" className="bus-form-style-258">Fleet details and photos</h2><p className="bus-form-style-258-2">Everything on this step is optional. Add useful specifications and public image links.</p></div>
+              <div className="bus-form-style-259">
                 <label className={labelClass}>Manufacturer<input className={inputClass} value={form.make} onChange={(event) => setField("make", event.target.value)} placeholder="Volvo" /></label>
                 <label className={labelClass}>Model<input className={inputClass} value={form.model} onChange={(event) => setField("model", event.target.value)} placeholder="9400 B8R" /></label>
                 <label className={labelClass}>Year<input className={inputClass} type="number" min="1950" max="2100" value={form.year} onChange={(event) => setField("year", event.target.value)} placeholder="2025" /></label>
                 <label className={labelClass}>Color<input className={inputClass} value={form.color} onChange={(event) => setField("color", event.target.value)} placeholder="White / blue" /></label>
               </div>
-              <label className={labelClass}>Description <span className="font-normal text-slate-400">Optional</span><textarea className={cn(inputClass, "min-h-24 resize-y py-3")} maxLength={2000} value={form.description} onChange={(event) => setField("description", event.target.value)} placeholder="Notes about the vehicle, configuration, or service class" /></label>
+              <label className={labelClass}>Description <span className="bus-form-style-265">Optional</span><textarea className={cn(inputClass, "bus-form-style-265-2")} maxLength={2000} value={form.description} onChange={(event) => setField("description", event.target.value)} placeholder="Notes about the vehicle, configuration, or service class" /></label>
               <fieldset>
-                <legend className="text-sm font-semibold text-slate-700">Amenities <span className="font-normal text-slate-400">Optional</span></legend>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  {amenitiesOptions.map((amenity) => <label key={amenity} className={cn("flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border px-3 text-sm transition", form.amenities.includes(amenity) ? "border-rose-300 bg-rose-50 text-rose-800" : "border-slate-200 text-slate-700 hover:bg-slate-50")}><input type="checkbox" className="size-4 accent-rose-600" checked={form.amenities.includes(amenity)} onChange={(event) => setField("amenities", event.target.checked ? [...form.amenities, amenity] : form.amenities.filter((item) => item !== amenity))} />{amenity}</label>)}
+                <legend className="bus-form-style-267">Amenities <span className="bus-form-style-267-2">Optional</span></legend>
+                <div className="bus-form-style-268">
+                  {amenitiesOptions.map((amenity) => <label key={amenity} className={cn("bus-form-style-269", form.amenities.includes(amenity) ? "bus-form-style-269-2" : "bus-form-style-269-3")}><input type="checkbox" className="bus-form-style-269-4" checked={form.amenities.includes(amenity)} onChange={(event) => setField("amenities", event.target.checked ? [...form.amenities, amenity] : form.amenities.filter((item) => item !== amenity))} />{amenity}</label>)}
                 </div>
               </fieldset>
-              <div className="space-y-3">
-                <label htmlFor="bus-photo-url" className={labelClass}>Bus image URL <span className="font-normal text-slate-400">Optional · up to 12</span></label>
-                <div className="flex flex-col gap-2 sm:flex-row"><input id="bus-photo-url" className={inputClass + " mt-0"} type="url" value={photoDraft} onChange={(event) => setPhotoDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPhoto(); } }} placeholder="https://example.com/bus-front.jpg" /><Button type="button" variant="secondary" onClick={addPhoto} disabled={!photoDraft.trim()}><Plus size={16} /> Add image</Button></div>
-                {form.photos.length > 0 ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{form.photos.map((photo, index) => <figure key={photo} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"><img src={photo} alt={`Bus photo ${index + 1}`} className="h-40 w-full object-cover" /><figcaption className="truncate px-3 py-2 text-xs text-slate-500">Photo {index + 1}</figcaption><button type="button" aria-label={`Remove bus photo ${index + 1}`} onClick={() => setField("photos", form.photos.filter((value) => value !== photo))} className="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-white/95 text-slate-700 shadow transition hover:bg-red-50 hover:text-red-700"><Trash2 size={16} /></button></figure>)}</div> : <div className="flex min-h-28 items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500"><ImagePlus size={18} /> No bus photos added</div>}
+              <div className="bus-form-style-272">
+                <label htmlFor="bus-photo-url" className={labelClass}>Bus image URL <span className="bus-form-style-273">Optional · up to 12</span></label>
+                <div className="bus-form-style-274"><input id="bus-photo-url" className={inputClass + "bus-form-style-274-2"} type="url" value={photoDraft} onChange={(event) => setPhotoDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPhoto(); } }} placeholder="https://example.com/bus-front.jpg" /><Button type="button" variant="secondary" onClick={addPhoto} disabled={!photoDraft.trim()}><Plus size={16} /> Add image</Button></div>
+                {form.photos.length > 0 ? <div className="bus-form-style-275">{form.photos.map((photo, index) => <figure key={photo} className="group bus-form-style-275-2"><img src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-275-3" /><figcaption className="bus-form-style-275-4">Photo {index + 1}</figcaption><button type="button" aria-label={`Remove bus photo ${index + 1}`} onClick={() => setField("photos", form.photos.filter((value) => value !== photo))} className="bus-form-style-275-5"><Trash2 size={16} /></button></figure>)}</div> : <div className="bus-form-style-275-6"><ImagePlus size={18} /> No bus photos added</div>}
               </div>
             </section>
           )}
 
-          {step === 2 && <section className="space-y-4" aria-labelledby="seat-layout-heading"><div><h2 id="seat-layout-heading" className="text-xl font-bold tracking-tight text-slate-950">Seat layout</h2><p className="mt-1 text-sm text-slate-500">Map each seat or berth. This layout will be saved with the bus.</p></div><SeatLayoutEditor totalSeats={Number(form.totalSeats) || 40} value={layout} onChange={setLayout} /></section>}
+          {step === 2 && <section className="bus-form-style-280" aria-labelledby="seat-layout-heading"><div><h2 id="seat-layout-heading" className="bus-form-style-280-2">Seat layout</h2><p className="bus-form-style-280-3">Map each seat or berth. This layout will be saved with the bus.</p></div><SeatLayoutEditor totalSeats={Number(form.totalSeats) || 40} value={layout} onChange={setLayout} /></section>}
 
           {step === 3 && (
-            <section className="space-y-5" aria-labelledby="bus-review-heading">
-              <div><h2 id="bus-review-heading" className="text-xl font-bold tracking-tight text-slate-950">Review bus setup</h2><p className="mt-1 text-sm text-slate-500">Confirm the required details and the seat plan before saving.</p></div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Vehicle</p><h3 className="mt-2 text-lg font-bold text-slate-950">{form.busNumber || "Bus number not set"}</h3></div><Badge>{form.status}</Badge></div><dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div><dt className="text-slate-500">Registration</dt><dd className="mt-0.5 font-semibold text-slate-800">{form.registrationNumber || "—"}</dd></div><div><dt className="text-slate-500">Type</dt><dd className="mt-0.5 font-semibold text-slate-800">{form.busType.replaceAll("_", " + ")}</dd></div><div><dt className="text-slate-500">Seats</dt><dd className="mt-0.5 font-semibold text-slate-800">{form.totalSeats}</dd></div><div><dt className="text-slate-500">Branch</dt><dd className="mt-0.5 font-semibold text-slate-800">{availableBranches.find((branch) => branch.id === form.branchId)?.name ?? "—"}</dd></div><div><dt className="text-slate-500">Make / model</dt><dd className="mt-0.5 font-semibold text-slate-800">{[form.make, form.model].filter(Boolean).join(" ") || "—"}</dd></div><div><dt className="text-slate-500">Year / color</dt><dd className="mt-0.5 font-semibold text-slate-800">{[form.year, form.color].filter(Boolean).join(" · ") || "—"}</dd></div></dl></div>
-                <div className="rounded-2xl border border-slate-200 p-5"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Seat plan</p><div className="mt-3 flex items-end gap-2"><strong className="text-3xl font-bold text-slate-950">{form.totalSeats}</strong><span className="pb-1 text-sm text-slate-500">seats / berths</span></div><p className="mt-2 text-sm text-slate-600">{layout.rows} rows · {layout.columns} positions per row · {form.totalSeats ? Number(form.totalSeats) - layout.disabledSeats.length : 0} available</p><p className="mt-3 text-sm text-slate-600">{form.amenities.length ? form.amenities.join(" · ") : "No optional amenities added"}</p><p className="mt-2 text-sm text-slate-600">{form.photos.length} bus photo{form.photos.length === 1 ? "" : "s"}</p></div>
+            <section className="bus-form-style-283" aria-labelledby="bus-review-heading">
+              <div><h2 id="bus-review-heading" className="bus-form-style-284">Review bus setup</h2><p className="bus-form-style-284-2">Confirm the required details and the seat plan before saving.</p></div>
+              <div className="bus-form-style-285">
+                <div className="bus-form-style-286"><div className="bus-form-style-286-2"><div><p className="bus-form-style-286-3">Vehicle</p><h3 className="bus-form-style-286-4">{form.busNumber || "Bus number not set"}</h3></div><Badge>{form.status}</Badge></div><dl className="bus-form-style-286-5"><div><dt className="bus-form-style-286-6">Registration</dt><dd className="bus-form-style-286-7">{form.registrationNumber || "—"}</dd></div><div><dt className="bus-form-style-286-8">Type</dt><dd className="bus-form-style-286-9">{form.busType.replaceAll("_", " + ")}</dd></div><div><dt className="bus-form-style-286-10">Seats</dt><dd className="bus-form-style-286-11">{form.totalSeats}</dd></div><div><dt className="bus-form-style-286-12">Branch</dt><dd className="bus-form-style-286-13">{availableBranches.find((branch) => branch.id === form.branchId)?.name ?? "—"}</dd></div><div><dt className="bus-form-style-286-14">Make / model</dt><dd className="bus-form-style-286-15">{[form.make, form.model].filter(Boolean).join(" ") || "—"}</dd></div><div><dt className="bus-form-style-286-16">Year / color</dt><dd className="bus-form-style-286-17">{[form.year, form.color].filter(Boolean).join(" · ") || "—"}</dd></div></dl></div>
+                <div className="bus-form-style-287"><p className="bus-form-style-287-2">Seat plan</p><div className="bus-form-style-287-3"><strong className="bus-form-style-287-4">{form.totalSeats}</strong><span className="bus-form-style-287-5">seats / berths</span></div><p className="bus-form-style-287-6">{layout.rows} rows · {layout.columns} positions per row · {form.totalSeats ? Number(form.totalSeats) - layout.disabledSeats.length : 0} available</p><p className="bus-form-style-287-7">{form.amenities.length ? form.amenities.join(" · ") : "No optional amenities added"}</p><p className="bus-form-style-287-8">{form.photos.length} bus photo{form.photos.length === 1 ? "" : "s"}</p></div>
               </div>
-              {form.photos.length > 0 && <div className="flex gap-3 overflow-x-auto pb-1">{form.photos.map((photo, index) => <img key={photo} src={photo} alt={`Bus photo ${index + 1}`} className="h-24 w-36 shrink-0 rounded-lg border border-slate-200 object-cover" />)}</div>}
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><CheckCircle2 size={17} /> {editing ? "Changes will update this bus record." : "The bus and its seat map will be saved together."}</div>
+              {form.photos.length > 0 && <div className="bus-form-style-289">{form.photos.map((photo, index) => <img key={photo} src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-289-2" />)}</div>}
+              <div className="bus-form-style-290"><CheckCircle2 size={17} /> {editing ? "Changes will update this bus record." : "The bus and its seat map will be saved together."}</div>
             </section>
           )}
 
-          <div className="flex flex-col-reverse justify-between gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
+          <div className="bus-form-style-294">
             <Button type="button" variant="secondary" onClick={() => step === 0 ? router.push("/dashboard/buses") : setStep((current) => current - 1)} disabled={saving}><ArrowLeft size={16} /> {step === 0 ? "Cancel" : "Back"}</Button>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {step < steps.length - 1 ? <Button type="button" onClick={nextStep}>{step === 0 ? "Continue to features" : step === 1 ? "Continue to seat layout" : "Review bus"} <ArrowRight size={16} /></Button> : <Button type="button" onClick={() => void save()} disabled={saving}>{saving ? <><LoaderCircle className="animate-spin" size={16} /> Saving bus…</> : <><CheckCircle2 size={16} /> {editing ? "Save bus changes" : "Save bus"}</>}</Button>}
+            <div className="bus-form-style-296">
+              {step < steps.length - 1 ? <Button type="button" onClick={nextStep}>{step === 0 ? "Continue to features" : step === 1 ? "Continue to seat layout" : "Review bus"} <ArrowRight size={16} /></Button> : <Button type="button" onClick={() => void save()} disabled={saving}>{saving ? <><LoaderCircle className="bus-form-style-297" size={16} /> Saving bus…</> : <><CheckCircle2 size={16} /> {editing ? "Save bus changes" : "Save bus"}</>}</Button>}
             </div>
           </div>
         </div>

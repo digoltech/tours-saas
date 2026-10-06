@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/privacy.css";
+
 import { useEffect, useState } from "react";
 import { CheckCircle2, Download, FileSpreadsheet, FileUp, RefreshCw, UploadCloud } from "lucide-react";
 import { Button } from "../../ui/Button";

@@ -1,0 +1,106 @@
+/* Digol brand and public pages */
+.digol-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.digol-brand img {
+  display: block;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  box-shadow: 0 8px 18px #ab333021;
+}
+.digol-brand span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.digol-brand strong {
+  color: inherit;
+  font:
+    700 16px/1.1 "Space Grotesk",
+    sans-serif;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+}
+.digol-brand em {
+  color: #c62828;
+  font-style: normal;
+}
+.digol-brand small {
+  color: #53645e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+}
+.sidebar-digol-brand {
+  color: #fff;
+}
+.sidebar-digol-brand strong {
+  font-size: 18px;
+}
+.sidebar-digol-brand em {
+  color: #f3aaa2;
+}
+.sidebar-digol-brand small {
+  color: #9db0b7;
+  font-size: 8px;
+}
+.sidebar-digol-brand img {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+}
+.sidebar-collapsed .sidebar-digol-brand {
+  justify-content: center;
+  width: 100%;
+}
+.sidebar-collapsed .sidebar-digol-brand > span {
+  display: none;
+}
+@media (max-width: 900px) {
+  .sidebar-collapsed .sidebar-digol-brand {
+    justify-content: flex-start;
+    width: auto;
+  }
+  .sidebar-collapsed .sidebar-digol-brand > span {
+    display: grid;
+  }
+}
+.app-shell .topbar {
+  border-bottom: 1px solid #e2e9e8;
+  background: #ffffffeb;
+  backdrop-filter: blur(16px);
+}
+.app-shell .content {
+  min-height: calc(100vh - 150px);
+}
+.dashboard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 55px;
+  padding: 10px clamp(18px, 3.8vw, 50px);
+  border-top: 1px solid #e3eae7;
+  color: #687b75;
+  font-size: 10px;
+}
+.dashboard-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.dashboard-footer a {
+  color: #506a61;
+  text-decoration: none;
+}
+.dashboard-footer a:hover {
+  color: #af2b32;
+}

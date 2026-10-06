@@ -1,4 +1,5 @@
 "use client";
+import "../../../src/styles/marketing.css";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { unsubscribeNewsletter } from "../../../src/features/auth/services/api-client";

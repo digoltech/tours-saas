@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/transport.css";
+
 import { cn } from "../../lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -367,8 +369,8 @@ export function TripPage({
               />
             </label>
           </div>
-          {!editingId && <section className="mt-5 rounded-xl border border-slate-200 p-4"><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={repeatWeekly} onChange={(event) => { setRepeatWeekly(event.target.checked); setRecurrencePreview([]); }} />Repeat weekly</label>{repeatWeekly && <div className="mt-3 grid gap-3"><label>Repeat until<input type="date" min={form.travelDate} value={repeatEndDate} onChange={(event) => { setRepeatEndDate(event.target.value); setRecurrencePreview([]); }} /></label><fieldset><legend className="mb-2 text-sm font-medium">Days of week</legend><div className="flex flex-wrap gap-3">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => <label className="flex items-center gap-1" key={day}><input type="checkbox" checked={weekdays.includes(index)} onChange={(event) => { setWeekdays((current) => event.target.checked ? [...current, index].sort() : current.filter((value) => value !== index)); setRecurrencePreview([]); }} />{day}</label>)}</div></fieldset>{recurrencePreview.length > 0 && <div className="rounded-lg bg-slate-50 p-3"><strong>{recurrencePreview.filter((item) => item.create).length} trips can be created · {recurrencePreview.filter((item) => !item.create).length} skipped</strong><ul className="mt-2 max-h-36 overflow-auto text-sm">{recurrencePreview.map((item) => <li key={item.date} className={item.create ? "text-emerald-700" : "text-rose-700"}>{item.date} · {item.tripCode}{item.reason ? ` · ${item.reason}` : ""}</li>)}</ul><Button className="mt-3" onClick={() => void generateRecurring()} disabled={saving}>Create valid trips</Button></div>}</div>}</section>}
-          <div className="mt-4 flex flex-wrap gap-2">
+          {!editingId && <section className="trip-style-370"><label className="trip-style-370-2"><input type="checkbox" checked={repeatWeekly} onChange={(event) => { setRepeatWeekly(event.target.checked); setRecurrencePreview([]); }} />Repeat weekly</label>{repeatWeekly && <div className="trip-style-370-3"><label>Repeat until<input type="date" min={form.travelDate} value={repeatEndDate} onChange={(event) => { setRepeatEndDate(event.target.value); setRecurrencePreview([]); }} /></label><fieldset><legend className="trip-style-370-4">Days of week</legend><div className="trip-style-370-5">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => <label className="trip-style-370-6" key={day}><input type="checkbox" checked={weekdays.includes(index)} onChange={(event) => { setWeekdays((current) => event.target.checked ? [...current, index].sort() : current.filter((value) => value !== index)); setRecurrencePreview([]); }} />{day}</label>)}</div></fieldset>{recurrencePreview.length > 0 && <div className="trip-style-370-7"><strong>{recurrencePreview.filter((item) => item.create).length} trips can be created · {recurrencePreview.filter((item) => !item.create).length} skipped</strong><ul className="trip-style-370-8">{recurrencePreview.map((item) => <li key={item.date} className={item.create ? "trip-style-370-9" : "trip-style-370-10"}>{item.date} · {item.tripCode}{item.reason ? ` · ${item.reason}` : ""}</li>)}</ul><Button className="trip-style-370-11" onClick={() => void generateRecurring()} disabled={saving}>Create valid trips</Button></div>}</div>}</section>}
+          <div className="trip-style-371">
             <Button onClick={() => void save()} disabled={saving}>
               <Save size={15} />
               {saving ? "Saving..." : editingId ? "Save changes" : repeatWeekly ? "Preview weekly trips" : "Save trip"}
@@ -470,7 +472,7 @@ export function TripPage({
                       <Badge>{trip.status}</Badge>
                     </td>
                     <td>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="trip-style-473">
                         {can("update") && (
                         <button
                           className={cn("button button-ghost")}
@@ -511,7 +513,7 @@ export function TripPage({
           <span>
             Page {page} of {pages}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="trip-style-514">
             <Button
               variant="secondary"
               disabled={page <= 1}

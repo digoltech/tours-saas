@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "../../src/styles/workspace.css";
 import { Shell } from "../../src/App";
 import { AuthProvider } from "../../src/features/auth/components/AuthProvider";
 import { getRequestUser } from "../../src/features/auth/server";

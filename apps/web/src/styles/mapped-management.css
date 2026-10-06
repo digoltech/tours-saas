@@ -1,0 +1,434 @@
+@layer mapped {
+  .metric-card,
+  .notification-button {
+    position: relative;
+  }
+  .dashboard-stats {
+    margin: 0 0 26px;
+  }
+  .settings-note {
+    margin-top: 18px;
+  }
+  .notification-empty-status {
+    margin-top: 20px;
+  }
+  .management-toolbar {
+    margin-bottom: 16px;
+  }
+  .notification-empty-icon {
+    margin-bottom: 18px;
+  }
+  .management-form,
+  .management-card {
+    margin-bottom: 24px;
+  }
+  .metric-grid {
+    margin-bottom: 26px;
+  }
+  .management-toolbar,
+  .notification-empty-status {
+    display: flex;
+  }
+  .metric-grid,
+  .dashboard-grid,
+  .settings-grid,
+  .settings-card,
+  .dashboard-stats,
+  .notification-empty,
+  .notification-empty-icon,
+  .notification-button {
+    display: grid;
+  }
+  .notification-button {
+    height: 42px;
+  }
+  .notification-empty-icon {
+    height: 54px;
+  }
+  .metric-card {
+    min-height: 142px;
+  }
+  .notification-button {
+    width: 42px;
+  }
+  .notification-empty-icon {
+    width: 54px;
+  }
+  .notification-button {
+    flex: none;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+  .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-grid-three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .dashboard-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .metric-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .management-toolbar {
+    flex-wrap: wrap;
+  }
+  .notification-empty-icon,
+  .notification-button {
+    place-items: center;
+  }
+  .management-toolbar,
+  .notification-empty-status {
+    align-items: center;
+  }
+  .management-toolbar {
+    justify-content: space-between;
+  }
+  .notification-empty {
+    justify-items: center;
+  }
+  .notification-empty-status {
+    gap: 7px;
+  }
+  .settings-card {
+    gap: 14px;
+  }
+  .management-toolbar {
+    gap: 15px;
+  }
+  .dashboard-stats {
+    gap: 16px;
+  }
+  .metric-grid {
+    gap: 17px;
+  }
+  .settings-grid {
+    gap: 18px;
+  }
+  .dashboard-grid {
+    gap: 26px;
+  }
+  .metric-card {
+    overflow: hidden;
+  }
+  .notification-button {
+    border-radius: 12px;
+  }
+  .management-form,
+  .management-card,
+  .notification-empty-icon {
+    border-radius: 16px;
+  }
+  .metric-card {
+    padding: 22px;
+  }
+  .settings-card {
+    padding: 24px;
+  }
+  .activity-card,
+  .management-form,
+  .management-card {
+    padding: 28px;
+  }
+  .notification-empty {
+    padding: 55px 24px;
+  }
+  .notification-empty {
+    text-align: center;
+  }
+  .notification-empty-status {
+    font-size: 11px;
+  }
+  .settings-note {
+    font-size: 13px;
+  }
+  .notification-empty-status {
+    font-weight: 650;
+  }
+  .notification-empty-status {
+    color: #43816f;
+  }
+  .notification-button {
+    color: #60757a;
+  }
+  .notification-empty-icon {
+    color: #ca7548;
+  }
+  .metric-link {
+    color: inherit;
+  }
+  .notification-empty-icon {
+    background: #fff1e9;
+  }
+  .notification-button {
+    background: #fff;
+  }
+  .notification-button {
+    border: 1px solid #e6ecea;
+  }
+  .metric-link {
+    text-decoration: none;
+  }
+  .notification-button {
+    transition:
+      background 0.16s,
+      border-color 0.16s,
+      color 0.16s;
+  }
+  @media (hover: hover) {
+    .notification-button:hover {
+      border-color: #dbe6e2;
+    }
+    .notification-button:hover {
+      background: #f6faf8;
+    }
+  }
+  .settings-card h2 {
+    margin: -8px 0 2px;
+  }
+  .management-form h2 {
+    margin: 0;
+  }
+  .notification-empty h2 {
+    margin: 8px 0 5px;
+  }
+  .dashboard-stats h2 {
+    margin: 12px 0 0;
+  }
+  .settings-card h2 {
+    font-size: 19px;
+  }
+  .notification-empty h2 {
+    color: #28444b;
+  }
+  .dashboard-stats h2 {
+    color: var(--ink);
+  }
+  .notification-empty h2 {
+    font:
+      700 20px Space Grotesk,
+      sans-serif;
+  }
+  .dashboard-stats h2 {
+    font:
+      700 25px/1.15 Space Grotesk,
+      sans-serif;
+  }
+  .settings-card input {
+    min-height: 42px;
+  }
+  .settings-card input {
+    width: 100%;
+  }
+  .settings-card input {
+    border-radius: 8px;
+  }
+  .settings-card input {
+    padding: 9px 11px;
+  }
+  .settings-card input {
+    color: var(--text-primary);
+  }
+  .settings-card input {
+    background: var(--surface);
+  }
+  .settings-card input {
+    border: 1px solid var(--border);
+  }
+  .settings-card label {
+    display: grid;
+  }
+  .settings-card label {
+    gap: 7px;
+  }
+  .settings-card label {
+    font-size: 13px;
+  }
+  .settings-card label {
+    font-weight: 600;
+  }
+  .settings-card label {
+    color: var(--text-secondary);
+  }
+  .metric-card p {
+    position: relative;
+  }
+  .metric-card p {
+    z-index: 1;
+  }
+  .metric-card p,
+  .notification-empty p {
+    margin: 0;
+  }
+  .notification-empty p {
+    max-width: 420px;
+  }
+  .metric-card p,
+  .notification-empty p {
+    font-size: 12px;
+  }
+  .notification-empty p {
+    line-height: 1.6;
+  }
+  .notification-empty p {
+    color: #809093;
+  }
+  .metric-card p {
+    color: var(--muted);
+  }
+  .settings-card select {
+    min-height: 42px;
+  }
+  .settings-card select {
+    width: 100%;
+  }
+  .settings-card select {
+    border-radius: 8px;
+  }
+  .settings-card select {
+    padding: 9px 11px;
+  }
+  .settings-card select {
+    color: var(--text-primary);
+  }
+  .settings-card select {
+    background: var(--surface);
+  }
+  .settings-card select {
+    border: 1px solid var(--border);
+  }
+  .metric-card span {
+    position: relative;
+  }
+  .metric-card span {
+    z-index: 1;
+  }
+  .metric-card span {
+    font-size: 11px;
+  }
+  .metric-card span {
+    color: #a0adb2;
+  }
+  .metric-card strong {
+    position: relative;
+  }
+  .metric-card strong {
+    z-index: 1;
+  }
+  .metric-card strong {
+    margin: 12px 0 5px;
+  }
+  .metric-card strong {
+    display: block;
+  }
+  .metric-card strong {
+    font-family:
+      IBM Plex Mono,
+      monospace;
+  }
+  .metric-card strong {
+    font-size: 30px;
+  }
+  .metric-card strong {
+    font:
+      700 27px Space Grotesk,
+      sans-serif;
+  }
+  .metric-card.metric-link {
+    height: 100%;
+  }
+  .metric-card.metric-link {
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+  .metric-card.metric-link:hover {
+    border-color: #df413a;
+  }
+  .metric-card.metric-link:hover {
+    box-shadow: 0 8px 24px #18233112;
+  }
+  .metric-card:after {
+    position: absolute;
+  }
+  .metric-card:after {
+    right: -20px;
+  }
+  .metric-card:after {
+    bottom: -30px;
+  }
+  .metric-card:after {
+    height: 105px;
+  }
+  .metric-card:after {
+    width: 105px;
+  }
+  .metric-card:after {
+    border-radius: 50%;
+  }
+  .metric-card:after {
+    content: "";
+  }
+  .metric-card:after {
+    background: #c628280f;
+  }
+  .metric-card > svg {
+    position: relative;
+  }
+  .metric-card > svg {
+    z-index: 1;
+  }
+  .metric-card > svg {
+    height: 20px;
+  }
+  .metric-card > svg {
+    width: 20px;
+  }
+  .metric-card > svg {
+    color: var(--teal);
+  }
+  @media (max-width: 620px) {
+    .metric-grid,
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+    .dashboard-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .dashboard-stats {
+      gap: 12px;
+    }
+    .activity-card,
+    .management-form,
+    .management-card {
+      padding: 22px;
+    }
+    .dashboard-stats h2 {
+      font-size: 21px;
+    }
+    .topbar-actions > .notification-button {
+      display: grid;
+    }
+  }
+  @media (max-width: 640px) {
+    .management-form,
+    .management-card {
+      padding: 20px;
+    }
+  }
+  @media (max-width: 700px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 900px) {
+    .metric-grid-three {
+      grid-template-columns: 1fr;
+    }
+    .metric-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}

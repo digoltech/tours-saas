@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "../styles/marketing.css";
 import type { ReactNode } from "react";
 import { Brand } from "./Brand";
 import { SiteFooter } from "./SiteFooter";

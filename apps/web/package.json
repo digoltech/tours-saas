@@ -18,12 +18,10 @@
     "next": "^16.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.7.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

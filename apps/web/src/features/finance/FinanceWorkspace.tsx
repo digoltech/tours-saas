@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/finance.css";
+
 import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FinanceMethod } from "@a-one-tours/shared";
@@ -1284,7 +1286,7 @@ export function FinanceWorkspace() {
                   }
                 >
                   <Trash2 size={15} />
-                  <span className="sr-only">Remove</span>
+                  <span className="finance-style-1287">Remove</span>
                 </button>
               </div>
             ))}

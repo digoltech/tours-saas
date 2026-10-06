@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/finance.css";
+
 import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Card } from "../../ui/Card";
@@ -46,7 +48,7 @@ export function CancellationRequests() {
     }
   }
   return (
-    <section className="mb-5">
+    <section className="cancellation-requests-style-49">
       <div className="card-heading">
         <div>
           <p className="eyebrow">CUSTOMER REQUESTS</p>
@@ -57,10 +59,10 @@ export function CancellationRequests() {
       {rows.length === 0 ? (
         <Card>No pending cancellation requests.</Card>
       ) : (
-        <div className="grid gap-3">
+        <div className="cancellation-requests-style-60">
           {rows.map((row) => (
             <Card key={row.id}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="cancellation-requests-style-63">
                 <div>
                   <strong>{row.booking.pnr}</strong>
                   <p>{row.reason || "No reason provided"}</p>
@@ -70,7 +72,7 @@ export function CancellationRequests() {
                     {row.booking.trip.route.destination}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="cancellation-requests-style-73">
                   <Button
                     disabled={busy === row.id}
                     onClick={() => void review(row.id, true)}

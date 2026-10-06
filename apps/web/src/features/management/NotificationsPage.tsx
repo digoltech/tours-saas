@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/notifications.css";
+
 import { useEffect, useState } from "react";
 import { Bell, Check, CheckCheck, ChevronDown, Inbox, Mail, MessageSquare, Save, Search, Smartphone } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -107,7 +109,7 @@ export function NotificationsPage() {
                 <button type="button" className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>All <span>{items.length}{nextCursor ? "+" : ""}</span></button>
                 <button type="button" className={filter === "unread" ? "active" : ""} onClick={() => setFilter("unread")}>Unread <span>{unread}</span></button>
               </div>
-              <label className="notifications-search"><Search size={17} /><span className="sr-only">Search loaded notifications</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notifications" /></label>
+              <label className="notifications-search"><Search size={17} /><span className="notifications-style-110">Search loaded notifications</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notifications" /></label>
             </div>
             {loading ? <SkeletonList rows={5} /> : visible.length ? (
               <div className="notifications-list">

@@ -1,0 +1,429 @@
+.landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 9px 24px #1c27270a;
+}
+.landing-nav {
+  min-height: 78px;
+}
+.landing-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+.landing-nav-links a {
+  position: relative;
+  padding: 8px 0;
+  color: #4b5551;
+  font-size: 12px;
+  font-weight: 750;
+}
+.landing-nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: 3px;
+  height: 2px;
+  background: #c62828;
+  transition: right 0.2s ease;
+}
+.landing-nav-links a:hover::after,
+.landing-nav-links a:focus-visible::after {
+  right: 0;
+}
+.site-footer {
+  padding: 68px max(24px, calc((100% - 1168px) / 2)) 0;
+  background: #172823;
+  color: #f8f7f2;
+}
+.site-footer-main {
+  display: grid;
+  grid-template-columns: 1.45fr 0.7fr 0.9fr 1.4fr;
+  gap: clamp(25px, 4vw, 64px);
+  padding-bottom: 62px;
+}
+.site-footer-about p {
+  max-width: 250px;
+  margin: 21px 0 0;
+  color: #b6c3bd;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.site-footer .digol-brand em {
+  color: #f0a39a;
+}
+.site-footer .digol-brand small {
+  color: #a6b7af;
+}
+.site-footer nav {
+  display: grid;
+  align-content: start;
+  gap: 13px;
+}
+.site-footer h2 {
+  margin: 0 0 10px;
+  color: #fff;
+  font:
+    700 13px "Space Grotesk",
+    sans-serif;
+}
+.site-footer nav a {
+  color: #b9c5be;
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.site-footer nav a:hover {
+  color: #fff;
+}
+.site-footer-newsletter {
+  padding: 24px;
+  border: 1px solid #ffffff20;
+  border-radius: 18px;
+  background: #ffffff0b;
+}
+.site-footer-mail {
+  display: grid;
+  width: 37px;
+  height: 37px;
+  margin-bottom: 17px;
+  place-items: center;
+  border-radius: 10px;
+  background: #e9504a28;
+  color: #f3aaa2;
+}
+.site-footer-newsletter h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 1.25;
+}
+.site-footer-newsletter p {
+  margin: 0 0 20px;
+  color: #b9c5be;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.site-footer-newsletter form {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #ffffff3b;
+  border-radius: 9px;
+  background: #fff;
+}
+.site-footer-newsletter input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  outline: 0;
+  color: #1b302b;
+  font-size: 12px;
+}
+.site-footer-newsletter button {
+  display: grid;
+  flex: 0 0 45px;
+  place-items: center;
+  border: 0;
+  background: #c62828;
+  color: #fff;
+}
+.site-footer-newsletter button:hover {
+  background: #a91f27;
+}
+.site-footer-newsletter button:disabled {
+  opacity: 0.65;
+}
+.site-footer-newsletter small {
+  display: block;
+  min-height: 32px;
+  margin-top: 10px;
+  color: #b9c5be;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.site-footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0 24px;
+  border-top: 1px solid #ffffff20;
+  color: #9eaea5;
+  font-size: 10px;
+}
+.public-page {
+  min-height: 100svh;
+  background: #fbfaf7;
+  color: #24332d;
+}
+.public-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1240px;
+  min-height: 83px;
+  margin: auto;
+  padding: 0 28px;
+}
+.public-header nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.public-header nav a {
+  color: #45564e;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.public-header nav .public-header-cta {
+  padding: 12px 18px;
+  border-radius: 9px;
+  background: #c62828;
+  color: #fff;
+}
+.public-content {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 65px 28px 110px;
+}
+.public-intro {
+  max-width: 710px;
+  margin-bottom: 45px;
+}
+.public-intro span {
+  color: #b43137;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+}
+.public-intro h1 {
+  margin: 12px 0 13px;
+  font:
+    700 clamp(38px, 5vw, 62px)/1.05 "Space Grotesk",
+    sans-serif;
+  letter-spacing: -0.055em;
+}
+.public-intro p {
+  margin: 0;
+  color: #637169;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.public-body {
+  padding: 42px;
+  border: 1px solid #e7e7df;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 45px #202e240a;
+}
+.legal-copy {
+  max-width: 780px;
+}
+.legal-copy h2 {
+  margin: 32px 0 8px;
+  color: #24332d;
+  font:
+    700 20px "Space Grotesk",
+    sans-serif;
+}
+.legal-copy p {
+  color: #4e6157;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.legal-copy a,
+.contact-aside a {
+  color: #ae282e;
+  font-weight: 750;
+}
+.legal-date {
+  margin-top: 0;
+  color: #637169 !important;
+  font-size: 11px !important;
+}
+.contact-grid {
+  display: grid;
+  grid-template-columns: 0.78fr 1.22fr;
+  gap: 60px;
+}
+.contact-aside > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 14px;
+  background: #fbeceb;
+  color: #bd3439;
+}
+.contact-aside h2 {
+  margin: 20px 0 10px;
+  font:
+    700 25px "Space Grotesk",
+    sans-serif;
+}
+.contact-aside p {
+  color: #617169;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.contact-form {
+  display: grid;
+  gap: 18px;
+}
+.contact-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.contact-form label {
+  display: grid;
+  gap: 7px;
+  color: #344b40;
+  font-size: 12px;
+  font-weight: 800;
+}
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  padding: 12px 13px;
+  border: 1px solid #dbe3db;
+  border-radius: 9px;
+  outline: 0;
+  background: #fcfdfb;
+  color: #1d3026;
+  font:
+    500 13px "Manrope",
+    sans-serif;
+}
+.contact-form input {
+  height: 44px;
+}
+.contact-form input:focus,
+.contact-form textarea:focus {
+  border-color: #b94243;
+  box-shadow: 0 0 0 3px #c6282819;
+}
+.contact-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 9px;
+  background: #c62828;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+.contact-form button:disabled {
+  opacity: 0.6;
+}
+.contact-form p {
+  min-height: 20px;
+  margin: 0;
+  color: #23764d;
+  font-size: 12px;
+}
+.simple-result {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 35px;
+  min-height: 100svh;
+  padding: 28px;
+  background: #f8f9f6;
+}
+.simple-result section {
+  max-width: 500px;
+  padding: 38px;
+  border: 1px solid #e2e8e2;
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 18px 40px #173e2d0c;
+}
+.simple-result h1 {
+  font:
+    700 29px "Space Grotesk",
+    sans-serif;
+}
+.simple-result p {
+  color: #617169;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.simple-result section a {
+  color: #b32830;
+  font-size: 12px;
+  font-weight: 800;
+}
+@media (max-width: 900px) {
+  .site-footer-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .contact-grid {
+    gap: 30px;
+  }
+}
+@media (max-width: 620px) {
+  .landing-nav-links {
+    display: none;
+  }
+  .digol-brand img {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  .digol-brand strong {
+    font-size: 13px;
+  }
+  .digol-brand small {
+    font-size: 7px;
+  }
+  .site-footer {
+    padding: 48px 20px 0;
+  }
+  .site-footer-main {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px 20px;
+  }
+  .site-footer-about,
+  .site-footer-newsletter {
+    grid-column: 1/-1;
+  }
+  .site-footer-newsletter {
+    padding: 19px;
+  }
+  .site-footer-bottom {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .public-header {
+    min-height: 70px;
+    padding: 0 18px;
+  }
+  .public-header nav {
+    gap: 12px;
+  }
+  .public-header nav a:first-child {
+    display: none;
+  }
+  .public-content {
+    padding: 45px 18px 70px;
+  }
+  .public-body {
+    padding: 24px 19px;
+  }
+  .contact-grid,
+  .contact-pair {
+    grid-template-columns: 1fr;
+  }
+}

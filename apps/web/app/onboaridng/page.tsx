@@ -1,5 +1,7 @@
 "use client";
 
+import "../../src/styles/account.css";
+
 import { cn } from "../../src/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";

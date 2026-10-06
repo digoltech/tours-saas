@@ -1,4 +1,5 @@
 import { cn } from "../src/lib/utils";
+import "../src/styles/marketing.css";
 import Link from "next/link";
 import { Brand } from "../src/ui/Brand";
 import { SiteFooter } from "../src/ui/SiteFooter";

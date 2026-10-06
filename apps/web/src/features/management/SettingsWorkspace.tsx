@@ -166,7 +166,7 @@ export function SettingsWorkspace() {
           {field("email", "Contact email", "email")}
           {field("phone", "Contact phone", "tel")}
           {field("logoUrl", "Logo image URL", "url")}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="settings-style-169">
             {field("brandColor", "Brand color", "color")}
             <label>
               Currency
@@ -184,7 +184,7 @@ export function SettingsWorkspace() {
             </label>
           </div>
           {field("defaultFare", "Default one-way fare", "number")}
-          <div className="mt-4 flex justify-end">
+          <div className="settings-style-187">
             <Button onClick={() => void save()}>
               <Save size={15} /> Save settings
             </Button>
@@ -200,7 +200,7 @@ export function SettingsWorkspace() {
         <SubscriptionAdmin />
       ) : (
         <>
-          <Card className={cn("settings-card", "mt-5")}>
+          <Card className={cn("settings-card", "settings-style-203")}>
             <p className={cn("eyebrow")}>SUBSCRIPTION</p>
             <h2>
               {subscription?.planName ?? "Plan"} ·{" "}
@@ -211,7 +211,7 @@ export function SettingsWorkspace() {
                 ? `Trial ends ${new Date(subscription.trialEndsAt).toLocaleDateString()}.`
                 : "Plan activation and payment are handled by your account administrator."}
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="settings-style-214">
               <label>
                 Requested plan
                 <input
@@ -231,13 +231,13 @@ export function SettingsWorkspace() {
                 />
               </label>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="settings-style-234">
               <Button variant="secondary" onClick={() => void requestPlan()}>
                 Request plan
               </Button>
             </div>
           </Card>
-          <section className="mt-5">
+          <section className="settings-style-240">
             {user?.role === "AGENCY_ADMIN" && (
               <label>
                 Offline payment method
@@ -262,7 +262,7 @@ export function SettingsWorkspace() {
               </div>
             </div>
             {invoices.length ? (
-              <div className="grid gap-3">
+              <div className="settings-style-265">
                 {invoices.map((bill) => (
                   <Card key={bill.id}>
                     <strong>{bill.number}</strong>
@@ -270,7 +270,7 @@ export function SettingsWorkspace() {
                       {bill.description} · {bill.currency}{" "}
                       {Number(bill.amount).toFixed(2)}
                     </p>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="settings-style-273">
                       <span>
                         {bill.status}
                         {bill.dueAt

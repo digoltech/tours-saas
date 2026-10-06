@@ -1,5 +1,7 @@
 "use client";
 
+import "../../../../src/styles/privacy.css";
+
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Download, FileText, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../../../src/features/auth/components/AuthProvider";

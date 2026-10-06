@@ -1,0 +1,55 @@
+@layer direct {
+  .booking-style-355 {
+    margin-top: calc(var(--spacing) * 4);
+  }
+  .booking-style-294 {
+    margin-bottom: calc(var(--spacing) * 4);
+  }
+  .booking-history-style-204 {
+    margin-left: calc(var(--spacing) * 3);
+  }
+  .booking-history-style-228,
+  .booking-style-355 {
+    display: flex;
+  }
+  .booking-style-294 {
+    max-height: calc(var(--spacing) * 12);
+  }
+  .booking-style-294 {
+    max-width: calc(var(--spacing) * 40);
+  }
+  .booking-history-style-228-1,
+  .booking-style-355-1 {
+    flex: 1;
+  }
+  .booking-history-style-228-col,
+  .booking-style-355-col {
+    flex-direction: column;
+  }
+  .booking-history-style-228-col-reverse,
+  .booking-style-355-col-reverse {
+    flex-direction: column-reverse;
+  }
+  .booking-history-style-228-wrap,
+  .booking-style-355-wrap,
+  .booking-style-355 {
+    flex-wrap: wrap;
+  }
+  .booking-history-style-228 {
+    align-items: center;
+  }
+  .booking-style-355 {
+    justify-content: flex-end;
+  }
+  .booking-history-style-228,
+  .booking-style-355 {
+    gap: calc(var(--spacing) * 2);
+  }
+  .booking-history-style-228\.5,
+  .booking-style-355\.5 {
+    gap: calc(var(--spacing) * 2.5);
+  }
+  .booking-style-294 {
+    object-fit: contain;
+  }
+}

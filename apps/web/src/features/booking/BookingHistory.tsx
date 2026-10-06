@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/booking.css";
+
 import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
@@ -201,7 +203,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
                       </button>
                       {!compact && row.status === "CONFIRMED" && (
                         <button
-                          className={cn("text-link", "ml-3")}
+                          className={cn("text-link", "booking-history-style-204")}
                           type="button"
                           disabled={
                             row.cancellationRequest?.status === "PENDING"
@@ -225,7 +227,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
             <span>
               Page {page} of {pages}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="booking-history-style-228">
               <Button
                 variant="secondary"
                 disabled={page <= 1 || loading}

@@ -1,4 +1,5 @@
 import { cn } from "../../../lib/utils";
+import "../../../styles/account.css";
 import Link from "next/link";
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { Brand } from "../../../ui/Brand";

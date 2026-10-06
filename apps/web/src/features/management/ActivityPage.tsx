@@ -1,11 +1,13 @@
 "use client";
 
+import "../../styles/activity.css";
+
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Activity, CalendarDays, FilterX, Search, SlidersHorizontal, UserRound } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
-import { Skeleton, SkeletonList } from "../../ui/Skeleton";
+import { SkeletonList } from "../../ui/Skeleton";
 import { getAuditLogs } from "../auth/services/api-client";
 
 type ActivityRow = Awaited<ReturnType<typeof getAuditLogs>>[number];

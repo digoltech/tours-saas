@@ -129,7 +129,7 @@ export function SubscriptionAdmin() {
                 {Number(subscription.requestedPrice).toFixed(2)}
               </p>
             )}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="subscription-admin-style-132">
               <label>
                 Plan
                 <input
@@ -161,12 +161,12 @@ export function SubscriptionAdmin() {
                 </select>
               </label>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="subscription-admin-style-164">
               <Button onClick={() => void save()}>Save subscription</Button>
             </div>
-            <hr className="my-4" />
+            <hr className="subscription-admin-style-167" />
             <h3>Create manual invoice</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="subscription-admin-style-169">
               <label>
                 Description
                 <input
@@ -185,7 +185,7 @@ export function SubscriptionAdmin() {
                 />
               </label>
             </div>
-            <div className="mt-3 flex justify-end">
+            <div className="subscription-admin-style-188">
               <Button variant="secondary" onClick={() => void createInvoice()}>
                 Create invoice
               </Button>

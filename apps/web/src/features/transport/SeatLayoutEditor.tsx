@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/transport.css";
+
 import { useState } from "react";
 import { Armchair, Bed } from "lucide-react";
 import { Badge } from "../../ui/Badge";
@@ -79,7 +81,7 @@ export function SeatLayoutEditor({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="seat-layout-editor-style-82">
       <Card className="layout-setup-card">
         <div className={cn("layout-setup-heading")}>
           <div>

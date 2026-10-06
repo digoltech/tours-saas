@@ -1,5 +1,7 @@
 "use client";
 
+import "../../../styles/profile.css";
+
 import { useEffect, useState, type FormEvent } from "react";
 import { Building2, Check, CircleUserRound, LockKeyhole, Mail, Save, ShieldCheck } from "lucide-react";
 import { useAuth } from "./AuthProvider";

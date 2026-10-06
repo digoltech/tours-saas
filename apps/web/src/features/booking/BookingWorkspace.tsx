@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/booking.css";
+
 import { cn } from "../../lib/utils";
 import Link from "next/link";
 import Image from "next/image";
@@ -291,7 +293,7 @@ export function BookingWorkspace() {
                 height={48}
                 src={agencyBrand.logoUrl}
                 alt={`${agencyBrand.name} logo`}
-                className="mb-4 max-h-12 max-w-40 object-contain"
+                className="booking-style-294"
               />
             )}
             <div className={cn("card-heading")}>
@@ -352,7 +354,7 @@ export function BookingWorkspace() {
             <p className={cn("muted")}>Present this PNR at boarding.</p>
           </Card>
         </div>
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className="booking-style-355">
           <Button onClick={() => window.print()}>
             <Printer size={16} /> Print ticket
           </Button>

@@ -1,0 +1,59 @@
+@layer direct {
+  .finance-style-1287 {
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    position: absolute;
+    overflow: hidden;
+  }
+  .cancellation-requests-style-49 {
+    margin-bottom: calc(var(--spacing) * 5);
+  }
+  .cancellation-requests-style-63,
+  .cancellation-requests-style-73 {
+    display: flex;
+  }
+  .cancellation-requests-style-60 {
+    display: grid;
+  }
+  .cancellation-requests-style-63-1,
+  .cancellation-requests-style-73-1 {
+    flex: 1;
+  }
+  .cancellation-requests-style-60-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cancellation-requests-style-63-col,
+  .cancellation-requests-style-73-col {
+    flex-direction: column;
+  }
+  .cancellation-requests-style-63-col-reverse,
+  .cancellation-requests-style-73-col-reverse {
+    flex-direction: column-reverse;
+  }
+  .cancellation-requests-style-63-wrap,
+  .cancellation-requests-style-63,
+  .cancellation-requests-style-73-wrap {
+    flex-wrap: wrap;
+  }
+  .cancellation-requests-style-63 {
+    align-items: center;
+  }
+  .cancellation-requests-style-63 {
+    justify-content: space-between;
+  }
+  .cancellation-requests-style-73 {
+    gap: calc(var(--spacing) * 2);
+  }
+  .cancellation-requests-style-73\.5 {
+    gap: calc(var(--spacing) * 2.5);
+  }
+  .cancellation-requests-style-60,
+  .cancellation-requests-style-63 {
+    gap: calc(var(--spacing) * 3);
+  }
+}

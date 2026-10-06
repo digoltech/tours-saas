@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/roles.css";
+
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Pencil, Plus, Search, Shield, ShieldCheck, Trash2, Users, X } from "lucide-react";
 import { Button } from "../../ui/Button";
@@ -139,7 +141,7 @@ export function RolesPage() {
         <fieldset className="roles-permission-fieldset"><legend>Permissions <span>{selected.length} selected</span></legend><div className="roles-permission-groups">{Object.entries(permissionGroups).map(([group, options]) => <div key={group} className="roles-permission-group"><h3>{group.replaceAll("_", " ")}</h3><div>{options?.map((permission) => <label key={permission.code}><input type="checkbox" checked={selected.includes(permission.code)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, permission.code] : current.filter((code) => code !== permission.code))} /><span><strong>{permission.code.split(":")[1]}</strong><small>{permission.description}</small></span></label>)}</div></div>)}</div></fieldset>
         <div className="roles-editor-actions"><Button disabled={saving} onClick={() => void save()}><Check size={16} />{saving ? "Saving…" : customizingMember ? "Save member permissions" : editing ? "Save permissions" : "Create role"}</Button><Button variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button></div>
       </Card>}
-      <Card className="roles-section"><div className="roles-section-heading"><div><p className="eyebrow">TEAM ACCESS</p><h2>All team members</h2><p>Assign a role to change a member’s permissions.</p></div><label className="roles-search"><Search size={17} /><span className="sr-only">Search team members</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search team members" /></label></div>
+      <Card className="roles-section"><div className="roles-section-heading"><div><p className="eyebrow">TEAM ACCESS</p><h2>All team members</h2><p>Assign a role to change a member’s permissions.</p></div><label className="roles-search"><Search size={17} /><span className="roles-style-142">Search team members</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search team members" /></label></div>
         {loading ? <p className="roles-state">Loading team members…</p> : visibleMembers.length ? <div className="roles-table-wrap"><table className="roles-table"><thead><tr><th>Team member</th><th>Branch</th><th>Status</th><th>Role</th><th>Action</th></tr></thead><tbody>{visibleMembers.map((member) => {
           const currentRole = roles.find((role) => role.id === member.roleId);
           const draft = draftRoles[member.id] ?? member.roleId;

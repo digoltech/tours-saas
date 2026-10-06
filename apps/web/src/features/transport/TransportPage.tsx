@@ -1,5 +1,7 @@
 "use client";
 
+import "../../styles/transport.css";
+
 import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -308,7 +310,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
             )}
             {editing && <label>Status<select value={form.status ?? "ACTIVE"} onChange={(e) => update("status", e.target.value)}><option>ACTIVE</option><option>INACTIVE</option></select></label>}
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="transport-style-311">
             <Button onClick={() => void save()} disabled={saving}>
               <Save size={15} />
               {saving ? "Saving..." : editing ? "Save changes" : "Save record"}
@@ -322,7 +324,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
           <strong>{error}</strong>
         </div>
       )}
-      {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{resource.slice(0, -1)} details</p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> Edit</Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> Close</Button></div></Card>}
+      {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{resource.slice(0, -1)} details</p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><div className="transport-style-325"><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> Edit</Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> Close</Button></div></Card>}
       <Card className={cn("management-card")}>
         <div className={cn("management-toolbar")}>
           <label className={cn("search-field")}>
@@ -427,15 +429,15 @@ export function TransportPage({ resource }: { resource: Resource }) {
                     </td>
                     <td className={cn("table-actions")}>
                       {resource === "buses" ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="transport-style-430">
                           {can("update") && <>
                             <Link className={cn("button button-secondary")} href={`/dashboard/buses/${row.id}/edit`} aria-label={`Edit bus ${(row as Bus).busNumber}`}><Pencil size={15} /> Edit</Link>
                             <Link className={cn("button button-ghost")} href={`/dashboard/buses/${row.id}/edit?step=layout`} aria-label={`Edit seat layout for ${(row as Bus).busNumber}`}><Armchair size={15} /> Seat layout</Link>
                           </>}
                           <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> Deactivate</button>
                         </div>
-                      ) : <div className="flex flex-wrap items-center gap-2">
-                        <button className={cn("button button-ghost")} onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /><span className="sr-only">Edit</span></button>
+                      ) : <div className="transport-style-437">
+                        <button className={cn("button button-ghost")} onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /><span className="transport-style-438">Edit</span></button>
                         <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> Deactivate</button>
                       </div>}
                     </td>
@@ -449,7 +451,7 @@ export function TransportPage({ resource }: { resource: Resource }) {
           <span>
             Page {page} of {pages}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="transport-style-452">
             <Button
               variant="secondary"
               disabled={page <= 1}

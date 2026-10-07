@@ -9,6 +9,7 @@ import * as controller from "../controllers/booking.controller.js";
 export const bookingRouter = Router();
 bookingRouter.use(authenticate, requirePermission("booking:read"));
 bookingRouter.get("/bookings/search", controller.searchTrips);
+bookingRouter.get("/customers", controller.customers);
 bookingRouter.get("/bookings", controller.list);
 bookingRouter.get("/bookings/summary", controller.summary);
 bookingRouter.get("/bookings/trips/:tripId/seats", controller.availability);

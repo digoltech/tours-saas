@@ -385,6 +385,9 @@ export function getBranches(agencyId: string, search = "", status = "") {
     `/api/agencies/${agencyId}/branches?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
   );
 }
+export function getBranch(id: string) {
+  return request<Branch & { email?: string | null; phone?: string | null; address?: string | null; city?: string | null; state?: string | null; country?: string | null; status: string; agency: { name: string }; _count: { users: number } }>(`/api/branches/${id}`);
+}
 
 export function createBranch(
   agencyId: string,
@@ -720,6 +723,14 @@ export type BookingRecord = {
   boardingStop: { id: string; name: string };
   dropOffStop: { id: string; name: string };
 };
+export type CustomerRecord = { id: string; firstName: string; lastName: string; phone: string; email: string | null; bookings: number; latestBooking: { pnr: string; status: string; createdAt: string; route: string } | null };
+export function getCustomers(params: { search?: string; page?: number; limit?: number } = {}) {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+  return request<PageResult<CustomerRecord>>(`/api/customers?${query}`);
+}
 export function getSeatLayout(busId: string) {
   return request<{
     rows: number;

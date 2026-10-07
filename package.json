@@ -25,6 +25,7 @@
     "prisma:migrate": "prisma migrate dev --config prisma.config.ts",
     "prisma:studio": "prisma studio --config prisma.config.ts",
     "prisma:seed": "bun prisma/seed.ts",
+    "prisma:seed:demo": "bun prisma/seed-demo.ts",
     "security:supabase-audit": "bun scripts/supabase-security-audit.ts",
     "typecheck": "bun run typecheck:web && bun run typecheck:api",
     "typecheck:web": "bun --cwd apps/web typecheck",

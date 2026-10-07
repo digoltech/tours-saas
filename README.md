@@ -50,6 +50,8 @@ bun run prisma:migrate
 
 The Prisma schema and migrations include the current tenant, transport, booking, and finance models. With a configured database, run `bun run prisma:migrate` followed by `bun run prisma:seed`. See [docs/authentication.md](docs/authentication.md) for development accounts and authorization rules and [docs/finance.md](docs/finance.md) for Stage 3 behavior and API routes.
 
+To populate the existing development accounts with a realistic example, run `bun run prisma:seed:demo`. It adds routes, stops, boarding points, buses, drivers, seat layouts, finance settings, seven days of upcoming trips, and two bookings with passengers and payments. The sample data belongs to the `agency-a` and `agency-b` development tenants; the bookings are visible to the `agent.a1@aone.local` account. The command preserves login accounts and existing demo records when run again. It is disabled when `NODE_ENV=production`.
+
 ## Running the applications
 
 ```bash

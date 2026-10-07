@@ -10,11 +10,12 @@ import "../../styles/transport.css";
 import { cn } from "../../lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Ban, ChevronLeft, ChevronRight, Pencil, Plus, Search, Save, X } from "lucide-react";
+import { ArrowRight, Ban, BusFront, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Pencil, Plus, Search, Save, Users, X } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
+import "../../styles/experience.css";
 import { useAuth } from "../auth/components/AuthProvider";
 import {
   cancelTrip,
@@ -409,10 +410,10 @@ export function TripPage({
             }}
           >
             <option value=""><Translate text={"All statuses"} /></option>
-            <option><Translate text={"SCHEDULED"} /></option>
-            <option><Translate text={"IN_PROGRESS"} /></option>
-            <option><Translate text={"COMPLETED"} /></option>
-            <option><Translate text={"CANCELLED"} /></option>
+            <option value="SCHEDULED"><Translate text={"SCHEDULED"} /></option>
+            <option value="IN_PROGRESS"><Translate text={"IN_PROGRESS"} /></option>
+            <option value="COMPLETED"><Translate text={"COMPLETED"} /></option>
+            <option value="CANCELLED"><Translate text={"CANCELLED"} /></option>
           </select>
           {can("create") && <Button onClick={() => { setEditingId(null); setForm({}); setRepeatWeekly(false); setRepeatEndDate(""); setWeekdays([]); setRecurrencePreview([]); setOpen((value) => !value); }}><Plus size={16} /> <Translate text={"Add trip"} /></Button>}
         </div>
@@ -424,83 +425,18 @@ export function TripPage({
             <span><Translate text={"Schedule a trip or adjust the filters."} /></span>
           </div>
         ) : (
-          <div className={cn("table-wrapper")}>
-            <table>
-              <thead>
-                <tr>
-                  <th><Translate text={"Trip"} /></th>
-                  <th><Translate text={"Route"} /></th>
-                  <th><Translate text={"Travel date"} /></th>
-                  <th><Translate text={"Departure"} /></th>
-                  <th><Translate text={"Arrival"} /></th>
-                  <th><Translate text={"Bus"} /></th>
-                  <th><Translate text={"Driver"} /></th>
-                  <th><Translate text={"Status"} /></th>
-                  <th><Translate text={"Actions"} /></th>
-                </tr>
-              </thead>
-              <tbody>
-                {trips.map((trip) => (
-                  <tr key={trip.id}>
-                    <td>
-                      <Link href={`/trips/${trip.id}`}>{trip.tripCode}</Link>
-                    </td>
-                    <td>{trip.route.name}</td>
-                    <td>{new Date(trip.travelDate).toLocaleDateString(formattingLocale)}</td>
-                    <td>
-                      {new Date(trip.departureTime).toLocaleTimeString(formattingLocale, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td>
-                      {new Date(trip.arrivalTime).toLocaleTimeString(formattingLocale, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td>{trip.bus.busNumber}</td>
-                    <td>
-                      {trip.driver.firstName} {trip.driver.lastName}
-                    </td>
-                    <td>
-                      <Badge>{trip.status}</Badge>
-                    </td>
-                    <td>
-                      <div className="trip-style-473">
-                        {can("update") && (
-                        <button
-                          className={cn("button button-ghost")}
-                          aria-label="Edit trip"
-                          onClick={() => editTrip(trip)}
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        )}
-                        {can("cancel") && (
-                        <button
-                          className={cn("button button-ghost")}
-                          disabled={trip.status === "CANCELLED"}
-                          onClick={() =>
-                            void cancelTrip(trip.id)
-                              .then(load)
-                              .catch((cause) =>
-                                setError(
-                                  cause instanceof Error
-                                    ? cause.message
-                                    : localizeText("Unable to cancel trip"),
-                                ),
-                              )
-                          }
-                        >
-                          <Ban size={15} /> <Translate text={"Cancel trip"} /></button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="trip-directory">
+            {trips.map((trip) => <article className="trip-directory-card" key={trip.id}>
+              <div className="trip-directory-visual">{trip.bus.photos?.[0] ? <img src={trip.bus.photos[0]} alt={`${trip.bus.busNumber} bus`} loading="lazy" /> : <BusFront size={48} strokeWidth={1.3} aria-hidden="true" />}</div>
+              <div className="trip-directory-content">
+                <div className="trip-directory-head"><span className="journey-code">{trip.tripCode}</span><Badge>{trip.status.replaceAll("_", " ")}</Badge></div>
+                <h3><Link href={`/dashboard/trips/${trip.id}`}>{trip.route.source} <span aria-hidden="true">→</span> {trip.route.destination}</Link></h3>
+                <p>{trip.route.name}</p>
+                <div className="trip-directory-meta"><span><CalendarDays size={15} />{new Date(trip.travelDate).toLocaleDateString(formattingLocale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span><span><Clock3 size={15} />{new Date(trip.departureTime).toLocaleTimeString(formattingLocale, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })} – {new Date(trip.arrivalTime).toLocaleTimeString(formattingLocale, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</span><span><MapPin size={15} />{trip.branch.name}</span></div>
+                <div className="trip-directory-footer"><span><BusFront size={15} />{trip.bus.busNumber}</span><span><Users size={15} />{trip.driver.firstName} {trip.driver.lastName}</span><span>₹{Number(trip.fare).toLocaleString(formattingLocale)}</span></div>
+              </div>
+              <div className="trip-directory-actions"><Link className="button button-secondary" href={`/dashboard/trips/${trip.id}`}><Translate text="View trip" /> <ArrowRight size={15} /></Link>{can("update") && <button className="button button-ghost" onClick={() => editTrip(trip)}><Pencil size={15} /> <Translate text="Edit" /></button>}{can("cancel") && <button className="button button-ghost" disabled={trip.status === "CANCELLED"} onClick={() => void cancelTrip(trip.id).then(load).catch((cause) => setError(cause instanceof Error ? cause.message : localizeText("Unable to cancel trip")))}><Ban size={15} /> <Translate text="Cancel trip" /></button>}</div>
+            </article>)}
           </div>
         )}
         <div className={cn("management-toolbar")}>

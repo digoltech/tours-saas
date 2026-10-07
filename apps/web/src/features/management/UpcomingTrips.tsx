@@ -1,16 +1,22 @@
 "use client";
-import { localizeText } from "../../i18n/errors";
-import { useFormattingLocale } from "../../i18n/format-client";
-import { Translate } from "../../i18n/Translate";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Clock3, MapPin, Bus } from "lucide-react";
+import {
+  ArrowRight,
+  BusFront,
+  CalendarDays,
+  Clock3,
+  MapPin,
+} from "lucide-react";
+import { localizeText } from "../../i18n/errors";
+import { useFormattingLocale } from "../../i18n/format-client";
+import { Translate } from "../../i18n/Translate";
 import { Badge } from "../../ui/Badge";
 import { Card } from "../../ui/Card";
 import { SkeletonList } from "../../ui/Skeleton";
-import { cn } from "../../lib/utils";
 import { getTrips, type Trip } from "../auth/services/api-client";
+import "../../styles/experience.css";
 
 export function UpcomingTrips({
   initialTrips,
@@ -19,7 +25,7 @@ export function UpcomingTrips({
   initialTrips?: Trip[];
   initialError?: string;
 }) {
-  const formattingLocale = useFormattingLocale();
+  const locale = useFormattingLocale();
   const [trips, setTrips] = useState<Trip[]>(initialTrips ?? []);
   const [loading, setLoading] = useState(initialTrips === undefined);
   const [error, setError] = useState(initialError);
@@ -32,50 +38,108 @@ export function UpcomingTrips({
       limit: "6",
     })
       .then((result) => setTrips(result.data))
-      .catch((cause) => setError(cause instanceof Error ? cause.message : localizeText("Unable to load upcoming trips")))
+      .catch((cause) =>
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : localizeText("Unable to load upcoming trips"),
+        ),
+      )
       .finally(() => setLoading(false));
   }, [initialTrips]);
 
   return (
-    <Card className="upcoming-trips-style-36">
-      <div className="upcoming-trips-style-37">
+    <Card className="journey-section">
+      <div className="journey-section-heading">
         <div>
-          <p className="upcoming-trips-style-39"><Translate text={"Schedule"} /></p>
-          <h2 className="upcoming-trips-style-40"><Translate text={"Upcoming trips"} /></h2>
-          <p className="upcoming-trips-style-41"><Translate text={"Your next scheduled departures."} /></p>
+          <p className="eyebrow">
+            <Translate text="Schedule" />
+          </p>
+          <h2>
+            <Translate text="Upcoming trips" />
+          </h2>
+          <p>
+            <Translate text="Your next scheduled departures." />
+          </p>
         </div>
-        <Link href="/dashboard/trips" className={cn("button button-secondary")}>
-          <Translate text={"All trips"} />{" "}<ArrowRight size={15} />
+        <Link href="/dashboard/trips" className="button button-secondary">
+          <Translate text="All trips" /> <ArrowRight size={16} />
         </Link>
       </div>
-
       {error ? (
-        <div className="upcoming-trips-style-49" role="alert">{error}</div>
+        <div className="state-message state-error" role="alert">
+          {error}
+        </div>
       ) : loading ? (
         <SkeletonList rows={3} />
       ) : trips.length === 0 ? (
-        <div className="upcoming-trips-style-53">
-          <CalendarDays className="upcoming-trips-style-54" aria-hidden="true" />
-          <p className="upcoming-trips-style-55"><Translate text={"No upcoming trips scheduled"} /></p>
-          <p className="upcoming-trips-style-56"><Translate text={"New scheduled departures will appear here."} /></p>
+        <div className="journey-empty">
+          <CalendarDays size={28} />
+          <strong>
+            <Translate text="No upcoming trips scheduled" />
+          </strong>
+          <span>
+            <Translate text="New scheduled departures will appear here." />
+          </span>
         </div>
       ) : (
-        <div className="upcoming-trips-style-59">
+        <div className="journey-grid">
           {trips.map((trip) => (
-            <Link key={trip.id} href={`/dashboard/trips/${trip.id}`} className="upcoming-trips-style-61">
-              <div className="upcoming-trips-style-62">
-                <span className="upcoming-trips-style-63">{trip.tripCode}</span>
-                <strong className="upcoming-trips-style-64">{new Date(trip.travelDate).toLocaleDateString(formattingLocale, { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Kolkata" })}</strong>
+            <Link
+              href={`/dashboard/trips/${trip.id}`}
+              className="journey-tile"
+              key={trip.id}
+            >
+              <div className="journey-tile-visual">
+                {trip.bus.photos?.[0] ? (
+                  <img
+                    src={trip.bus.photos[0]}
+                    alt={`${trip.bus.busNumber} bus`}
+                    loading="lazy"
+                  />
+                ) : (
+                  <BusFront size={54} strokeWidth={1.3} aria-hidden="true" />
+                )}
+                <span className="journey-tile-bus">{trip.bus.busNumber}</span>
               </div>
-              <div className="upcoming-trips-style-66">
-                <span className="upcoming-trips-style-67"><MapPin size={14} className="upcoming-trips-style-67-2" />{trip.route.source} <span aria-hidden="true">→</span> {trip.route.destination}</span>
-                <span className="upcoming-trips-style-68">
-                  <span className="upcoming-trips-style-69"><Clock3 size={13} />{new Date(trip.departureTime).toLocaleTimeString(formattingLocale, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</span>
-                  <span className="upcoming-trips-style-70"><Bus size={13} />{trip.bus.busNumber}</span>
-                </span>
+              <div className="journey-tile-body">
+                <div className="journey-tile-top">
+                  <span className="journey-code">{trip.tripCode}</span>
+                  <Badge>{trip.status.replaceAll("_", " ")}</Badge>
+                </div>
+                <h3>
+                  {trip.route.source} <span aria-hidden="true">→</span>{" "}
+                  {trip.route.destination}
+                </h3>
+                <p className="journey-route-name">{trip.route.name}</p>
+                <div className="journey-tile-meta">
+                  <span>
+                    <CalendarDays size={15} />
+                    {new Date(trip.travelDate).toLocaleDateString(locale, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      timeZone: "UTC",
+                    })}
+                  </span>
+                  <span>
+                    <Clock3 size={15} />
+                    {new Date(trip.departureTime).toLocaleTimeString(locale, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      timeZone: "Asia/Kolkata",
+                    })}
+                  </span>
+                </div>
+                <div className="journey-tile-foot">
+                  <span>
+                    <MapPin size={14} /> {trip.branch.name}
+                  </span>
+                  <span>
+                    <Translate text="View trip" /> <ArrowRight size={15} />
+                  </span>
+                </div>
               </div>
-              <Badge>{trip.status.replaceAll("_", " ")}</Badge>
-              <ArrowRight size={16} className="upcoming-trips-style-74" aria-hidden="true" />
             </Link>
           ))}
         </div>

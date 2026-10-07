@@ -72,6 +72,7 @@ const navGroups = [
         icon: ClipboardList,
         permission: "booking:read",
       },
+      { label: "Customers", path: "/dashboard/customers", icon: UserRound, permission: "booking:read" },
       {
         label: "Trips",
         path: "/dashboard/trips",
@@ -417,6 +418,7 @@ export function Shell({ children }: { children: ReactNode }) {
     home: "Home",
     superadmin: "Super Admin",
     bookings: "Bookings",
+    customers: "Customers",
     finance: "Finance",
     reports: "Reports",
     operators: "Operators",

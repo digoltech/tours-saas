@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import * as service from "../services/booking.service.js";
+import { listCustomers } from "../services/customer.service.js";
 import { sendError } from "../utils/api-response.js";
 
 async function run(
@@ -30,6 +31,19 @@ async function run(
   }
 }
 const id = z.string().min(1);
+export const customers = (r: Request, s: Response) =>
+  run(s, () =>
+    listCustomers(
+      r.auth!,
+      z
+        .object({
+          search: z.string().optional(),
+          page: z.coerce.number().int().positive().optional(),
+          limit: z.coerce.number().int().positive().optional(),
+        })
+        .parse(r.query),
+    ),
+  );
 export const searchTrips = (r: Request, s: Response) =>
   run(s, () =>
     service.searchTrips(
@@ -46,7 +60,8 @@ export const searchTrips = (r: Request, s: Response) =>
 export const availability = (r: Request, s: Response) =>
   run(s, () => service.tripAvailability(r.auth!, id.parse(r.params.tripId)));
 export const hold = (r: Request, s: Response) =>
-  run(s,
+  run(
+    s,
     () =>
       service.holdSeats(
         r.auth!,
@@ -87,7 +102,8 @@ const bookingPayload = z.object({
     .min(1),
 });
 export const confirm = (r: Request, s: Response) =>
-  run(s,
+  run(
+    s,
     () => service.confirmBooking(r.auth!, bookingPayload.parse(r.body)),
     201,
   );
@@ -122,7 +138,12 @@ export const saveLayout = (r: Request, s: Response) =>
           rows: z.number().int().min(1).max(26),
           columns: z.number().int().min(1).max(8),
           disabledSeats: z.array(z.string()),
-          seatDetails: z.record(z.string(), z.object({ type: z.string(), restriction: z.string() })).optional(),
+          seatDetails: z
+            .record(
+              z.string(),
+              z.object({ type: z.string(), restriction: z.string() }),
+            )
+            .optional(),
         })
         .parse(r.body),
     ),

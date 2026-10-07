@@ -14,6 +14,7 @@ function LocalizedAttributes({ locale }: { locale: Locale }) {
         if (!value) continue;
         const sourceAttribute = `data-i18n-source-${name.replaceAll("-", "")}`;
         let source = element.getAttribute(sourceAttribute);
+        if (!source && locale === "en") continue;
         if (!source || !(["en", "hi", "gu"] as const).some((candidate) => translate(candidate, source ?? "") === value)) {
           source = value;
           element.setAttribute(sourceAttribute, source);

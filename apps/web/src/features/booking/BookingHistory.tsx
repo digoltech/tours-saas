@@ -59,7 +59,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
   }, [load]);
 
   async function openTicket(row: BookingRecord) {
-    window.location.assign(`/bookings?pnr=${encodeURIComponent(row.pnr)}`);
+    window.location.assign(`/dashboard/bookings?pnr=${encodeURIComponent(row.pnr)}`);
   }
   async function requestCancellation(row: BookingRecord) {
     const input = window.prompt(

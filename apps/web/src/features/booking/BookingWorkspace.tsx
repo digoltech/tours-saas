@@ -88,6 +88,13 @@ export function BookingWorkspace() {
   const [error, setError] = useState("");
   const availabilityTripId = availability?.trip.id;
 
+  useEffect(() => {
+    const pnr = new URLSearchParams(window.location.search).get("pnr");
+    if (!pnr) return;
+    void getBookingByPnr(pnr).then(setBooking).catch((cause) =>
+      setError(cause instanceof Error ? cause.message : localizeText("Unable to load booking")));
+  }, []);
+
   const loadAvailability = useCallback(async (tripId: string) => {
     try {
       setAvailability(await getSeatAvailability(tripId));

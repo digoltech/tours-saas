@@ -34,6 +34,7 @@ export function WorkspaceDashboard({
   const title = isAgencyAdmin ? "Agency dashboard" : "Branch dashboard";
   const shortcuts = [
     ...(user?.permissions.includes("booking:read") ? [["Bookings", "/dashboard/bookings", Armchair] as const] : []),
+    ...(user?.permissions.includes("booking:read") ? [["Customers", "/dashboard/customers", Users] as const] : []),
     ...(user?.permissions.includes("trip:read") ? [["Trips", "/dashboard/trips", CalendarDays] as const] : []),
     ...(user?.permissions.includes("bus:read") ? [["Buses", "/dashboard/buses", Bus] as const] : []),
     ...(user?.permissions.includes("agent:read") ? [["Agents", "/dashboard/agents", Users] as const] : []),

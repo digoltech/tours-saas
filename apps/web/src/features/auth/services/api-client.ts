@@ -357,6 +357,9 @@ export function getAgencies(search = "", status = "") {
     `/api/agencies?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
   );
 }
+export type ManagementRecord = Record<string, unknown> & { id: string; agencyId?: string; status: string; name?: string; firstName?: string; lastName?: string; branch?: Branch | null; role?: WorkspaceRole | null };
+export function getAgency(id: string) { return request<ManagementRecord>(`/api/agencies/${encodeURIComponent(id)}`); }
+export function getAgent(id: string) { return request<ManagementRecord>(`/api/agents/${encodeURIComponent(id)}`); }
 
 
 export function createAgency(data: {
@@ -715,13 +718,19 @@ export type BookingRecord = {
   status: "CONFIRMED" | "CANCELLED";
   cancellationRequest?: { status: "PENDING" | "APPROVED" | "REJECTED" } | null;
   currency: string;
+  createdAt?: string;
+  agency?: { name: string; email?: string | null; phone?: string | null; address?: string | null; city?: string | null; state?: string | null; logoUrl?: string | null; brandColor?: string | null };
+  taxAmount?: number | string;
+  cancellationFee?: number | string;
+  payments?: { amount: number | string }[];
+  refunds?: { amount: number | string }[];
   baseFare: number | string;
   discountAmount: number | string;
   totalAmount: number | string;
   passengers: BookingPassengerInput[];
   trip: Trip & { route: Route; bus: Bus };
-  boardingStop: { id: string; name: string };
-  dropOffStop: { id: string; name: string };
+  boardingStop: { id: string; name: string; city?: string | null; address?: string | null; estimatedMinutesFromOrigin?: number | null };
+  dropOffStop: { id: string; name: string; city?: string | null; address?: string | null; estimatedMinutesFromOrigin?: number | null };
 };
 export type CustomerRecord = { id: string; firstName: string; lastName: string; phone: string; email: string | null; bookings: number; latestBooking: { pnr: string; status: string; createdAt: string; route: string } | null };
 export function getCustomers(params: { search?: string; page?: number; limit?: number } = {}) {
@@ -791,6 +800,8 @@ export function getDrivers(params: Record<string, string | undefined> = {}) {
     `/api/drivers?${transportQuery({ limit: "20", ...params })}`,
   );
 }
+export function getDriver(id: string) { return request<Driver & { agencyId: string }>(`/api/drivers/${encodeURIComponent(id)}`); }
+export async function getStop(id: string) { const stop = await request<Stop & { routeId: string }>(`/api/stops/${encodeURIComponent(id)}`); const stops = await request<Stop[]>(`/api/routes/${encodeURIComponent(stop.routeId)}/stops`); return { ...stop, points: stops.find((item) => item.id === id)?.points ?? [] }; }
 export function createDriver(data: Record<string, unknown>) {
   return request<Driver>("/api/drivers", {
     method: "POST",

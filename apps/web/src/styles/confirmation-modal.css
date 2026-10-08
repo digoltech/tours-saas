@@ -1,0 +1,88 @@
+.confirmation-modal {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--ink);
+  background: hsl(var(--card));
+  box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
+  overflow: auto;
+}
+.confirmation-modal::backdrop {
+  background: rgb(10 25 32 / 58%);
+  backdrop-filter: blur(4px);
+}
+.confirmation-modal-content {
+  position: relative;
+  padding: 30px;
+}
+.confirmation-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.confirmation-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  background: var(--pale);
+  color: var(--teal);
+}
+.confirmation-modal h2 {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  line-height: 1.3;
+  margin: 0 32px 12px 0;
+}
+.confirmation-modal p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.confirmation-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+.confirmation-modal .button {
+  min-height: 42px;
+  cursor: pointer;
+}
+.confirmation-modal button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.confirmation-modal-close:hover,
+.confirmation-modal .button-secondary:hover {
+  background: var(--pale);
+  color: var(--teal);
+}
+@media (max-width: 480px) {
+  .confirmation-modal-content {
+    padding: 24px;
+  }
+  .confirmation-modal-actions .button {
+    flex: 1;
+  }
+}
+
+.confirmation-modal .button-primary, .confirmation-modal .button-destructive { background: var(--teal); border-color: var(--teal); color: white; }
+.confirmation-modal .button-primary:hover, .confirmation-modal .button-destructive:hover { background: color-mix(in srgb, var(--teal) 85%, black); border-color: var(--teal); color: white; }

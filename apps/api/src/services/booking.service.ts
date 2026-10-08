@@ -651,6 +651,9 @@ export async function getBookingByPnr(context: AuthContext, pnr: string) {
   const booking = await prisma.booking.findUnique({
     where: { pnr: pnr.toUpperCase() },
     include: {
+      agency: { select: { name: true, email: true, phone: true, address: true, city: true, state: true, logoUrl: true, brandColor: true } },
+      payments: { select: { amount: true } },
+      refunds: { select: { amount: true } },
       passengers: true,
       trip: { include: { route: true, bus: true, branch: true } },
       boardingStop: true,

@@ -1,0 +1,213 @@
+.record-page {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+.record-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  width: fit-content;
+}
+.record-back:hover {
+  color: var(--teal);
+}
+.record-hero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 28px;
+  background: hsl(var(--card));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.record-hero-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  background: var(--pale);
+  color: var(--teal);
+  flex-shrink: 0;
+}
+.record-hero h1 {
+  font-size: clamp(22px, 2.5vw, 30px);
+  letter-spacing: -0.04em;
+  line-height: 1.25;
+  margin: 4px 0 8px;
+  overflow-wrap: anywhere;
+}
+.record-hero p:not(.eyebrow) {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.record-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.record-section {
+  padding: 26px;
+  background: hsl(var(--card));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-width: 0;
+}
+.record-section-heading {
+  margin-bottom: 22px;
+}
+.record-section-heading h2 {
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+.record-section-heading p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.record-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 32px;
+}
+.record-fields dt {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.record-fields dd {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.record-form {
+  display: grid;
+  gap: 22px;
+}
+.record-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.record-form label {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.record-form input:not([type="checkbox"]),
+.record-form select,
+.record-form textarea {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 11px 13px;
+  color: var(--ink);
+  background: hsl(var(--card));
+  font: inherit;
+  font-weight: 400;
+}
+.record-form textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+.record-required {
+  color: var(--teal);
+}
+.record-help {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.record-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 18px 26px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: hsl(var(--card));
+}
+.record-page button:not(:disabled),
+.record-page select,
+.record-page a {
+  cursor: pointer;
+}
+.record-page a:focus-visible,
+.record-page button:focus-visible,
+.record-page input:focus-visible,
+.record-page select:focus-visible,
+.record-page textarea:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.record-page .button:not(:disabled):hover {
+  color: var(--teal);
+  background: var(--pale);
+  border-color: var(--teal);
+}
+.record-page .button:not(:disabled):active {
+  color: white;
+  background: var(--teal);
+}
+.record-page .state-message {
+  margin: 0;
+}
+.record-permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.record-permissions span {
+  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+@media (max-width: 640px) {
+  .record-hero {
+    padding: 20px;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .record-hero-icon {
+    width: 46px;
+    height: 46px;
+  }
+  .record-hero > div:not(.record-hero-actions) {
+    flex: 1;
+    min-width: 0;
+  }
+  .record-hero-actions {
+    width: 100%;
+    margin: 0;
+  }
+  .record-section {
+    padding: 20px;
+  }
+  .record-fields,
+  .record-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .record-form-footer {
+    padding: 16px;
+    flex-wrap: wrap;
+  }
+}
+
+.record-edit-link { gap: 6px; min-height: 36px; padding: 8px 12px; font-size: 12px; white-space: nowrap; }

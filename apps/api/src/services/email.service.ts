@@ -1,25 +1,27 @@
 import { environment } from "../config/env.js";
-
+import { emailLayout, emailButton, escapeHtml } from "./email-templates.js";
 type EmailInput = { to: string; subject: string; text: string; html: string };
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
-}
-
-function layout(title: string, content: string) {
-  return `<div style="background:#f5f7f6;padding:40px 16px;font-family:Arial,sans-serif;color:#15212b"><div style="max-width:560px;margin:auto;background:#fff;border:1px solid #e3e9e7;border-radius:16px;padding:36px"><div style="font-size:18px;font-weight:700;color:#102a36;margin-bottom:28px">Digol <span style="color:#c62828">TravelOS</span></div><h1 style="font-size:24px;line-height:1.2;margin:0 0 16px">${title}</h1>${content}<p style="margin:30px 0 0;color:#829199;font-size:12px;line-height:1.5">If you did not expect this email, you can safely ignore it.</p></div></div>`;
-}
 
 export async function sendEmail(input: EmailInput) {
   if (!environment.RESEND_API_KEY) {
-    if (environment.NODE_ENV === "production") throw new Error("Email delivery is not configured");
+    if (environment.NODE_ENV === "production")
+      throw new Error("Email delivery is not configured");
     console.info(`[email:${input.subject}] ${input.to}\n${input.text}`);
     return;
   }
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${environment.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: environment.MAIL_FROM, to: [input.to], subject: input.subject, text: input.text, html: input.html }),
+    headers: {
+      Authorization: `Bearer ${environment.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: environment.MAIL_FROM,
+      to: [input.to],
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+    }),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -32,46 +34,101 @@ export function sendPasswordResetOtp(email: string, otp: string) {
   return sendEmail({
     to: email,
     subject: "Your Digol TravelOS password reset code",
-    text: `Your password reset code is ${otp}. It expires in 10 minutes.`,
-    html: layout("Reset your password", `<p>Your one-time password reset code is:</p><p style="font-size:30px;font-weight:700;letter-spacing:8px;color:#c62828">${escapeHtml(otp)}</p><p>This code expires in 10 minutes.</p>`),
+    text: `Your password reset code is ${otp}. It expires in 10 minutes. Never share this code. If you did not request a reset, ignore this email.`,
+    html: emailLayout(
+      "Reset your password",
+      `<p>We received a request to reset your Digol TravelOS password. Enter this one-time code to continue:</p><div style="padding:20px;background:#fbeaea;border:1px solid #f2cbcb;border-radius:10px;text-align:center;margin:24px 0"><span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#c62828">${escapeHtml(otp)}</span></div><p><strong>Expires in 10 minutes.</strong> Never share this code with anyone, including someone claiming to be support.</p>`,
+      {
+        eyebrow: "ACCOUNT SECURITY",
+        preheader: "Your password reset code expires in 10 minutes.",
+        footer:
+          "If you did not request a password reset, ignore this email. Your password remains unchanged.",
+      },
+    ),
   });
 }
-
-export function sendRegistrationConfirmation(input: { email: string; firstName: string; verificationUrl: string }) {
-  const firstName = escapeHtml(input.firstName);
+export function sendRegistrationConfirmation(input: {
+  email: string;
+  firstName: string;
+  verificationUrl: string;
+}) {
   return sendEmail({
     to: input.email,
     subject: "Confirm your Digol TravelOS account",
-    text: `Hi ${input.firstName}, welcome to Digol TravelOS. Confirm your email here: ${input.verificationUrl}`,
-    html: layout(`Welcome, ${firstName}`, `<p>Confirm your email address to secure your account. You’ll set up your travel business next.</p><p style="margin:26px 0"><a href="${escapeHtml(input.verificationUrl)}" style="display:inline-block;background:#c62828;color:#fff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Confirm email address</a></p><p style="font-size:12px;color:#64727c">This link expires in 24 hours.</p>`),
+    text: `Hi ${input.firstName}, welcome to Digol TravelOS. Confirm your email here: ${input.verificationUrl}. This link expires in 24 hours.`,
+    html: emailLayout(
+      `Welcome, ${input.firstName}`,
+      `<p>Thank you for joining Digol TravelOS. Confirm your email address to secure your account and set up your travel business.</p>${emailButton("Confirm email address", input.verificationUrl)}<p style="font-size:12px;color:#647780">This verification link expires in 24 hours.</p>`,
+      {
+        eyebrow: "WELCOME ABOARD",
+        preheader: "Verify your email to get your travel workspace ready.",
+        footer:
+          "If you did not create an account, you can safely ignore this email.",
+      },
+    ),
   });
 }
-
-export function sendEmailChangeConfirmation(input: { email: string; firstName: string; verificationUrl: string }) {
+export function sendEmailChangeConfirmation(input: {
+  email: string;
+  firstName: string;
+  verificationUrl: string;
+}) {
   return sendEmail({
     to: input.email,
     subject: "Confirm your new Digol TravelOS email address",
-    text: `Hi ${input.firstName}, confirm your new email address here: ${input.verificationUrl}. After confirmation, sign in again with this address.`,
-    html: layout("Confirm your new email", `<p>Hi ${escapeHtml(input.firstName)}, confirm this address to update your account. Your current address stays active until you confirm.</p><p style="margin:26px 0"><a href="${escapeHtml(input.verificationUrl)}" style="display:inline-block;background:#c62828;color:#fff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Confirm new email</a></p><p>This link expires in 24 hours. You will need to sign in again after confirming.</p>`),
+    text: `Hi ${input.firstName}, confirm your new email address here: ${input.verificationUrl}. The link expires in 24 hours. After confirmation, sign in again with this address.`,
+    html: emailLayout(
+      "Confirm your new email address",
+      `<p>Hi ${escapeHtml(input.firstName)}, confirm this address to update your account. Your current email stays active until you confirm.</p>${emailButton("Confirm new email", input.verificationUrl)}<p>The link expires in 24 hours. After confirmation, all active sessions end and you will need to sign in again with this address.</p>`,
+      {
+        eyebrow: "ACCOUNT SECURITY",
+        footer:
+          "If you did not request this change, do not confirm it. Contact your agency administrator for assistance.",
+      },
+    ),
   });
 }
-
-export function sendTeamInvitation(input: { email: string; firstName: string; inviterName: string; agencyName: string; invitationUrl: string }) {
-  const firstName = escapeHtml(input.firstName); const inviterName = escapeHtml(input.inviterName); const agencyName = escapeHtml(input.agencyName);
+export function sendTeamInvitation(input: {
+  email: string;
+  firstName: string;
+  inviterName: string;
+  agencyName: string;
+  invitationUrl: string;
+}) {
   return sendEmail({
     to: input.email,
     subject: `${input.inviterName} invited you to ${input.agencyName}`,
-    text: `Hi ${input.firstName}, ${input.inviterName} invited you to join ${input.agencyName} on Digol TravelOS. Accept your invitation here: ${input.invitationUrl}`,
-    html: layout(`You are invited, ${firstName}`, `<p><strong>${inviterName}</strong> invited you to join <strong>${agencyName}</strong> on Digol TravelOS.</p><p>Set your password to accept the invitation and start managing travel operations with the team.</p><p style="margin:26px 0"><a href="${escapeHtml(input.invitationUrl)}" style="display:inline-block;background:#c62828;color:#fff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Accept invitation</a></p><p style="font-size:12px;color:#64727c">This invitation expires in 7 days.</p>`),
+    text: `Hi ${input.firstName}, ${input.inviterName} invited you to join ${input.agencyName} on Digol TravelOS. Accept here: ${input.invitationUrl}. This invitation expires in 7 days.`,
+    html: emailLayout(
+      `Join ${input.agencyName}`,
+      `<p>Hi ${escapeHtml(input.firstName)}, <strong>${escapeHtml(input.inviterName)}</strong> invited you to join <strong>${escapeHtml(input.agencyName)}</strong> on Digol TravelOS.</p><p>Accept the invitation, choose a secure password, and start coordinating bookings and travel operations with your team.</p>${emailButton("Accept invitation", input.invitationUrl)}<p style="font-size:12px;color:#647780">Your invitation expires in 7 days. Your access is determined by your agency administrator.</p>`,
+      {
+        eyebrow: "TEAM INVITATION",
+        footer:
+          "If you were not expecting this invitation, contact the inviting agency before accepting it.",
+      },
+    ),
   });
 }
-
-export function sendTeamWelcome(input: { email: string; firstName: string; inviterName: string; agencyName: string; loginUrl: string }) {
-  const firstName = escapeHtml(input.firstName); const inviterName = escapeHtml(input.inviterName); const agencyName = escapeHtml(input.agencyName);
+export function sendTeamWelcome(input: {
+  email: string;
+  firstName: string;
+  inviterName: string;
+  agencyName: string;
+  loginUrl: string;
+}) {
   return sendEmail({
     to: input.email,
     subject: `Your ${input.agencyName} team account is ready`,
-    text: `Hi ${input.firstName}, ${input.inviterName} added you to ${input.agencyName}. Sign in here: ${input.loginUrl}`,
-    html: layout(`Welcome to ${agencyName}`, `<p>Hi ${firstName}, ${inviterName} added you to the team on Digol TravelOS.</p><p>Your account is ready. Use the password shared with you by your agency administrator.</p><p style="margin:26px 0"><a href="${escapeHtml(input.loginUrl)}" style="display:inline-block;background:#c62828;color:#fff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Open Digol TravelOS</a></p>`),
+    text: `Hi ${input.firstName}, ${input.inviterName} added you to ${input.agencyName}. Sign in here: ${input.loginUrl}. Use the password shared with you by your agency administrator.`,
+    html: emailLayout(
+      "Your workspace is ready",
+      `<p>Hi ${escapeHtml(input.firstName)}, <strong>${escapeHtml(input.inviterName)}</strong> added you to the <strong>${escapeHtml(input.agencyName)}</strong> team.</p><p>Sign in using the password provided separately by your agency administrator. Once signed in, review your profile and assigned access.</p>${emailButton("Open your workspace", input.loginUrl)}`,
+      {
+        eyebrow: "TEAM ACCOUNT",
+        footer:
+          "For help signing in or changing your access, contact your agency administrator. Never share your password.",
+      },
+    ),
   });
 }

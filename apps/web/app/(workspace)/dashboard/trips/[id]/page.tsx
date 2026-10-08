@@ -17,10 +17,14 @@ import { localizeText } from "../../../../../src/i18n/errors";
 import { useFormattingLocale } from "../../../../../src/i18n/format-client";
 import { Translate } from "../../../../../src/i18n/Translate";
 import { Badge } from "../../../../../src/ui/Badge";
+import { useConfirmation } from "../../../../../src/ui/ConfirmationModal";
+import { Button } from "../../../../../src/ui/Button";
 import { Card } from "../../../../../src/ui/Card";
-import { PageHeader } from "../../../../../src/ui/PageHeader";
+import { RecordPage, EditRecordLink } from "../../../../../src/ui/RecordPage";
+import { useAuth } from "../../../../../src/features/auth/components/AuthProvider";
 import {
   getTrip,
+  cancelTrip,
   type Trip,
 } from "../../../../../src/features/auth/services/api-client";
 import "../../../../../src/styles/experience.css";
@@ -39,9 +43,12 @@ type TripDetail = Trip & {
 
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const locale = useFormattingLocale();
+  const confirm = useConfirmation();
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   useEffect(() => {
     void getTrip(id)
       .then(setTrip)
@@ -54,16 +61,46 @@ export default function TripDetailPage() {
       );
   }, [id]);
 
+  async function cancel() {
+    if (cancelling) return;
+    if (
+      !(await confirm({
+        title: "Cancel trip?",
+        description: `${trip?.tripCode ?? "This trip"} will no longer operate. Confirm that you want to cancel it.`,
+        confirmLabel: "Cancel trip",
+      }))
+    )
+      return;
+    setCancelling(true);
+    setError("");
+    try {
+      await cancelTrip(id);
+      setTrip(await getTrip(id));
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to cancel trip",
+      );
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
-    <>
-      <PageHeader
-        title={trip?.tripCode ?? "Trip detail"}
-        description={
-          trip
-            ? `${trip.route.name} · ${new Date(trip.travelDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}`
-            : "Loading trip"
-        }
-      />
+    <RecordPage
+      title={trip?.tripCode ?? "Trip detail"}
+      description={
+        trip
+          ? `${trip.route.name} · ${new Date(trip.travelDate).toLocaleDateString(locale)}`
+          : "Loading trip"
+      }
+      backHref="/dashboard/trips"
+      actions={
+        (user?.role === "SUPER_ADMIN" ||
+          user?.permissions.includes("trip:update")) && (
+          <EditRecordLink href={`/dashboard/trips/${id}/edit`} />
+        )
+      }
+    >
       {error && (
         <div className="state-message state-error" role="alert">
           {error}
@@ -71,6 +108,23 @@ export default function TripDetailPage() {
       )}
       {trip && (
         <div className="trip-profile">
+          {(user?.role === "SUPER_ADMIN" ||
+            user?.permissions.includes("trip:cancel")) &&
+            trip.status !== "CANCELLED" && (
+              <Card className="record-section">
+                <h2>Trip status</h2>
+                <p className="record-help">
+                  Cancel this trip if it will no longer operate.
+                </p>
+                <Button
+                  variant="secondary"
+                  disabled={cancelling}
+                  onClick={() => void cancel()}
+                >
+                  Cancel trip
+                </Button>
+              </Card>
+            )}
           <Card className="trip-profile-hero">
             <div className="trip-profile-hero-top">
               <span className="eyebrow">
@@ -229,6 +283,6 @@ export default function TripDetailPage() {
           </div>
         </div>
       )}
-    </>
+    </RecordPage>
   );
 }

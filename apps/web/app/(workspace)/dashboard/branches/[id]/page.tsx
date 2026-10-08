@@ -20,7 +20,8 @@ import {
   type Bus,
   type Trip,
 } from "../../../../../src/features/auth/services/api-client";
-import { PageHeader } from "../../../../../src/ui/PageHeader";
+import { RecordPage, EditRecordLink } from "../../../../../src/ui/RecordPage";
+import { useAuth } from "../../../../../src/features/auth/components/AuthProvider";
 import { Card } from "../../../../../src/ui/Card";
 import { Badge } from "../../../../../src/ui/Badge";
 import "../../../../../src/styles/experience.css";
@@ -39,6 +40,7 @@ type BranchProfile = Branch & {
 
 export default function BranchProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [branch, setBranch] = useState<BranchProfile | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -66,13 +68,19 @@ export default function BranchProfilePage() {
     };
   }, [id]);
   return (
-    <>
-      <PageHeader
-        title={branch?.name ?? "Branch profile"}
-        description={
-          branch ? `${branch.agency.name} · ${branch.code}` : "Loading branch"
-        }
-      />
+    <RecordPage
+      title={branch?.name ?? "Branch profile"}
+      description={
+        branch ? `${branch.agency.name} · ${branch.code}` : "Loading branch"
+      }
+      backHref="/dashboard/branches"
+      actions={
+        (user?.role === "SUPER_ADMIN" ||
+          user?.permissions.includes("branch:update")) && (
+          <EditRecordLink href={`/dashboard/branches/${id}/edit`} />
+        )
+      }
+    >
       {error && (
         <div className="state-message state-error" role="alert">
           {error}
@@ -134,7 +142,7 @@ export default function BranchProfilePage() {
                 buses.map((bus) => (
                   <Link
                     key={bus.id}
-                    href={`/dashboard/buses/${bus.id}/edit`}
+                    href={`/dashboard/buses/${bus.id}`}
                     className="directory-row"
                   >
                     <span>
@@ -178,6 +186,6 @@ export default function BranchProfilePage() {
           </Card>
         </div>
       )}
-    </>
+    </RecordPage>
   );
 }

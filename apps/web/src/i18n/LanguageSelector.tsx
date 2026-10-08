@@ -19,7 +19,7 @@ export function LanguageSelector({ className = "" }: { className?: string }) {
 
   return <label className={`language-selector ${className}`}>
     <Globe2 size={16} aria-hidden="true" />
-    <span className="sr-only">{t("Language")}</span>
+    <span className="visually-hidden">{t("Language")}</span>
     <select aria-label={t("Language")} value={locale} onChange={(event) => choose(event.target.value as Locale)}>
       {locales.map((item) => <option value={item} key={item}>{languageNames[item]}</option>)}
     </select>

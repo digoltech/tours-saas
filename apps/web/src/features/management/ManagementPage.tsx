@@ -1,129 +1,200 @@
 "use client";
-import { LocalizedValue } from "../../i18n/LocalizedValue";
-import { localizeText } from "../../i18n/errors";
-import { Translate } from "../../i18n/Translate";
-
-import { cn } from "../../lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Ban, Check, Pencil, Plus, Search, UserPlus, X } from "lucide-react";
+import { Plus } from "lucide-react";
+import { DataTable } from "../../ui/DataTable";
+import { EditRecordLink } from "../../ui/RecordPage";
 import { Badge } from "../../ui/Badge";
-import { Button } from "../../ui/Button";
-import { SkeletonList } from "../../ui/Skeleton";
-import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
+import { Translate } from "../../i18n/Translate";
 import { useAuth } from "../auth/components/AuthProvider";
 import {
-  createAgency, createAgent, createBranch, deactivateAgency, deactivateAgent,
-  deactivateBranch, getAgencies, getAgents, getBranches, updateAgency,
-  updateAgent, updateBranch, getWorkspaceRoles, type WorkspaceRole,
+  getAgencies,
+  getAgents,
+  getBranches,
 } from "../auth/services/api-client";
 
 type Resource = "agencies" | "branches" | "agents";
 type Row = Record<string, unknown> & { id: string; status: string };
-type BranchOption = { id: string; name: string; code: string };
-const emptyForm = { name: "", slug: "", code: "", firstName: "", lastName: "", email: "", password: "", phone: "", branchId: "", roleId: "", status: "ACTIVE" };
-const labels: Record<Resource, { title: string; description: string }> = {
-  agencies: { title: "Agencies", description: "Manage the organizations operating on the platform." },
-  branches: { title: "Branches", description: "Keep each agency's operating locations accurate." },
-  agents: { title: "Agents", description: "Manage people who sell and coordinate tours." },
+const labels = {
+  agencies: {
+    title: "Agencies",
+    description: "Manage the organizations operating on the platform.",
+  },
+  branches: {
+    title: "Branches",
+    description: "Keep each agency's operating locations accurate.",
+  },
+  agents: {
+    title: "Agents",
+    description: "Manage people who sell and coordinate tours.",
+  },
 };
-
 export function ManagementPage({ resource }: { resource: Resource }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
-  const [branches, setBranches] = useState<BranchOption[]>([]);
-  const [roles, setRoles] = useState<WorkspaceRole[]>([]);
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [selectedAgencyId, setSelectedAgencyId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Row | null>(null);
-  const [selected, setSelected] = useState<Row | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const config = labels[resource];
-  const agencyId = user?.agencyId;
-  const scopeAgencyId = agencyId ?? selectedAgencyId;
-  const singular = resource === "agencies" ? "agency" : resource === "branches" ? "branch" : "agent";
-
+  const scopeAgencyId = user?.agencyId ?? selectedAgencyId;
+  const singular =
+    resource === "agencies"
+      ? "agency"
+      : resource === "branches"
+        ? "branch"
+        : "agent";
   const load = useCallback(async () => {
-    setLoading(true); setError("");
+    if (resource !== "agencies" && !scopeAgencyId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError("");
     try {
-      const result = resource === "agencies" ? await getAgencies(search, statusFilter) : resource === "branches" ? await getBranches(scopeAgencyId, search, statusFilter) : await getAgents(scopeAgencyId, search, statusFilter);
-      setRows(result as Row[]);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to load records")); }
-    finally { setLoading(false); }
+      const values =
+        resource === "agencies"
+          ? await getAgencies(search, statusFilter)
+          : resource === "branches"
+            ? await getBranches(scopeAgencyId, search, statusFilter)
+            : await getAgents(scopeAgencyId, search, statusFilter);
+      setRows(values as Row[]);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to load records",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [resource, scopeAgencyId, search, statusFilter]);
-
   useEffect(() => {
-    if (resource !== "agencies" && !scopeAgencyId) return;
-    const timer = window.setTimeout(() => void load(), 0);
+    const timer = window.setTimeout(() => void load(), 200);
     return () => window.clearTimeout(timer);
-  }, [load, resource, scopeAgencyId]);
+  }, [load]);
   useEffect(() => {
     if (user?.role !== "SUPER_ADMIN" || resource === "agencies") return;
-    void getAgencies().then((data) => { const options = data as { id: string; name: string }[]; setAgencies(options); setSelectedAgencyId((current) => current || options[0]?.id || ""); }).catch(() => setAgencies([]));
+    let active = true;
+    void getAgencies()
+      .then((values) => {
+        if (active) {
+          const options = values as { id: string; name: string }[];
+          setAgencies(options);
+          setSelectedAgencyId((current) => current || options[0]?.id || "");
+        }
+      })
+      .catch(() => setAgencies([]));
+    return () => {
+      active = false;
+    };
   }, [resource, user?.role]);
-  useEffect(() => {
-    if (resource === "agents" && scopeAgencyId) void getBranches(scopeAgencyId).then((data) => setBranches(data as BranchOption[])).catch(() => setBranches([]));
-  }, [resource, scopeAgencyId]);
-  useEffect(() => {
-    if (resource === "agents" && scopeAgencyId) void getWorkspaceRoles(user?.role === "SUPER_ADMIN" ? scopeAgencyId : undefined).then((data) => setRoles(data.roles)).catch(() => setRoles([]));
-  }, [resource, scopeAgencyId, user?.role]);
-
-  function startEdit(row: Row) {
-    setEditing(row); setForm({ ...emptyForm, name: String(row.name ?? ""), slug: String(row.slug ?? ""), code: String(row.code ?? ""), firstName: String(row.firstName ?? ""), lastName: String(row.lastName ?? ""), email: String(row.email ?? ""), phone: String(row.phone ?? ""), branchId: String(row.branchId ?? ""), roleId: String(row.roleId ?? ""), status: row.status });
-    setFormOpen(true);
-  }
-  async function save() {
-    const requiredFields = resource === "agencies"
-      ? [[form.name, "Agency name"], [form.slug, "Agency slug"]]
-      : resource === "branches"
-        ? [[form.name, "Branch name"], [form.code, "Branch code"]]
-        : [[form.firstName, "First name"], [form.lastName, "Last name"], [form.email, "Email"], [form.phone, "Phone"]];
-    const missing = requiredFields.find(([value]) => !value.trim());
-    if (missing) { setError(`${missing[1]} is required.`); return; }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError(localizeText("Enter a valid email address.")); return; }
-    if (resource === "agents" && !editing && form.password && form.password.length < 8) { setError(localizeText("Temporary password must be at least 8 characters.")); return; }
-    setSaving(true); setError("");
-    try {
-      if (resource === "agencies") {
-        if (editing) await updateAgency(editing.id, { name: form.name, slug: form.slug, email: form.email, status: form.status });
-        else await createAgency({ name: form.name, slug: form.slug, email: form.email || undefined });
-      }
-      if (resource === "branches") {
-        if (editing) await updateBranch(editing.id, { name: form.name, code: form.code, email: form.email, status: form.status });
-        else await createBranch(scopeAgencyId, { name: form.name, code: form.code, email: form.email || undefined });
-      }
-      if (resource === "agents") {
-        if (editing) await updateAgent(editing.id, { firstName: form.firstName, lastName: form.lastName, phone: form.phone, branchId: form.branchId || null, roleId: form.roleId || undefined, status: form.status });
-        else await createAgent(scopeAgencyId, { ...form, password: form.password || undefined, roleId: form.roleId || undefined });
-      }
-      setForm(emptyForm); setFormOpen(false); setEditing(null); await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to save record")); }
-    finally { setSaving(false); }
-  }
-  async function deactivate(id: string) {
-    try { if (resource === "agencies") await deactivateAgency(id); if (resource === "branches") await deactivateBranch(id); if (resource === "agents") await deactivateAgent(id); setSelected(null); await load(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to update record")); }
-  }
-
-  const can = (action: string) => user?.role === "SUPER_ADMIN" || user?.permissions.includes(`${singular}:${action}`);
-  return <>
-    <PageHeader title={config.title} description={config.description} />
-    {formOpen && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}><LocalizedValue value={editing ? "Update record" : "New record"} /></p><h2><LocalizedValue value={editing ? "Edit" : "Add"} /> {singular}</h2></div></div>
-      <div className={cn("form-grid")}>
-        {resource === "agents" ? <><label><Translate text={"First name"} /><input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label><label><Translate text={"Last name"} /><input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label><label><Translate text={"Email"} /><input type="email" value={form.email} disabled={!!editing} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>{!editing && <label><Translate text={"Temporary password"} /><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Leave blank to send an invitation" /></label>}<label><Translate text={"Phone"} /><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label><label><Translate text={"Branch"} /><select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value=""><Translate text={"Unassigned"} /></option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label><Translate text={"Role"} /><select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })}><option value=""><Translate text={"Agent (default)"} /></option>{roles.filter((role) => role.code === "AGENT" || (!role.isSystem && (user?.role === "AGENCY_ADMIN" || role.scope === "BRANCH"))).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></> : <><label><Translate text={"Name"} /><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label><label><LocalizedValue value={resource === "agencies" ? "Slug" : "Code"} /><input value={resource === "agencies" ? form.slug : form.code} onChange={(e) => setForm({ ...form, ...(resource === "agencies" ? { slug: e.target.value } : { code: e.target.value }) })} required /></label><label><Translate text={"Contact email"} /><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label></>}
-        {editing && <label><Translate text={"Status"} /><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option><Translate text={"ACTIVE"} /></option><option><Translate text={"INACTIVE"} /></option></select></label>}
-      </div><div className={cn("management-toolbar")}><Button onClick={() => void save()} loading={saving} loadingLabel="Saving…"><Check size={15} /><LocalizedValue value={editing ? "Save changes" : "Save record"} /></Button><Button variant="secondary" disabled={saving} onClick={() => { setFormOpen(false); setEditing(null); }}><X size={15} /><Translate text={"Cancel"} /></Button></div></Card>}
-    {error && <div className={cn("state-message state-error")} role="alert"><strong>{error}</strong></div>}
-    {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}><Translate text={"Record details"} /></p><h2>{String(selected.name ?? `${selected.firstName ?? ""} ${selected.lastName ?? ""}`)}</h2></div><Badge>{selected.status}</Badge></div><p>{String(selected.email ?? selected.phone ?? "No contact details")}</p><div className="management-style-120"><Button variant="secondary" onClick={() => startEdit(selected)} disabled={!can("update")}><Pencil size={15} /> <Translate text={"Edit"} /></Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> <Translate text={"Close"} /></Button></div></Card>}
-    <Card className={cn("management-card")}><div className={cn("management-toolbar")}><label className={cn("search-field")}><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${resource}`} /></label><label><Translate text={"Status"} /><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value=""><Translate text={"All statuses"} /></option><option value="ACTIVE"><Translate text={"Active"} /></option><option value="INACTIVE"><Translate text={"Inactive"} /></option></select></label>{user?.role === "SUPER_ADMIN" && resource !== "agencies" && <label><Translate text={"Agency"} /><select value={selectedAgencyId} onChange={(e) => setSelectedAgencyId(e.target.value)}><option value=""><Translate text={"Select agency"} /></option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}<Badge>{rows.length} <Translate text={"records"} /></Badge>{can("create") && <Button onClick={() => { setEditing(null); setForm(emptyForm); setFormOpen((open) => !open); }}><Plus size={16} /> <Translate text={"Add"} />{" "}{singular}</Button>}</div>
-      {loading ? <SkeletonList rows={5} /> : rows.length === 0 ? <div className={cn("state-message")}><UserPlus size={18} /><strong><Translate text={"No"} />{" "}{resource} <Translate text={"found"} /></strong><span><Translate text={"Add a record or adjust the search."} /></span></div> : <div className={cn("table-wrapper")}><table><thead><tr><th><Translate text={"Name"} /></th><th><Translate text={"Code / email"} /></th><th><Translate text={"Status"} /></th><th><Translate text={"Actions"} /></th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{resource === "branches" ? <Link className="text-link" href={`/dashboard/branches/${row.id}`}><strong>{String(row.name)}</strong></Link> : <button className={cn("text-link")} onClick={() => setSelected(row)}><strong>{String(row.name ?? `${row.firstName ?? ""} ${row.lastName ?? ""}`)}</strong></button>}</td><td>{String(row.slug ?? row.code ?? row.email ?? "-")}</td><td><Badge>{row.status}</Badge></td><td><div className="table-actions">{resource === "branches" && <Link className="button button-ghost" href={`/dashboard/branches/${row.id}`}>View profile</Link>}<button className={cn("button button-ghost")} onClick={() => startEdit(row)} disabled={!can("update")} aria-label={`Edit ${singular}`}><Pencil size={15} /></button><button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> <Translate text={"Deactivate"} /></button></div></td></tr>)}</tbody></table></div>}
-    </Card>
-  </>;
+  const can = (action: string) =>
+    user?.role === "SUPER_ADMIN" ||
+    user?.permissions.includes(`${singular}:${action}`);
+  return (
+    <>
+      <PageHeader
+        title={labels[resource].title}
+        description={labels[resource].description}
+      />
+      {error && (
+        <div className="state-message state-error" role="alert">
+          {error}
+        </div>
+      )}
+      <DataTable
+        title={labels[resource].title}
+        data={rows}
+        rowKey={(row) => row.id}
+        loading={loading}
+        manualFiltering
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={`Search ${resource}`}
+        filters={[
+          {
+            id: "status",
+            label: "Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { value: "ACTIVE", label: "Active" },
+              { value: "INACTIVE", label: "Inactive" },
+            ],
+          },
+        ]}
+        toolbarActions={
+          <>
+            {user?.role === "SUPER_ADMIN" && resource !== "agencies" && (
+              <label>
+                <Translate text="Agency" />
+                <select
+                  aria-label="Agency"
+                  value={selectedAgencyId}
+                  onChange={(event) => setSelectedAgencyId(event.target.value)}
+                >
+                  <option value="">Select agency</option>
+                  {agencies.map((agency) => (
+                    <option key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {can("create") && (
+              <Link
+                className="button button-primary"
+                href={`/dashboard/${resource}/new${scopeAgencyId ? `?agencyId=${encodeURIComponent(scopeAgencyId)}` : ""}`}
+              >
+                <Plus size={16} />
+                <Translate text="Add" /> {singular}
+              </Link>
+            )}
+          </>
+        }
+        columns={[
+          {
+            id: "name",
+            header: "Name",
+            render: (row) => (
+              <Link
+                className="text-link"
+                href={`/dashboard/${resource}/${row.id}`}
+              >
+                <strong>
+                  {String(
+                    row.name ?? `${row.firstName ?? ""} ${row.lastName ?? ""}`,
+                  )}
+                </strong>
+              </Link>
+            ),
+          },
+          {
+            id: "code",
+            header: "Code / email",
+            render: (row) => String(row.slug ?? row.code ?? row.email ?? "—"),
+          },
+          {
+            id: "status",
+            header: "Status",
+            render: (row) => <Badge>{row.status}</Badge>,
+          },
+          {
+            id: "actions",
+            header: "Actions",
+            render: (row) =>
+              can("update") ? (
+                <EditRecordLink
+                  href={`/dashboard/${resource}/${row.id}/edit`}
+                />
+              ) : (
+                "—"
+              ),
+          },
+        ]}
+      />
+    </>
+  );
 }

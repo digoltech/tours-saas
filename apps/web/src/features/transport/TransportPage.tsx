@@ -1,29 +1,18 @@
 "use client";
-import { LocalizedValue } from "../../i18n/LocalizedValue";
+import { DataTable } from "../../ui/DataTable";
 import { localizeText } from "../../i18n/errors";
 import { Translate } from "../../i18n/Translate";
 
 import "../../styles/transport.css";
 
-import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Armchair, Ban, ChevronLeft, ChevronRight, Pencil, Plus, Search, Save, X } from "lucide-react";
+import { Plus } from "lucide-react";
+import { EditRecordLink } from "../../ui/RecordPage";
 import { Badge } from "../../ui/Badge";
-import { Button } from "../../ui/Button";
-import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
 import { useAuth } from "../auth/components/AuthProvider";
 import {
-  createBus,
-  createDriver,
-  createRoute,
-  deactivateBusById,
-  deactivateDriverById,
-  deactivateRouteById,
-  updateBus,
-  updateDriver,
-  updateRoute,
   getBuses,
   getDrivers,
   getRoutes,
@@ -50,18 +39,14 @@ export function TransportPage({ resource }: { resource: Resource }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
-  const [selectedAgencyId, setSelectedAgencyId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [branchFilter, setBranchFilter] = useState("");
+  const [busTypeFilter, setBusTypeFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Row | null>(null);
-  const [selected, setSelected] = useState<Row | null>(null);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -70,12 +55,19 @@ export function TransportPage({ resource }: { resource: Resource }) {
     try {
       const result =
         resource === "buses"
-          ? await getBuses({ page: String(page), search, status: statusFilter })
+          ? await getBuses({
+              page: String(page),
+              search,
+              status: statusFilter,
+              branchId: branchFilter,
+              busType: busTypeFilter,
+            })
           : resource === "drivers"
             ? await getDrivers({
                 page: String(page),
                 search,
                 status: statusFilter,
+                branchId: branchFilter,
               })
             : await getRoutes({
                 page: String(page),
@@ -84,381 +76,189 @@ export function TransportPage({ resource }: { resource: Resource }) {
               });
       setRows(result.data as Row[]);
       setPages(result.meta.totalPages);
+      setTotal(result.meta.total);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : localizeText("Unable to load records"),
+        cause instanceof Error
+          ? cause.message
+          : localizeText("Unable to load records"),
       );
     } finally {
       setLoading(false);
     }
-  }, [resource, page, search, statusFilter]);
+  }, [resource, page, search, statusFilter, branchFilter, busTypeFilter]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void load();
-    }, 0);
+    }, 200);
     return () => window.clearTimeout(timer);
   }, [load]);
   useEffect(() => {
     const loadBranches = async () => {
       if (user?.agencyId) return getBranches(user.agencyId);
       if (user?.role === "SUPER_ADMIN") {
-        const agencies = await getAgencies() as { id: string }[];
-        const lists = await Promise.all(agencies.map((agency) => getBranches(agency.id)));
+        const agencies = (await getAgencies()) as { id: string }[];
+        const lists = await Promise.all(
+          agencies.map((agency) => getBranches(agency.id)),
+        );
         return lists.flat();
       }
       return [];
     };
-    void loadBranches().then((value) => setBranches(value as Branch[])).catch(() => setBranches([]));
+    void loadBranches()
+      .then((value) => setBranches(value as Branch[]))
+      .catch(() => setBranches([]));
   }, [user?.agencyId, user?.role]);
-  useEffect(() => {
-    if (user?.role !== "SUPER_ADMIN") return;
-    void getAgencies().then((rows) => { const values = rows as { id: string; name: string }[]; setAgencies(values); setSelectedAgencyId((current) => current || values[0]?.id || ""); }).catch(() => setAgencies([]));
-  }, [user?.role]);
-
-  const update = (key: string, value: string) =>
-    setForm((current) => ({ ...current, [key]: value }));
-  async function save() {
-    const requiredFields = resource === "buses"
-      ? [[form.busNumber, "Bus number"], [form.registrationNumber, "Registration number"], [form.busType, "Bus type"], [form.totalSeats, "Seat count"], [form.branchId, "Branch"]]
-      : resource === "drivers"
-        ? [[form.firstName, "First name"], [form.lastName, "Last name"], [form.phone, "Phone"], [form.licenseNumber, "License number"], [form.branchId, "Branch"]]
-        : [[form.name, "Route name"], [form.code, "Route code"], [form.source, "Source"], [form.destination, "Destination"]];
-    const missing = requiredFields.find(([value]) => !value?.trim());
-    if (missing) { setError(`${missing[1]} is required.`); return; }
-    if (resource === "buses" && Number(form.totalSeats) < 1) { setError(localizeText("Seat count must be at least 1.")); return; }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError(localizeText("Enter a valid email address.")); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const payload = {
-        ...form,
-        agencyId: user?.agencyId ?? (selectedAgencyId || undefined),
-        totalSeats: form.totalSeats ? Number(form.totalSeats) : undefined,
-        ...(resource === "drivers" && form.licenseExpiryDate && !form.licenseExpiryDate.includes("T") ? { licenseExpiryDate: `${form.licenseExpiryDate}T00:00:00.000Z` } : {}),
-      };
-      if (resource === "buses") {
-        if (editing) await updateBus(editing.id, payload); else await createBus(payload);
-      }
-      if (resource === "drivers") {
-        if (editing) await updateDriver(editing.id, payload); else await createDriver(payload);
-      }
-      if (resource === "routes") {
-        if (editing) await updateRoute(editing.id, payload); else await createRoute(payload);
-      }
-      setForm({});
-      setOpen(false);
-      setEditing(null);
-      await load();
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : localizeText("Unable to save record"),
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-  function edit(row: Row) {
-    setEditing(row);
-    if (resource === "buses") {
-      const bus = row as Bus;
-      setForm({ busNumber: bus.busNumber, registrationNumber: bus.registrationNumber, operatorName: bus.operatorName ?? "", busType: bus.busType, totalSeats: String(bus.totalSeats), branchId: bus.branch.id, status: bus.status });
-    } else if (resource === "drivers") {
-      const driver = row as Driver;
-      setForm({ firstName: driver.firstName, lastName: driver.lastName, phone: driver.phone, email: driver.email ?? "", licenseNumber: driver.licenseNumber, licenseExpiryDate: driver.licenseExpiryDate?.slice(0, 10) ?? "", branchId: driver.branch.id, status: driver.status });
-    } else {
-      const route = row as Route;
-      setForm({ name: route.name, code: route.code, source: route.source, destination: route.destination, description: route.description ?? "", status: route.status });
-    }
-    setOpen(true);
-  }
-  async function deactivate(id: string) {
-    try {
-      if (resource === "buses") await deactivateBusById(id);
-      if (resource === "drivers") await deactivateDriverById(id);
-      if (resource === "routes") await deactivateRouteById(id);
-      setSelected(null);
-      await load();
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : localizeText("Unable to update record"),
-      );
-    }
-  }
-  function showDetails(row: Row) { setSelected(row); }
-  const canCreate =
+  const permissionBase =
+    resource === "buses" ? "bus" : resource === "drivers" ? "driver" : "route";
+  const can = (action: string) =>
     user?.role === "SUPER_ADMIN" ||
-    user?.permissions.includes(
-      `${resource === "buses" ? "bus" : resource.slice(0, -1)}:create`,
-    );
-  const permissionBase = resource === "buses" ? "bus" : resource === "drivers" ? "driver" : "route";
-  const can = (action: string) => user?.role === "SUPER_ADMIN" || user?.permissions.includes(`${permissionBase}:${action}`);
+    Boolean(user?.permissions.includes(`${permissionBase}:${action}`));
   return (
     <>
-      <PageHeader
-        title={copy[resource][0]}
-        description={copy[resource][1]}
-      />
-      {open && resource !== "buses" && (
-        <Card className={cn("management-form")}>
-          <div className={cn("card-heading")}><div><p className={cn("eyebrow")}><LocalizedValue value={editing ? "Update record" : "New record"} /></p><h2><LocalizedValue value={editing ? "Edit" : "Add"} /> {resource.slice(0, -1)}</h2></div></div>
-          <div className={cn("form-grid")}>
-            {user?.role === "SUPER_ADMIN" && <label><Translate text={"Agency"} /><select value={selectedAgencyId} onChange={(e) => { setSelectedAgencyId(e.target.value); update("branchId", ""); }}><option value=""><Translate text={"Select agency"} /></option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}
-            {resource === "drivers" && (
-              <>
-                <label>
-                  <Translate text={"First name"} /><input
-                    value={form.firstName ?? ""}
-                    onChange={(e) => update("firstName", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Last name"} /><input
-                    value={form.lastName ?? ""}
-                    onChange={(e) => update("lastName", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Phone"} /><input
-                    value={form.phone ?? ""}
-                    onChange={(e) => update("phone", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Email"} /><input
-                    type="email"
-                    value={form.email ?? ""}
-                    onChange={(e) => update("email", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"License number"} /><input
-                    value={form.licenseNumber ?? ""}
-                    onChange={(e) => update("licenseNumber", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"License expiry"} /><input
-                    type="date"
-                    value={form.licenseExpiryDate ?? ""}
-                    onChange={(e) =>
-                      update(
-                        "licenseExpiryDate",
-                        `${e.target.value}T00:00:00.000Z`,
-                      )
-                    }
-                  />
-                </label>
-              </>
-            )}
-            {resource === "routes" && (
-              <>
-                <label>
-                  <Translate text={"Route name"} /><input
-                    value={form.name ?? ""}
-                    onChange={(e) => update("name", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Code"} /><input
-                    value={form.code ?? ""}
-                    onChange={(e) => update("code", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Source"} /><input
-                    value={form.source ?? ""}
-                    onChange={(e) => update("source", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Destination"} /><input
-                    value={form.destination ?? ""}
-                    onChange={(e) => update("destination", e.target.value)}
-                  />
-                </label>
-                <label>
-                  <Translate text={"Description"} /><input
-                    value={form.description ?? ""}
-                    onChange={(e) => update("description", e.target.value)}
-                  />
-                </label>
-              </>
-            )}
-            {resource !== "routes" && (
-              <label>
-                <Translate text={"Branch"} /><select
-                  value={form.branchId ?? ""}
-                  onChange={(e) => update("branchId", e.target.value)}
-                >
-                  <option value=""><Translate text={"Select branch"} /></option>
-                  {branches.filter((branch) => user?.role !== "SUPER_ADMIN" || branch.agencyId === selectedAgencyId).map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {editing && <label><Translate text={"Status"} /><select value={form.status ?? "ACTIVE"} onChange={(e) => update("status", e.target.value)}><option><Translate text={"ACTIVE"} /></option><option><Translate text={"INACTIVE"} /></option></select></label>}
-          </div>
-          <div className="transport-style-311">
-            <Button onClick={() => void save()} disabled={saving}>
-              <Save size={15} />
-              <LocalizedValue value={saving ? "Saving..." : editing ? "Save changes" : "Save record"} />
-            </Button>
-            <Button variant="secondary" onClick={() => { setOpen(false); setEditing(null); }}><X size={15} /> <Translate text={"Cancel"} /></Button>
-          </div>
-        </Card>
-      )}
+      <PageHeader title={copy[resource][0]} description={copy[resource][1]} />
       {error && (
-        <div className={cn("state-message state-error")}>
-          <strong>{error}</strong>
+        <div className="state-message state-error" role="alert">
+          {error}
         </div>
       )}
-      {selected && <Card className={cn("management-form")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}>{resource.slice(0, -1)} <Translate text={"details"} /></p><h2>{resource === "buses" ? (selected as Bus).busNumber : resource === "drivers" ? `${(selected as Driver).firstName} ${(selected as Driver).lastName}` : (selected as Route).name}</h2></div><Badge>{selected.status}</Badge></div><p>{resource === "buses" ? `${(selected as Bus).registrationNumber} · ${(selected as Bus).busType} · ${(selected as Bus).totalSeats} seats · ${(selected as Bus).branch.name}` : resource === "drivers" ? `${(selected as Driver).phone} · License ${(selected as Driver).licenseNumber} · ${(selected as Driver).branch.name}` : `${(selected as Route).source} to ${(selected as Route).destination}`}</p><div className="transport-style-325"><Button variant="secondary" disabled={!can("update")} onClick={() => edit(selected)}><Pencil size={15} /> <Translate text={"Edit"} /></Button><Button variant="secondary" onClick={() => setSelected(null)}><X size={15} /> <Translate text={"Close"} /></Button></div></Card>}
-      <Card className={cn("management-card")}>
-        <div className={cn("management-toolbar")}>
-          <label className={cn("search-field")}>
-            <Search size={16} />
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder={`Search ${resource}`}
-            />
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value=""><Translate text={"All statuses"} /></option>
-            <option value="ACTIVE"><Translate text={"Active"} /></option>
-            <option value="INACTIVE"><Translate text={"Inactive"} /></option>
-          </select>
-          {canCreate && (resource === "buses" ? (
-            <Link href="/dashboard/buses/new" className={cn("button button-primary")}><Plus size={16} /> <Translate text={"Add bus"} /></Link>
-          ) : (
-            <Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> <Translate text={"Add"} />{" "}{resource.slice(0, -1)}</Button>
-          ))}
-        </div>
-        {loading ? (
-          <div className={cn("state-message")}><Translate text={"Loading records..."} /></div>
-        ) : rows.length === 0 ? (
-          <div className={cn("state-message")}>
-            <strong><Translate text={"No"} />{" "}{resource} <Translate text={"found"} /></strong>
-            <span><Translate text={"Adjust your filters or add a record."} /></span>
-          </div>
-        ) : (
-          <div className={cn("table-wrapper")}>
-            <table>
-              <thead>
-                <tr>
-                  {resource === "buses" ? (
-                    <>
-                      <th><Translate text={"Bus"} /></th>
-                      <th><Translate text={"Registration"} /></th>
-                      <th><Translate text={"Type"} /></th>
-                      <th><Translate text={"Seats"} /></th>
-                      <th><Translate text={"Branch"} /></th>
-                    </>
-                  ) : resource === "drivers" ? (
-                    <>
-                      <th><Translate text={"Name"} /></th>
-                      <th><Translate text={"Phone"} /></th>
-                      <th><Translate text={"License"} /></th>
-                      <th><Translate text={"Branch"} /></th>
-                    </>
-                  ) : (
-                    <>
-                      <th><Translate text={"Route"} /></th>
-                      <th><Translate text={"Code"} /></th>
-                      <th><Translate text={"From"} /></th>
-                      <th><Translate text={"To"} /></th>
-                      <th><Translate text={"Stops"} /></th>
-                    </>
-                  )}
-                  <th><Translate text={"Status"} /></th>
-                  <th><Translate text={"Actions"} /></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    {resource === "buses" ? (
-                      <>
-                        <td><button className={cn("text-link")} onClick={() => showDetails(row)}>{(row as Bus).busNumber}</button></td>
-                        <td>{(row as Bus).registrationNumber}</td>
-                        <td>{(row as Bus).busType}</td>
-                        <td>{(row as Bus).totalSeats}</td>
-                        <td>{(row as Bus).branch.name}</td>
-                      </>
-                    ) : resource === "drivers" ? (
-                      <>
-                        <td>
-                          <button className={cn("text-link")} onClick={() => showDetails(row)}>{(row as Driver).firstName} {(row as Driver).lastName}</button>
-                        </td>
-                        <td>{(row as Driver).phone}</td>
-                        <td>{(row as Driver).licenseNumber}</td>
-                        <td>{(row as Driver).branch.name}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td><Link href={`/routes/${row.id}`}>{(row as Route).name}</Link></td>
-                        <td>{(row as Route).code}</td>
-                        <td>{(row as Route).source}</td>
-                        <td>{(row as Route).destination}</td>
-                        <td>{(row as Route)._count?.stops ?? 0}</td>
-                      </>
-                    )}
-                    <td>
-                      <Badge>{row.status}</Badge>
-                    </td>
-                    <td className={cn("table-actions")}>
-                      {resource === "buses" ? (
-                        <div className="transport-style-430">
-                          {can("update") && <>
-                            <Link className={cn("button button-secondary")} href={`/dashboard/buses/${row.id}/edit`} aria-label={`Edit bus ${(row as Bus).busNumber}`}><Pencil size={15} /> <Translate text={"Edit"} /></Link>
-                            <Link className={cn("button button-ghost")} href={`/dashboard/buses/${row.id}/edit?step=layout`} aria-label={`Edit seat layout for ${(row as Bus).busNumber}`}><Armchair size={15} /> <Translate text={"Seat layout"} /></Link>
-                          </>}
-                          <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> <Translate text={"Deactivate"} /></button>
-                        </div>
-                      ) : <div className="transport-style-437">
-                        <button className={cn("button button-ghost")} onClick={() => edit(row)} disabled={!can("update")} aria-label={`Edit ${resource.slice(0, -1)}`}><Pencil size={15} /><span className="transport-style-438"><Translate text={"Edit"} /></span></button>
-                        <button className={cn("button button-ghost")} disabled={row.status === "INACTIVE" || !can("delete")} onClick={() => void deactivate(row.id)}><Ban size={15} /> <Translate text={"Deactivate"} /></button>
-                      </div>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <DataTable
+        title={copy[resource][0]}
+        data={rows}
+        rowKey={(row) => row.id}
+        loading={loading}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={`Search ${resource}`}
+        filters={[
+          {
+            id: "status",
+            label: "Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { value: "ACTIVE", label: "Active" },
+              { value: "INACTIVE", label: "Inactive" },
+            ],
+          },
+          ...(resource !== "routes"
+            ? [
+                {
+                  id: "branch",
+                  label: "Branch",
+                  value: branchFilter,
+                  onChange: setBranchFilter,
+                  options: branches.map((branch) => ({
+                    value: branch.id,
+                    label: branch.name,
+                  })),
+                },
+              ]
+            : []),
+          ...(resource === "buses"
+            ? [
+                {
+                  id: "type",
+                  label: "Type",
+                  value: busTypeFilter,
+                  onChange: setBusTypeFilter,
+                  options: ["SEATER", "SLEEPER", "SEATER_SLEEPER"].map(
+                    (value) => ({ value, label: value.replaceAll("_", " ") }),
+                  ),
+                },
+              ]
+            : []),
+        ]}
+        pagination={{
+          page,
+          pageSize: 20,
+          total,
+          totalPages: pages,
+          onPageChange: setPage,
+        }}
+        toolbarActions={
+          can("create") && (
+            <Link
+              href={`/dashboard/${resource}/new`}
+              className="button button-primary"
+            >
+              <Plus size={16} />
+              <Translate text="Add" />{" "}
+              {resource === "buses" ? "bus" : resource.slice(0, -1)}
+            </Link>
+          )
+        }
+        columns={[
+          ...(resource === "buses"
+            ? ["Bus", "Registration", "Type", "Seats", "Branch"]
+            : resource === "drivers"
+              ? ["Name", "Phone", "License", "Branch"]
+              : ["Route", "Code", "From", "To", "Stops"]),
+          "Status",
+          "Actions",
+        ].map((header) => ({ id: header, header }))}
+        renderRow={(row) => (
+          <tr key={row.id}>
+            {resource === "buses" ? (
+              <>
+                <td>
+                  <Link
+                    className="text-link"
+                    href={`/dashboard/buses/${row.id}`}
+                  >
+                    {(row as Bus).busNumber}
+                  </Link>
+                </td>
+                <td>{(row as Bus).registrationNumber}</td>
+                <td>{(row as Bus).busType}</td>
+                <td>{(row as Bus).totalSeats}</td>
+                <td>{(row as Bus).branch.name}</td>
+              </>
+            ) : resource === "drivers" ? (
+              <>
+                <td>
+                  <Link
+                    className="text-link"
+                    href={`/dashboard/drivers/${row.id}`}
+                  >
+                    {(row as Driver).firstName} {(row as Driver).lastName}
+                  </Link>
+                </td>
+                <td>{(row as Driver).phone}</td>
+                <td>{(row as Driver).licenseNumber}</td>
+                <td>{(row as Driver).branch.name}</td>
+              </>
+            ) : (
+              <>
+                <td>
+                  <Link
+                    className="text-link"
+                    href={`/dashboard/routes/${row.id}`}
+                  >
+                    {(row as Route).name}
+                  </Link>
+                </td>
+                <td>{(row as Route).code}</td>
+                <td>{(row as Route).source}</td>
+                <td>{(row as Route).destination}</td>
+                <td>{(row as Route)._count?.stops ?? 0}</td>
+              </>
+            )}
+            <td>
+              <Badge>{row.status}</Badge>
+            </td>
+            <td>
+              {can("update") ? (
+                <EditRecordLink
+                  href={`/dashboard/${resource}/${row.id}/edit`}
+                />
+              ) : (
+                "—"
+              )}
+            </td>
+          </tr>
         )}
-        <div className={cn("management-toolbar")}>
-          <span>
-            <Translate text={"Page"} />{" "}{page} <Translate text={"of"} />{" "}{pages}
-          </span>
-          <div className="transport-style-452">
-            <Button
-              variant="secondary"
-              disabled={page <= 1}
-              onClick={() => setPage((value) => value - 1)}
-            >
-              <ChevronLeft size={15} /> <Translate text={"Previous"} /></Button>
-            <Button
-              variant="secondary"
-              disabled={page >= pages}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              <Translate text={"Next"} />{" "}<ChevronRight size={15} />
-            </Button>
-          </div>
-        </div>
-      </Card>
+      />
     </>
   );
 }

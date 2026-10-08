@@ -1,4 +1,7 @@
 "use client";
+import { useConfirmation, type ConfirmationOptions } from "../../ui/ConfirmationModal";
+import Link from "next/link";
+import { DataTable } from "../../ui/DataTable";
 import { LocalizedValue } from "../../i18n/LocalizedValue";
 import { localizeText } from "../../i18n/errors";
 import { getFormattingLocale } from "../../i18n/format-client";
@@ -97,6 +100,7 @@ const localDate = (date: Date) => {
 
 export function FinanceWorkspace() {
   const { user } = useAuth();
+  const confirm = useConfirmation();
   const [settings, setSettings] = useState(defaultSettings);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -256,7 +260,15 @@ export function FinanceWorkspace() {
     if (user?.role === "SUPER_ADMIN") setAgencyId("");
   }
 
-  async function act(operation: () => Promise<unknown>, success: string) {
+  async function act(operation: () => Promise<unknown>, success: string, confirmation?: ConfirmationOptions) {
+    if (busy) return;
+    const prompts: Record<string, ConfirmationOptions> = {
+      "Payment recorded successfully": { title: "Record payment?", description: `${booking?.pnr} · ${money(formAmount)} · ${method}. Confirm to record this payment.`, confirmLabel: "Record payment", destructive: false },
+      "Refund recorded successfully": { title: "Record refund?", description: `${booking?.pnr} · ${money(formAmount)} · ${method}. Confirm to record this refund.`, confirmLabel: "Record refund", destructive: false },
+      "Booking cancelled and seats released": { title: "Cancel booking?", description: `${booking?.pnr}: this cancels the ticket and releases its seats. Cancellation fees follow the agency policy.`, confirmLabel: "Cancel booking" },
+      "Settlement posted successfully": { title: "Post settlement?", description: `${party} · ${money(formAmount)} · ${method}. Confirm to post this settlement.`, confirmLabel: "Post settlement", destructive: false },
+    };
+    if (!(await confirm(confirmation ?? prompts[success] ?? { title: "Confirm action?", description: "Confirm to save these finance changes.", confirmLabel: "Confirm", destructive: false }))) return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -760,26 +772,14 @@ export function FinanceWorkspace() {
           <span className={cn("finance-record-count")}>
             {reports?.bookings.length ?? 0} <Translate text={"records"} /></span>
         </div>
-        <div className={cn("table-wrapper")}>
-          <table>
-            <thead>
-              <tr>
-                <th><Translate text={"Booking"} /></th>
-                <th><Translate text={"Date"} /></th>
-                <th><Translate text={"Status"} /></th>
-                <th><Translate text={"Total"} /></th>
-                <th><Translate text={"Tax"} /></th>
-                <th><Translate text={"Commission"} /></th>
-                <th><Translate text={"Refund"} /></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(reports?.bookings ?? [])
-                .slice(0, 12)
-                .map((row: FinanceBooking) => (
+        <DataTable title="Recent bookings" data={reports?.bookings ?? []} rowKey={(row) => row.id} loading={loading}
+          searchPlaceholder="Search booking PNR" searchText={(row) => row.pnr}
+          filters={[{ id: "status", label: "Status", options: Array.from(new Set((reports?.bookings ?? []).map((row) => row.status))).map((value) => ({ value, label: value.replaceAll("_", " ") })), matches: (row, value) => row.status === value }]}
+          columns={[{ id: "0", header: "Booking" }, { id: "1", header: "Date" }, { id: "2", header: "Status" }, { id: "3", header: "Total" }, { id: "4", header: "Tax" }, { id: "5", header: "Commission" }, { id: "6", header: "Refund" }]}
+          renderRow={(row: FinanceBooking) => (
                   <tr key={row.id}>
                     <td>
-                      <strong className={cn("finance-pnr")}>{row.pnr}</strong>
+                      <Link className="text-link finance-pnr" href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}`}>{row.pnr}</Link>
                     </td>
                     <td>{new Date(row.createdAt).toLocaleDateString(getFormattingLocale())}</td>
                     <td>
@@ -802,15 +802,8 @@ export function FinanceWorkspace() {
                         ),
                       )}
                     </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-          {!loading && reports?.bookings.length === 0 && (
-            <div className={cn("finance-chart-empty")}>
-              <Translate text={"No bookings in this date range. Try widening the dates or clearing a filter."} /></div>
-          )}
-        </div>
+                  </tr>)}
+        />
       </Card>
 
       <div className={cn("finance-section-heading")} id="finance-actions">
@@ -1236,12 +1229,10 @@ export function FinanceWorkspace() {
                   className={cn("finance-remove-tier")}
                   type="button"
                   aria-label={`Remove cancellation tier ${index + 1}`}
-                  onClick={() =>
-                    setSettings({
-                      ...settings,
-                      tiers: settings.tiers.filter((_, i) => i !== index),
-                    })
-                  }
+                  onClick={async () => {
+                    if (!(await confirm({ title: "Remove cancellation tier?", description: `Remove tier ${index + 1} from the policy? Save the policy to apply this change.`, confirmLabel: "Remove" }))) return;
+                    setSettings({ ...settings, tiers: settings.tiers.filter((_, i) => i !== index) });
+                  }}
                 >
                   <Trash2 size={15} />
                   <span className="finance-style-1287"><Translate text={"Remove"} /></span>
@@ -1263,32 +1254,15 @@ export function FinanceWorkspace() {
             <span className={cn("finance-record-count")}>
               {ledger.length} <Translate text={"entries"} /></span>
           </div>
-          <div className={cn("finance-ledger-list")}>
-            {ledger.slice(0, 8).map((entry, index) => (
-              <div
-                className={cn("finance-ledger-row")}
-                key={String(entry.id ?? index)}
-              >
-                <span className={cn("finance-ledger-icon")}>
-                  <Activity size={15} />
-                </span>
-                <div>
-                  <strong>
-                    {String(entry.description ?? entry.type ?? "Ledger entry")}
-                  </strong>
-                  <small>
-                    {new Date(String(entry.createdAt)).toLocaleDateString(getFormattingLocale())} ·{" "}
-                    {String(entry.party ?? "Account")}
-                  </small>
-                </div>
-                <b>{money(String(entry.amount ?? 0))}</b>
-              </div>
-            ))}
-            {ledger.length === 0 && (
-              <div className={cn("finance-chart-empty")}>
-                <Translate text={"No ledger activity for this agency yet."} /></div>
-            )}
-          </div>
+          <DataTable title="Recent ledger entries" data={ledger} rowKey={(entry) => String(entry.id)} loading={loading}
+            searchPlaceholder="Search ledger entries"
+            columns={[
+              { id: "description", header: "Description", render: (entry) => <Link className="text-link" href={`/dashboard/finance/ledger/${encodeURIComponent(String(entry.id))}`}>{String(entry.description ?? entry.type ?? "Ledger entry")}</Link> },
+              { id: "date", header: "Date", render: (entry) => new Date(String(entry.createdAt)).toLocaleDateString(getFormattingLocale()) },
+              { id: "party", header: "Party", render: (entry) => String(entry.party ?? "Account") },
+              { id: "amount", header: "Amount", render: (entry) => money(String(entry.amount ?? 0)) },
+            ]}
+          />
         </Card>
       </div>
     </>

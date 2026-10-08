@@ -200,7 +200,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
               title: bus.busNumber,
               detail: `${bus.registrationNumber} · ${bus.operatorName || "No operator"}`,
               kind: "Bus",
-              href: "/dashboard/buses",
+              href: `/dashboard/buses/${bus.id}`,
             })),
           ),
         );
@@ -226,7 +226,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
                 title: agency.name,
                 detail: "Agency",
                 kind: "Agency",
-                href: "/dashboard/agencies",
+                href: `/dashboard/agencies/${agency.id}`,
               })),
           ),
         );
@@ -240,7 +240,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
                 title: branch.name,
                 detail: `Branch · ${branch.code}`,
                 kind: "Branch",
-                href: "/dashboard/branches",
+                href: `/dashboard/branches/${branch.id}`,
               })),
           ),
         );
@@ -261,7 +261,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
                 title: `${agent.firstName} ${agent.lastName}`,
                 detail: agent.email,
                 kind: "Agent",
-                href: "/dashboard/agents",
+                href: `/dashboard/agents/${agent.id}`,
               })),
           ),
         );
@@ -273,7 +273,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
               title: booking.pnr,
               detail: `${booking.trip.route.source} → ${booking.trip.route.destination} · ${moneySearch(booking.totalAmount)}`,
               kind: "Booking",
-              href: "/dashboard/bookings",
+              href: `/dashboard/bookings/${encodeURIComponent(booking.pnr)}`,
             })),
           ),
         );
@@ -284,7 +284,7 @@ function HeaderSearch({ user }: { user: AuthUser | null }) {
               title: booking.pnr,
               detail: `${booking.trip.tripCode} · ${booking.trip.route.name}`,
               kind: "Booking",
-              href: "/dashboard/bookings",
+              href: `/dashboard/bookings/${encodeURIComponent(booking.pnr)}`,
             })),
           ),
         );
@@ -434,6 +434,11 @@ export function Shell({ children }: { children: ReactNode }) {
     settings: "Settings",
     profile: "Profile",
     roles: "Roles & permissions",
+    team: "Team members",
+    stops: "Stops",
+    cancellations: "Cancellation review",
+    ledger: "Ledger",
+    rows: "CSV rows",
     activity: "Agency activity",
     data: "Bulk data",
   };
@@ -444,7 +449,7 @@ export function Shell({ children }: { children: ReactNode }) {
       index === pathParts.length - 1 && workspaceHeading
         ? workspaceHeading.title
         : t(pageLabels[part] ??
-          (index === pathParts.length - 1 ? "Details" : part)),
+          (index >= 2 ? "Details" : part)),
     current: index === pathParts.length - 1,
   }));
   const dashboardPath =

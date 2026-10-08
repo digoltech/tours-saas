@@ -1,4 +1,5 @@
 "use client";
+import { DataTable } from "../../ui/DataTable";
 import { localizeText } from "../../i18n/errors";
 import { getFormattingLocale } from "../../i18n/format-client";
 import { Translate } from "../../i18n/Translate";
@@ -6,21 +7,18 @@ import { Translate } from "../../i18n/Translate";
 import "../../styles/finance.css";
 
 import { useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
-import { Card } from "../../ui/Card";
-import { Button } from "../../ui/Button";
-import {
-  getCancellationRequests,
-  reviewCancellationRequest,
-} from "../auth/services/api-client";
+import Link from "next/link";
+import { EditRecordLink } from "../../ui/RecordPage";
+import { getCancellationRequests } from "../auth/services/api-client";
 
 export function CancellationRequests() {
   const [rows, setRows] = useState<
     Awaited<ReturnType<typeof getCancellationRequests>>
   >([]);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState("");
+  const [loading, setLoading] = useState(true);
   async function refresh() {
+    setLoading(true);
     try {
       setRows(await getCancellationRequests());
       setError("");
@@ -30,69 +28,78 @@ export function CancellationRequests() {
           ? cause.message
           : localizeText("Unable to load cancellation requests"),
       );
+    } finally {
+      setLoading(false);
     }
   }
   useEffect(() => {
     const timer = window.setTimeout(() => void refresh(), 0);
     return () => window.clearTimeout(timer);
   }, []);
-  async function review(id: string, approve: boolean) {
-    setBusy(id);
-    setError("");
-    try {
-      await reviewCancellationRequest(id, approve);
-      await refresh();
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : localizeText("Unable to review request"),
-      );
-    } finally {
-      setBusy("");
-    }
-  }
   return (
     <section className="cancellation-requests-style-49">
       <div className="card-heading">
         <div>
-          <p className="eyebrow"><Translate text={"CUSTOMER REQUESTS"} /></p>
-          <h2><Translate text={"Cancellation review"} /></h2>
+          <p className="eyebrow">
+            <Translate text={"CUSTOMER REQUESTS"} />
+          </p>
+          <h2>
+            <Translate text={"Cancellation review"} />
+          </h2>
         </div>
       </div>
       {error && <p role="alert">{error}</p>}
-      {rows.length === 0 ? (
-        <Card><Translate text={"No pending cancellation requests."} /></Card>
-      ) : (
-        <div className="cancellation-requests-style-60">
-          {rows.map((row) => (
-            <Card key={row.id}>
-              <div className="cancellation-requests-style-63">
-                <div>
-                  <strong>{row.booking.pnr}</strong>
-                  <p>{row.reason || "No reason provided"}</p>
-                  <span className="muted">
-                    <Translate text={"Requested"} />{" "}{new Date(row.createdAt).toLocaleString(getFormattingLocale())} ·{" "}
-                    {row.booking.trip.route.source} <Translate text={"to"} />{" "}
-                    {row.booking.trip.route.destination}
-                  </span>
-                </div>
-                <div className="cancellation-requests-style-73">
-                  <Button
-                    disabled={busy === row.id}
-                    onClick={() => void review(row.id, true)}
-                  >
-                    <Check size={15} /> <Translate text={"Approve"} /></Button>
-                  <Button
-                    variant="secondary"
-                    disabled={busy === row.id}
-                    onClick={() => void review(row.id, false)}
-                  >
-                    <X size={15} /> <Translate text={"Reject"} /></Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      <DataTable
+        title="Cancellation review"
+        data={rows}
+        rowKey={(row) => row.id}
+        loading={loading}
+        emptyMessage="No pending cancellation requests."
+        searchPlaceholder="Search booking PNR or reason"
+        searchText={(row) =>
+          `${row.booking.pnr} ${row.reason ?? ""} ${row.booking.trip.route.source} ${row.booking.trip.route.destination}`
+        }
+        columns={[
+          {
+            id: "pnr",
+            header: "PNR",
+            render: (row) => (
+              <Link
+                className="text-link"
+                href={`/dashboard/cancellations/${row.id}`}
+              >
+                {row.booking.pnr}
+              </Link>
+            ),
+          },
+          {
+            id: "reason",
+            header: "Reason",
+            render: (row) => row.reason || "No reason provided",
+          },
+          {
+            id: "date",
+            header: "Requested",
+            render: (row) =>
+              new Date(row.createdAt).toLocaleString(getFormattingLocale()),
+          },
+          {
+            id: "route",
+            header: "Route",
+            render: (row) =>
+              `${row.booking.trip.route.source} → ${row.booking.trip.route.destination}`,
+          },
+          {
+            id: "action",
+            header: "Actions",
+            render: (row) => (
+              <EditRecordLink
+                href={`/dashboard/cancellations/${row.id}/edit`}
+              />
+            ),
+          },
+        ]}
+      />
     </section>
   );
 }

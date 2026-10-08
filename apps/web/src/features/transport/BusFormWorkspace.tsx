@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, BusFront, Check, CheckCircle2, ClipboardList, ImagePlus, Info, LayoutGrid, LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { useConfirmation, confirmStatusChange } from "../../ui/ConfirmationModal";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
@@ -52,6 +53,8 @@ const labelClass = "bus-form-label";
 
 export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; initialStep?: number }) {
   const router = useRouter();
+  const confirm = useConfirmation();
+  const [originalStatus, setOriginalStatus] = useState<string>();
   const { user } = useAuth();
   const editing = Boolean(busId);
   const [form, setForm] = useState<BusForm>(emptyForm);
@@ -96,6 +99,7 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
       .then(([bus, seatLayout]) => {
         if (!active) return;
         setSelectedAgencyId(bus.branch.agencyId ?? user?.agencyId ?? "");
+        setOriginalStatus(bus.status);
         setForm({
           busNumber: bus.busNumber,
           registrationNumber: bus.registrationNumber,
@@ -168,7 +172,9 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
   }
 
   async function save() {
+    if (saving || !(user?.role === "SUPER_ADMIN" || user?.permissions.includes(editing ? "bus:update" : "bus:create"))) return;
     if (!validateDetails()) { setStep(0); return; }
+    if (!(await confirmStatusChange(confirm, form.busNumber, originalStatus, form.status))) return;
     setSaving(true);
     setError("");
     const payload = {
@@ -197,7 +203,7 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
         setCreatedBusId(savedId);
       }
       await saveSeatLayout(savedId!, layout);
-      router.push("/dashboard/buses");
+      router.push(`/dashboard/buses/${savedId}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : localizeText("Unable to save bus"));
     } finally {
@@ -205,12 +211,14 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
     }
   }
 
+  if (!(user?.role === "SUPER_ADMIN" || user?.permissions.includes(editing ? "bus:update" : "bus:create"))) return <Card><p>You do not have permission to change this record.</p><Link className="text-link" href="/dashboard/buses">Back to buses</Link></Card>;
+
   if (loading) return <Card><div className="bus-form-style-203"><LoaderCircle className="bus-form-style-203-2" size={18} /> <Translate text={"Loading bus details…"} /></div></Card>;
 
   return (
     <div className="bus-form-style-206">
       <div className="bus-form-style-207">
-        <Link href="/dashboard/buses" className="bus-form-style-208">
+        <Link href={busId ? `/dashboard/buses/${busId}` : "/dashboard/buses"} className="bus-form-style-208">
           <ArrowLeft size={16} /> <Translate text={"Back to buses"} /></Link>
         {(busId || createdBusId) && <span className="bus-form-style-211"><Translate text={"Bus ID ·"} />{" "}{busId || createdBusId}</span>}
       </div>
@@ -276,7 +284,7 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
               <div className="bus-form-style-272">
                 <label htmlFor="bus-photo-url" className={labelClass}><Translate text={"Bus image URL"} />{" "}<span className="bus-form-style-273"><Translate text={"Optional · up to 12"} /></span></label>
                 <div className="bus-form-style-274"><input id="bus-photo-url" className={inputClass + "bus-form-style-274-2"} type="url" value={photoDraft} onChange={(event) => setPhotoDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPhoto(); } }} placeholder="https://example.com/bus-front.jpg" /><Button type="button" variant="secondary" onClick={addPhoto} disabled={!photoDraft.trim()}><Plus size={16} /> <Translate text={"Add image"} /></Button></div>
-                {form.photos.length > 0 ? <div className="bus-form-style-275">{form.photos.map((photo, index) => <figure key={photo} className="group bus-form-style-275-2"><img src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-275-3" /><figcaption className="bus-form-style-275-4"><Translate text={"Photo"} />{" "}{index + 1}</figcaption><button type="button" aria-label={`Remove bus photo ${index + 1}`} onClick={() => setField("photos", form.photos.filter((value) => value !== photo))} className="bus-form-style-275-5"><Trash2 size={16} /></button></figure>)}</div> : <div className="bus-form-style-275-6"><ImagePlus size={18} /> <Translate text={"No bus photos added"} /></div>}
+                {form.photos.length > 0 ? <div className="bus-form-style-275">{form.photos.map((photo, index) => <figure key={photo} className="group bus-form-style-275-2"><img src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-275-3" /><figcaption className="bus-form-style-275-4"><Translate text={"Photo"} />{" "}{index + 1}</figcaption><button type="button" aria-label={`Remove bus photo ${index + 1}`} onClick={async () => { if (await confirm({ title: "Remove photo?", description: `Remove photo ${index + 1} from this bus? Save the bus to apply this change.`, confirmLabel: "Remove" })) setField("photos", form.photos.filter((value) => value !== photo)); }} className="bus-form-style-275-5"><Trash2 size={16} /></button></figure>)}</div> : <div className="bus-form-style-275-6"><ImagePlus size={18} /> <Translate text={"No bus photos added"} /></div>}
               </div>
             </section>
           )}
@@ -296,7 +304,7 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
           )}
 
           <div className="bus-form-style-294">
-            <Button type="button" variant="secondary" onClick={() => step === 0 ? router.push("/dashboard/buses") : setStep((current) => current - 1)} disabled={saving}><ArrowLeft size={16} /> <LocalizedValue value={step === 0 ? "Cancel" : "Back"} /></Button>
+            <Button type="button" variant="secondary" onClick={() => step === 0 ? router.push(busId ? `/dashboard/buses/${busId}` : "/dashboard/buses") : setStep((current) => current - 1)} disabled={saving}><ArrowLeft size={16} /> <LocalizedValue value={step === 0 ? "Cancel" : "Back"} /></Button>
             <div className="bus-form-style-296">
               {step < steps.length - 1 ? <Button type="button" onClick={nextStep}><LocalizedValue value={step === 0 ? "Continue to features" : step === 1 ? "Continue to seat layout" : "Review bus"} /> <ArrowRight size={16} /></Button> : <Button type="button" onClick={() => void save()} disabled={saving}>{saving ? <><LoaderCircle className="bus-form-style-297" size={16} /> <Translate text={"Saving bus…"} /></> : <><CheckCircle2 size={16} /> <LocalizedValue value={editing ? "Save bus changes" : "Save bus"} /></>}</Button>}
             </div>

@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { DataTable } from "../../ui/DataTable";
 import { LocalizedValue } from "../../i18n/LocalizedValue";
 import { localizeText } from "../../i18n/errors";
 import { Translate } from "../../i18n/Translate";
@@ -8,6 +10,7 @@ import "../../styles/privacy.css";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, Download, FileSpreadsheet, FileUp, RefreshCw, UploadCloud } from "lucide-react";
+import { useConfirmation } from "../../ui/ConfirmationModal";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
@@ -45,6 +48,7 @@ function download(name: string, text: string) {
 
 export function BulkDataPage() {
   const t = useTranslations();
+  const confirm = useConfirmation();
   const { user } = useAuth();
   const [entity, setEntity] = useState<BulkEntity>("buses");
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
@@ -54,7 +58,15 @@ export function BulkDataPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<"template" | "export" | "preview" | "commit" | null>(null);
   const [fileName, setFileName] = useState("");
-  useEffect(() => { if (user?.role === "SUPER_ADMIN") void getAgencies().then((rows) => { const values = rows as { id: string; name: string }[]; setAgencies(values); setAgencyId(values[0]?.id ?? ""); }).catch(() => setAgencies([])); }, [user?.role]);
+  useEffect(() => { if (user?.role === "SUPER_ADMIN") void getAgencies().then((rows) => { const values = rows as { id: string; name: string }[]; setAgencies(values); setAgencyId((current) => current || values[0]?.id || ""); }).catch(() => setAgencies([])); }, [user?.role]);
+  useEffect(() => {
+    if (!user?.id) return;
+    const timer = window.setTimeout(() => {
+      try { const raw = sessionStorage.getItem(`bulk-preview:${user.id}`); if (!raw) return; const draft = JSON.parse(raw); if (!entities.some((item) => item.key === draft.entity) || !Array.isArray(draft.rows)) return; setEntity(draft.entity); setAgencyId(draft.agencyId || ""); setRows(draft.rows); setResult(draft.result); setFileName(draft.fileName || ""); sessionStorage.removeItem(`bulk-preview:${user.id}`); } catch { /* A missing preview starts a fresh upload. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [user?.id]);
+  function savePreview() { try { sessionStorage.setItem(`bulk-preview:${user?.id}`, JSON.stringify({ entity, agencyId, rows, result, fileName })); } catch { setError("Unable to open row preview. Browser storage is unavailable."); } }
   const allowed = (action: "read" | "create") => user?.role === "SUPER_ADMIN" || user?.permissions.includes(`${entities.find((item) => item.key === entity)?.permission}:${action}`);
   async function getFile(kind: "template" | "export") {
     setBusy(kind); setError("");
@@ -69,6 +81,7 @@ export function BulkDataPage() {
     finally { setBusy(null); }
   }
   async function commit() {
+    if (busy || !(await confirm({ title: "Import records?", description: `${result?.valid ?? rows.length} valid ${entity} rows will be imported into the selected agency. Review the validation results before continuing.`, confirmLabel: "Import", destructive: false }))) return;
     setBusy("commit"); setError("");
     try { const committed = await commitBulkImport(entity, rows, agencyId || undefined); setResult(committed); setRows([]); setFileName(""); const failures = committed.results.filter((item) => !item.ok); if (failures.length) download(`${entity}-import-errors.csv`, `row,error\r\n${failures.map((item) => `${item.row},"${item.message.replaceAll('"', '""')}"`).join("\r\n")}`); }
     catch (cause) { setError(cause instanceof Error ? cause.message : localizeText("Unable to import CSV")); }
@@ -80,6 +93,14 @@ export function BulkDataPage() {
     {error && <div className={cn("state-message state-error")} role="alert">{error}</div>}
     <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow"><Translate text={"STEP 01"} /></p><h2><Translate text={"Choose records"} /></h2><p><Translate text={"Select the data you want to work with."} /></p></div></div><div className="data-controls">{user?.role === "SUPER_ADMIN" && <label><Translate text={"Agency"} /><select value={agencyId} disabled={busy !== null} onChange={(event) => { setAgencyId(event.target.value); setRows([]); setResult(null); setFileName(""); }}><option value=""><Translate text={"Select agency"} /></option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}<label><Translate text={"Record type"} /><select value={entity} disabled={busy !== null} onChange={(event) => { setEntity(event.target.value as BulkEntity); setRows([]); setResult(null); setFileName(""); }}>{entities.map((item) => <option key={item.key} value={item.key}>{t(item.label)}</option>)}</select></label></div><div className="data-card-actions">{(allowed("read") || allowed("create")) && <Button variant="secondary" onClick={() => void getFile("template")} disabled={busy !== null} loading={busy === "template"} loadingLabel="Downloading…"><Download size={16} /> <Translate text={"CSV template"} /></Button>}{allowed("read") && <Button variant="secondary" onClick={() => void getFile("export")} disabled={busy !== null || (user?.role === "SUPER_ADMIN" && !agencyId)} loading={busy === "export"} loadingLabel="Exporting…"><Download size={16} /> <Translate text={"Export records"} /></Button>}</div></Card>
     {allowed("create") && <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow"><Translate text={"STEP 02"} /></p><h2><Translate text={"Upload and validate"} /></h2><p><Translate text={"Use the template’s exact column names. Files can contain up to 500 rows."} /></p></div></div><label className="data-upload"><UploadCloud size={26} /><strong>{fileName || "Choose a CSV file"}</strong><span><LocalizedValue value={fileName ? `${rows.length} rows ready for validation` : "Browse your device to select a .csv file"} /></span><input type="file" accept=".csv,text/csv" disabled={busy !== null} onChange={async (event) => { const file = event.target.files?.[0]; setRows([]); setResult(null); setError(""); setFileName(file?.name ?? ""); if (!file) return; try { const parsed = parseCsv(await file.text()); if (parsed.length > 500) throw new Error("CSV files can contain up to 500 data rows."); setRows(parsed); } catch (cause) { setFileName(""); setError(cause instanceof Error ? cause.message : localizeText("Unable to parse CSV")); } }} /></label>{rows.length > 0 && <div className="data-card-actions"><span className="data-ready"><CheckCircle2 size={17} /> {rows.length} <Translate text={"rows loaded"} /></span><Button onClick={() => void preview()} disabled={busy !== null || (user?.role === "SUPER_ADMIN" && !agencyId)} loading={busy === "preview"} loadingLabel="Validating…"><RefreshCw size={16} /> <Translate text={"Validate rows"} /></Button>{result && result.valid > 0 && <Button onClick={() => void commit()} disabled={busy !== null} loading={busy === "commit"} loadingLabel="Importing…"><FileUp size={16} /> <Translate text={"Import"} />{" "}{result.valid} <Translate text={"valid rows"} /></Button>}</div>}</Card>}
-    {result && <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow"><Translate text={"VALIDATION RESULTS"} /></p><h2>{result.valid} <Translate text={"valid ·"} />{" "}{result.invalid} <Translate text={"need attention"} /></h2><p><Translate text={"Review each CSV row before importing. Failed rows can be corrected in your file."} /></p></div></div><div className="table-wrapper data-results"><table><thead><tr><th><Translate text={"CSV row"} /></th><th><Translate text={"Result"} /></th><th><Translate text={"Details"} /></th></tr></thead><tbody>{result.results.map((item) => <tr key={item.row}><td>{item.row}</td><td><span className={item.ok ? "data-status-good" : "data-status-error"}><LocalizedValue value={item.ok ? "Valid" : "Error"} /></span></td><td>{item.message}</td></tr>)}</tbody></table></div></Card>}
+    {result && <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow"><Translate text={"VALIDATION RESULTS"} /></p><h2>{result.valid} <Translate text={"valid ·"} />{" "}{result.invalid} <Translate text={"need attention"} /></h2><p><Translate text={"Review each CSV row before importing. Failed rows can be corrected in your file."} /></p></div></div><DataTable title="Validation results" data={result.results} rowKey={(item) => item.row} searchPlaceholder="Search validation details"
+      searchText={(item) => `${item.row} ${item.message}`}
+      filters={[{ id: "result", label: "Result", options: [{ value: "valid", label: "Valid" }, { value: "error", label: "Error" }], matches: (item, value) => item.ok === (value === "valid") }]}
+      columns={[
+        { id: "row", header: "CSV row", render: (item) => <Link className="text-link" href={`/dashboard/data/rows/${item.row}`} onClick={savePreview}>{item.row}</Link> },
+        { id: "result", header: "Result", render: (item) => <span className={item.ok ? "data-status-good" : "data-status-error"}><LocalizedValue value={item.ok ? "Valid" : "Error"} /></span> },
+        { id: "details", header: "Details", render: (item) => item.message },
+      ]}
+    /></Card>}
   </>;
 }

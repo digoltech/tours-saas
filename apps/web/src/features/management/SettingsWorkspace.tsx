@@ -7,6 +7,7 @@ import { Translate } from "../../i18n/Translate";
 import { useEffect, useState } from "react";
 import { Check, Save } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useConfirmation } from "../../ui/ConfirmationModal";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PageHeader } from "../../ui/PageHeader";
@@ -41,6 +42,7 @@ const empty: Values = {
   defaultFare: "0",
 };
 export function SettingsWorkspace() {
+  const confirm = useConfirmation();
   const { user } = useAuth();
   const [values, setValues] = useState(empty);
   const [subscription, setSubscription] = useState<SubscriptionContract | null>(
@@ -118,6 +120,7 @@ export function SettingsWorkspace() {
     }
   }
   async function requestPlan() {
+    if (!(await confirm({ title: "Request plan change?", description: `${planName} · ${Number(price).toLocaleString()} per billing period. Submit this plan change for approval?`, confirmLabel: "Request plan", destructive: false }))) return;
     setError("");
     try {
       setSubscription(await requestSubscriptionPlan(planName, Number(price)));
@@ -130,6 +133,7 @@ export function SettingsWorkspace() {
   async function markPaid(id: string) {
     const reference = window.prompt("Offline payment reference (optional):");
     if (reference === null) return;
+    if (!(await confirm({ title: "Record invoice payment?", description: `Mark this invoice as paid via ${paymentMethod}. Confirm that the payment was received.`, confirmLabel: "Mark paid", destructive: false }))) return;
     try {
       await markSubscriptionInvoicePaid(id, paymentMethod, reference);
       setInvoices(await getSubscriptionInvoices());

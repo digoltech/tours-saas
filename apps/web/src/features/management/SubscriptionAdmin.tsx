@@ -5,6 +5,7 @@ import { Translate } from "../../i18n/Translate";
 
 import { useEffect, useState } from "react";
 import { Card } from "../../ui/Card";
+import { useConfirmation } from "../../ui/ConfirmationModal";
 import { Button } from "../../ui/Button";
 import {
   createSubscriptionInvoice,
@@ -17,6 +18,7 @@ import type { SubscriptionContract } from "@a-one-tours/shared";
 
 type AgencyOption = { id: string; name: string };
 export function SubscriptionAdmin() {
+  const confirm = useConfirmation();
   const [agencies, setAgencies] = useState<AgencyOption[]>([]);
   const [agencyId, setAgencyId] = useState("");
   const [subscription, setSubscription] = useState<SubscriptionContract | null>(
@@ -65,6 +67,7 @@ export function SubscriptionAdmin() {
   }, [agencyId]);
   async function save() {
     if (!agencyId) return;
+    if (!(await confirm({ title: "Update subscription?", description: `${planName} · ${Number(price).toLocaleString()} · ${status}. This changes the agency subscription and access status.`, confirmLabel: "Save changes", destructive: status === "CANCELED" || status === "PAST_DUE" }))) return;
     try {
       setSubscription(
         await updateAdminSubscription(agencyId, {
@@ -83,6 +86,7 @@ export function SubscriptionAdmin() {
   }
   async function createInvoice() {
     if (!agencyId) return;
+    if (!(await confirm({ title: "Create invoice?", description: `${description} · ${Number(invoiceAmount).toLocaleString()}. Confirm to issue this invoice to the selected agency.`, confirmLabel: "Create invoice", destructive: false }))) return;
     try {
       await createSubscriptionInvoice({
         agencyId,

@@ -9,12 +9,14 @@ import { Download, FileText, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../../../src/features/auth/components/AuthProvider";
 import { downloadPrivacyExport, getPrivacyRequests, reviewPrivacyRequest, submitStaffPrivacyRequest, type PrivacyRequestRecord } from "../../../../src/features/auth/services/api-client";
 import { Card } from "../../../../src/ui/Card";
+import { useConfirmation } from "../../../../src/ui/ConfirmationModal";
 import { Button } from "../../../../src/ui/Button";
 import { PageHeader } from "../../../../src/ui/PageHeader";
 import { SkeletonList } from "../../../../src/ui/Skeleton";
 
 export default function PrivacyWorkspacePage() {
   const { user } = useAuth();
+  const confirm = useConfirmation();
   const [rows, setRows] = useState<PrivacyRequestRecord[]>([]);
   const [type, setType] = useState<"ACCESS" | "ERASURE">("ACCESS");
   const [reason, setReason] = useState("");
@@ -36,7 +38,9 @@ export default function PrivacyWorkspacePage() {
   }, []);
 
   async function submit(event: FormEvent) {
-    event.preventDefault(); setBusy("submit"); setMessage("");
+    event.preventDefault();
+    if (busy || (type === "ERASURE" && !(await confirm({ title: "Request deletion review?", description: "Submit your account data for deletion review. The agency will verify your identity and any records it must retain before processing the request.", confirmLabel: "Submit request" })))) return;
+    setBusy("submit"); setMessage("");
     try { await submitStaffPrivacyRequest({ type, reason }); setReason(""); await load(); setMessage("Request submitted."); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Unable to submit request"); }
     finally { setBusy(null); }
@@ -44,6 +48,10 @@ export default function PrivacyWorkspacePage() {
 
   async function review(id: string, action: "VERIFY" | "REJECT" | "RETAIN" | "COMPLETE") {
     if (note.trim().length < 10) { setMessage("Enter a review note of at least 10 characters."); return; }
+    if (busy) return;
+    const request = rows.find((row) => row.id === id);
+    const label = { VERIFY: "Verify identity", REJECT: "Reject", RETAIN: "Retain with reason", COMPLETE: "Complete" }[action];
+    if (!(await confirm({ title: "Confirm privacy decision?", description: `${request?.subjectName ?? "This request"}: ${label}. ${action === "COMPLETE" && request?.type === "ERASURE" ? "Completing a deletion review processes eligible personal data for deletion or anonymization. This cannot be undone." : "Confirm to save the review decision and note."}`, confirmLabel: label, destructive: action === "REJECT" || (action === "COMPLETE" && request?.type === "ERASURE") }))) return;
     setBusy(`${id}:${action}`); setMessage("");
     try { await reviewPrivacyRequest(id, action, note.trim()); await load(); setMessage("Review saved."); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Unable to review request"); }

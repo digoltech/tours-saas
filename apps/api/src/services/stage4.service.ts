@@ -5,6 +5,8 @@ import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext } from "../types/auth.js";
 import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
+import { createTicketDocument } from "@a-one-tours/shared/ticket";
+import { buildBookingEmail, emailLayout, escapeHtml } from "./email-templates.js";
 import { sendEmail } from "./email.service.js";
 import { cancelBooking } from "./finance.service.js";
 
@@ -76,13 +78,14 @@ async function deliver(
   to: string,
   subject: string,
   message: string,
+  emailHtml?: string,
 ) {
   if (channel === "EMAIL") {
     await sendEmail({
       to,
       subject,
       text: message,
-      html: `<p>${message.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!)}</p>`,
+      html: emailHtml ?? emailLayout(subject, `<p>${escapeHtml(message).replaceAll("\n", "<br>")}</p>`),
     });
     return;
   }
@@ -105,13 +108,14 @@ export async function sendBookingNotifications(
 ) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { passengers: true, trip: { include: { route: true } } },
+    include: { passengers: true, boardingStop: true, dropOffStop: true, payments: { select: { amount: true } }, refunds: { select: { amount: true } }, agency: { select: { name: true, email: true, phone: true, address: true, city: true, state: true, logoUrl: true, brandColor: true } }, trip: { include: { route: true, bus: true } } },
   });
   if (!booking) return;
-  const text =
-    event === "BOOKING_CONFIRMED"
-      ? `Booking ${booking.pnr} confirmed for ${booking.trip.route.source} to ${booking.trip.route.destination}. Amount due: ${booking.currency} ${booking.totalAmount}.`
-      : `Booking ${booking.pnr} has been cancelled. Contact your agency regarding the refund due.`;
+  const email = buildBookingEmail(createTicketDocument(booking));
+  const text = email.text;
+  const smsText = event === "BOOKING_CONFIRMED"
+    ? `Booking ${booking.pnr} confirmed for ${booking.trip.route.source} to ${booking.trip.route.destination}. Booking total: ${booking.currency} ${booking.totalAmount}.`
+    : `Booking ${booking.pnr} has been cancelled. Contact your agency regarding the refund due.`;
   const user = await prisma.user.findUnique({
     where: { id: booking.bookedById },
     include: { notificationPreference: true },
@@ -139,6 +143,7 @@ export async function sendBookingNotifications(
         },
       }),
     );
+  const sentRecipients = new Set<string>();
   for (const passenger of booking.passengers) {
     const channels: Array<
       ["EMAIL" | "SMS" | "WHATSAPP", string | null, boolean]
@@ -149,6 +154,10 @@ export async function sendBookingNotifications(
     ];
     for (const [channel, to, enabled] of channels) {
       if (!to || !enabled) continue;
+      const recipientKey = `${channel}:${channel === "EMAIL" ? to.trim().toLowerCase() : to.trim()}`;
+      if (sentRecipients.has(recipientKey)) continue;
+      sentRecipients.add(recipientKey);
+      const channelText = channel === "SMS" ? smsText : text;
       tasks.push(
         (async () => {
           const record = await prisma.notification.create({
@@ -158,11 +167,11 @@ export async function sendBookingNotifications(
               channel,
               recipient: to,
               subject: event,
-              message: text,
+              message: channelText,
             },
           });
           try {
-            await deliver(channel, to, event, text);
+            await deliver(channel, to, email.subject, channelText, email.html);
             await prisma.notification.update({
               where: { id: record.id },
               data: { status: "SENT", sentAt: new Date() },

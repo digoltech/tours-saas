@@ -4,6 +4,7 @@ import { Translate } from "../../i18n/Translate";
 
 import "../../styles/transport.css";
 
+import { useConfirmation } from "../../ui/ConfirmationModal";
 import { useState } from "react";
 import { Armchair, Bed } from "lucide-react";
 import { Badge } from "../../ui/Badge";
@@ -50,6 +51,7 @@ export function SeatLayoutEditor({
   value: SeatLayoutData;
   onChange: (layout: SeatLayoutData) => void;
 }) {
+  const confirm = useConfirmation();
   const [selectedSeat, setSelectedSeat] = useState("");
   const update = (changes: Partial<SeatLayoutData>) => onChange({ ...value, ...changes });
   const seatCount = Math.max(1, totalSeats || value.rows * value.columns);
@@ -176,7 +178,7 @@ export function SeatLayoutEditor({
                 <button
                   type="button"
                   className={cn("seat-inspector-disable")}
-                  onClick={() => update({ disabledSeats: value.disabledSeats.includes(selectedSeat) ? value.disabledSeats.filter((name) => name !== selectedSeat) : [...value.disabledSeats, selectedSeat] })}
+                  onClick={async () => { const restoring = value.disabledSeats.includes(selectedSeat); if (!(await confirm({ title: restoring ? "Restore seat?" : "Mark seat unavailable?", description: `${selectedSeat}: ${restoring ? "make this seat available" : "mark this seat unavailable"} in the layout. Save the layout to apply this change.`, confirmLabel: restoring ? "Restore this seat" : "Mark unavailable", destructive: !restoring }))) return; update({ disabledSeats: restoring ? value.disabledSeats.filter((name) => name !== selectedSeat) : [...value.disabledSeats, selectedSeat] }); }}
                 >
                   <LocalizedValue value={value.disabledSeats.includes(selectedSeat) ? "Restore this seat" : "Mark unavailable"} />
                 </button>

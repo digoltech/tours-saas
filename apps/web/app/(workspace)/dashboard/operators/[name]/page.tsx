@@ -8,7 +8,7 @@ import {
   getBuses,
   type Bus,
 } from "../../../../../src/features/auth/services/api-client";
-import { PageHeader } from "../../../../../src/ui/PageHeader";
+import { RecordPage } from "../../../../../src/ui/RecordPage";
 import { Card } from "../../../../../src/ui/Card";
 import { Badge } from "../../../../../src/ui/Badge";
 import "../../../../../src/styles/experience.css";
@@ -39,11 +39,11 @@ export default function OperatorProfilePage() {
       .finally(() => setLoading(false));
   }, [operatorName]);
   return (
-    <>
-      <PageHeader
-        title={operatorName}
-        description="Operator profile and assigned fleet"
-      />
+    <RecordPage
+      title={operatorName}
+      description={"Operator profile and assigned fleet"}
+      backHref="/dashboard/operators"
+    >
       {error && (
         <div className="state-message state-error" role="alert">
           {error}
@@ -96,7 +96,7 @@ export default function OperatorProfilePage() {
               buses.map((bus) => (
                 <Link
                   className="directory-row"
-                  href={`/dashboard/buses/${bus.id}/edit`}
+                  href={`/dashboard/buses/${bus.id}`}
                   key={bus.id}
                 >
                   <span>
@@ -117,6 +117,6 @@ export default function OperatorProfilePage() {
           </Card>
         </div>
       )}
-    </>
+    </RecordPage>
   );
 }

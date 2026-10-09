@@ -7,7 +7,11 @@ import {
 import * as controller from "../controllers/booking.controller.js";
 
 export const bookingRouter = Router();
-bookingRouter.use(authenticate, requirePermission("booking:read"));
+bookingRouter.use(
+  ["/bookings", "/customers", "/buses/:id/seat-layout"],
+  authenticate,
+  requirePermission("booking:read"),
+);
 bookingRouter.get("/bookings/search", controller.searchTrips);
 bookingRouter.get("/customers", controller.customers);
 bookingRouter.get("/bookings", controller.list);

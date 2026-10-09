@@ -11,6 +11,7 @@ import { downloadPrivacyExport, getPrivacyRequests, reviewPrivacyRequest, submit
 import { Card } from "../../../../src/ui/Card";
 import { useConfirmation } from "../../../../src/ui/ConfirmationModal";
 import { Button } from "../../../../src/ui/Button";
+import { ExtraTabs } from "../../../../src/ui/ExtraTabs";
 import { PageHeader } from "../../../../src/ui/PageHeader";
 import { SkeletonList } from "../../../../src/ui/Skeleton";
 
@@ -66,7 +67,8 @@ export default function PrivacyWorkspacePage() {
   }
 
   return <>
-    <PageHeader title="Privacy requests" description="Request your data or review verified passenger and staff requests." />
+    <PageHeader title="Extra" description="Manage your data and privacy requests." />
+    <ExtraTabs active="privacy" />
     <div className="privacy-hero"><span><LockKeyhole size={24} /></span><div><p className="eyebrow"><Translate text={"YOUR DATA, YOUR CONTROL"} /></p><h1><Translate text={"Privacy requests"} /></h1><p><Translate text={"Track access and deletion requests in one place."} /></p></div></div>
     {message && <p className="privacy-message" role="status"><LocalizedValue value={message} /></p>}
     <div className="privacy-layout">

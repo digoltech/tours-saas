@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
 import { isBranchScoped } from "../middleware/tenant-policy.js";
+import { standardRoleNames } from "@a-one-tours/shared/team-access";
+import { assertTeamManager, assertActiveBranch, protectLastOwner } from "./team-policy.js";
 
 type Err = Error & { statusCode?: number; code?: string };
 function fail(statusCode: number, code: string, message: string): never {
@@ -23,7 +25,7 @@ function agencyFor(context: AuthContext, requested?: string) {
 async function ensureAgencyAdmin(context: AuthContext, agencyId?: string) {
   const resolved = agencyFor(context, agencyId);
   if (context.role !== "SUPER_ADMIN" && context.role !== "AGENCY_ADMIN")
-    fail(403, "FORBIDDEN", "Only agency admins can manage custom roles");
+    fail(403, "FORBIDDEN", "Only agency owners can manage custom roles");
   return resolved;
 }
 const roleInclude = {
@@ -31,18 +33,19 @@ const roleInclude = {
 } satisfies Prisma.RoleInclude;
 
 export async function listRoles(context: AuthContext, requested?: string) {
+  assertTeamManager(context);
   const agencyId = agencyFor(context, requested);
   if (context.role !== "SUPER_ADMIN" && !context.permissions.includes("agent:create") && !context.permissions.includes("agent:update"))
     fail(403, "FORBIDDEN", "You do not have permission to view assignable roles");
   const [roles, permissions, users] = await Promise.all([
     prisma.role.findMany({
-      where: { OR: [{ isSystem: true }, { agencyId }] },
+      where: context.role === "BRANCH_ADMIN" ? { code: "AGENT" } : { OR: [{ isSystem: true, code: { not: "SUPER_ADMIN" } }, { agencyId }] },
       include: roleInclude,
       orderBy: [{ isSystem: "desc" }, { name: "asc" }],
     }),
     prisma.permission.findMany({ orderBy: { code: "asc" } }),
     prisma.user.findMany({
-      where: { agencyId, ...(isBranchScoped(context) ? { branchId: context.branchId ?? "__missing__" } : {}) },
+      where: { agencyId, ...(isBranchScoped(context) ? { branchId: context.branchId ?? "__missing__", role: { code: "AGENT" } } : {}) },
       select: {
         id: true, firstName: true, lastName: true, email: true, status: true,
         roleId: true, branchId: true, branch: { select: { name: true } },
@@ -56,7 +59,7 @@ export async function listRoles(context: AuthContext, requested?: string) {
     roles: roles.map((role) => ({
       id: role.id,
       code: role.code,
-      name: role.name,
+      name: standardRoleNames[role.code] ?? role.name,
       scope: role.scope,
       isSystem: role.isSystem,
       userCount: counts.get(role.id) ?? 0,
@@ -80,7 +83,10 @@ export async function assignUserRole(context: AuthContext, userId: string, roleI
   if (role.scope === "BRANCH" && !user.branchId)
     fail(400, "INVALID_REQUEST", "Assign this user to a branch before selecting a branch role");
   if (user.roleId === role.id) return { id: user.id, roleId: role.id };
+  if (["AGENCY_ADMIN", "BRANCH_ADMIN", "AGENT"].includes(role.code) || role.scope === "BRANCH")
+    await assertActiveBranch(agencyId, user.branchId);
   await prisma.$transaction(async (tx) => {
+    await protectLastOwner(tx, agencyId, userId, { roleCode: role.code });
     await tx.user.update({ where: { id: userId }, data: { roleId: role.id } });
     await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await tx.invitation.updateMany({ where: { userId, acceptedAt: null }, data: { roleId: role.id } });
@@ -108,12 +114,14 @@ export async function customizeUserRole(
   if (user.role.code === "SUPER_ADMIN") fail(403, "FORBIDDEN", "The platform admin role cannot be changed here");
   if (input.scope === "BRANCH" && !user.branchId)
     fail(400, "INVALID_REQUEST", "Assign this user to a branch before selecting a branch role");
+  if (input.scope === "BRANCH") await assertActiveBranch(agencyId, user.branchId);
   if (input.scope === "BRANCH" && input.permissions.some((code) => ["agency:create", "agency:update", "agency:delete"].includes(code)))
     fail(400, "INVALID_REQUEST", "Branch-scoped roles cannot manage agency-wide settings");
   const allowed = await prisma.permission.findMany({ where: { code: { in: input.permissions } }, select: { id: true } });
   if (allowed.length !== new Set(input.permissions).size)
     fail(400, "INVALID_REQUEST", "One or more permissions are not available");
   return prisma.$transaction(async (tx) => {
+    await protectLastOwner(tx, agencyId, userId, { roleCode: "CUSTOM" });
     const role = await tx.role.create({ data: {
       code: `CUSTOM_${randomUUID()}`, name: input.name.trim(), scope: input.scope,
       isSystem: false, agencyId,

@@ -304,3 +304,13 @@
     gap: 5px;
   }
 }
+
+.activity-branch-label {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: #b91c1c;
+  background: #fff1f2;
+  font-size: 12px;
+}

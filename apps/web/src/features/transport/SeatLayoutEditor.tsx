@@ -132,7 +132,7 @@ export function SeatLayoutEditor({
           <Badge>{seatCount - value.disabledSeats.length} <Translate text={"available"} /></Badge>
         </div>
         <div className={cn("bus-editor")}>
-          <div className={cn("bus-outline")}>
+          <div className={cn("bus-outline")} role="region" aria-label="Seat map" tabIndex={0}>
             <div className={cn("driver-cab")}><Armchair size={18} /> <Translate text={"Driver"} /></div>
             <div
               className={cn("seat-grid")}

@@ -1,19 +1,17 @@
-import { AccessRecordPage } from "../../../../../../src/features/management/AccessRecordPage";
+import { MemberProfile } from "../../../../../../src/features/management/MemberProfile";
+import { EntityRecordPage } from "../../../../../../src/features/management/EntityRecordPage";
 export default async function Page({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ agencyId?: string; copy?: string }>;
+  searchParams: Promise<{ section?: string }>;
 }) {
-  const [{ id }, query] = await Promise.all([params, searchParams]);
-  return (
-    <AccessRecordPage
-      kind="member"
-      mode="edit"
-      id={id}
-      initialAgencyId={query.agencyId}
-      copyId={query.copy}
-    />
+  const { id } = await params;
+  const { section } = await searchParams;
+  return section === "personal" ? (
+    <MemberProfile id={id} editPersonal />
+  ) : (
+    <EntityRecordPage resource="agents" id={id} mode="edit" />
   );
 }

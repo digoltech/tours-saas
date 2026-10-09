@@ -127,6 +127,29 @@ export function BookingRecordPage({
       backHref={mode === "edit" ? href : "/dashboard/bookings"}
       backLabel={mode === "edit" ? "Back to details" : "Back to list"}
       eyebrow="Booking details"
+      summary={
+        booking
+          ? [
+              {
+                label: "Total",
+                value: `${booking.currency} ${Number(booking.totalAmount).toLocaleString(locale)}`,
+              },
+              { label: "Passengers", value: booking.passengers.length },
+              {
+                label: "Travel date",
+                value: new Date(booking.trip.travelDate).toLocaleDateString(
+                  locale,
+                  { timeZone: "UTC" },
+                ),
+              },
+              {
+                label: "Trip",
+                value: booking.trip.tripCode,
+                href: `/dashboard/trips/${booking.trip.id}`,
+              },
+            ]
+          : undefined
+      }
       actions={
         booking && (
           <>

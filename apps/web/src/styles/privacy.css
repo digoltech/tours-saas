@@ -5,10 +5,10 @@
   gap: 17px;
   margin-bottom: 21px;
   padding: 24px 27px;
-  border: 1px solid #1b424c;
+  border: 1px solid var(--line);
   border-radius: 17px;
-  background: linear-gradient(115deg, #102b37, #24505a);
-  color: white;
+  background: linear-gradient(115deg, var(--pale), #fff8f5);
+  color: var(--ink);
 }
 .data-hero-icon,
 .privacy-hero > span {
@@ -17,24 +17,24 @@
   place-items: center;
   height: 54px;
   border-radius: 15px;
-  background: #ffffff20;
-  color: #fff;
+  background: #fff;
+  color: var(--teal);
 }
 .data-hero .eyebrow,
 .privacy-hero .eyebrow {
   margin: 0 0 5px;
-  color: #f4c7be;
+  color: var(--teal);
 }
 .data-hero h1,
 .privacy-hero h1 {
   margin: 0;
-  color: white;
+  color: var(--ink);
   font-size: clamp(22px, 2.5vw, 28px);
 }
 .data-hero p:last-child,
 .privacy-hero p:last-child {
   margin: 5px 0 0;
-  color: #d6e4e3;
+  color: var(--muted);
   font-size: 13px;
 }
 .data-card {
@@ -97,10 +97,10 @@
   justify-items: center;
   gap: 6px;
   padding: 26px;
-  border: 1.5px dashed #9fb7b8;
+  border: 1.5px dashed #dcabaa;
   border-radius: 13px;
-  background: #f8fbfa;
-  color: #355d64;
+  background: #fffafa;
+  color: var(--teal);
   text-align: center;
   cursor: pointer;
 }

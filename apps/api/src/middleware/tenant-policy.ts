@@ -7,16 +7,12 @@ export function canAccessTenant(
 ) {
   if (context.role === "SUPER_ADMIN") return true;
   if (context.agencyId !== agencyId) return false;
-  if (
-    (context.roleScope === "BRANCH" ||
-      (!context.roleScope && (context.role === "BRANCH_ADMIN" || context.role === "AGENT"))) &&
-    branchId !== context.branchId
-  )
+  if (isBranchScoped(context) && branchId !== undefined && branchId !== context.branchId)
     return false;
   return true;
 }
 
 export function isBranchScoped(context: AuthContext) {
-  return context.roleScope === "BRANCH" ||
-    (!context.roleScope && (context.role === "BRANCH_ADMIN" || context.role === "AGENT"));
+  return !["SUPER_ADMIN", "AGENCY_ADMIN"].includes(context.role) &&
+    (context.roleScope === "BRANCH" || context.role === "BRANCH_ADMIN" || context.role === "AGENT");
 }

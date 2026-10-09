@@ -1,0 +1,31 @@
+/* Shared brand states. Feature-specific semantic status colors stay distinct. */
+::selection { background: var(--brand-border); color: #65161b; }
+:focus-visible { outline-color: var(--brand); }
+input, select, textarea { accent-color: var(--brand); }
+.badge { color: var(--brand); background: var(--brand-soft); }
+input:focus, select:focus, textarea:focus { border-color: var(--brand); }
+.header-search:focus-within { border-color: var(--brand-border); box-shadow: 0 0 0 3px rgb(198 40 40 / 9%); }
+.sidebar .nav-item:hover, .sidebar .nav-item:active { color: #fff; background: #7e242c; }
+.sidebar .nav-item.nav-item-active, .sidebar .nav-item.nav-item-active:hover { color: #fff; background: var(--brand); box-shadow: inset 3px 0 #ffb4b4; }
+.sidebar .nav-item.nav-item-active > svg { color: #fff; }
+.sidebar-collapse-toggle:hover { border-color: var(--brand-border); background: #7e242c; color: white; }
+.button-primary:hover, .button-primary:active, .button-destructive:hover, .button-destructive:active { background: var(--brand-hover); border-color: var(--brand-hover); color: #fff; }
+.button-secondary:hover, .button-secondary:active, .button-ghost:hover, .button-ghost:active,
+.icon-button:hover, .notification-button:hover, .header-search-clear:hover, .password-visibility:hover,
+.profile-compact:hover, .profile-dropdown > a:hover, .profile-dropdown > button:hover,
+.header-search-result:hover, .header-search-result:focus-visible { background: var(--brand-soft); border-color: var(--brand-border); color: var(--brand); }
+.text-link:hover, .setup-row:hover, .breadcrumb a:hover, .public-header nav a:hover,
+.landing-nav-links a:hover, .support-footer a:hover, .workspace-legal-footer a:hover { color: var(--brand); }
+.workspace-tabs > :hover, .finance-section-nav a:hover { color: var(--brand); border-color: var(--brand-border); background: var(--brand-soft); }
+.workspace-tabs > [aria-current="page"], .workspace-tabs > [aria-selected="true"],
+.notifications-tabs button.active, .layout-mode-switch button.active, .layout-mode-switch .active,
+.data-table-pagination button[aria-current="page"] { background: var(--brand-soft); border-color: var(--brand-border); color: var(--brand); }
+.table-wrapper tbody tr:hover { background: #fff8f8; }
+.roles-card:hover, .directory-row:hover { border-color: var(--brand-border); color: var(--brand); }
+.seat-unit-selected, .seat-button.is-selected { background: var(--brand); border-color: var(--brand); color: white; }
+.seat-button:not(:disabled):hover { border-color: var(--brand); }
+.seat-button.is-selected:hover { background: var(--brand-hover); color: white; }
+@media (prefers-reduced-motion: reduce) { .journey-tile:hover { transform: none; } }
+
+.data-table .data-table-pagination nav button[aria-current="page"] { background: var(--brand); border-color: var(--brand); color: white; }
+.notifications-tabs button:hover { color: var(--brand); background: var(--brand-soft); }

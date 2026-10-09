@@ -1,2 +1,96 @@
 @import "./mapped-finance.css";
 @import "./direct-finance.css";
+
+.finance-workspace-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 16px;
+  margin-bottom: 8px;
+}
+.finance-workspace-tabs button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.finance-workspace-tabs button:hover,
+.finance-workspace-tabs button[aria-current="page"] {
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fda4af;
+}
+.finance-workspace-tabs button:focus-visible {
+  outline: 2px solid #dc2626;
+  outline-offset: 2px;
+}
+.finance-scope-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  margin: -8px 0 12px;
+  font-size: 14px;
+}
+.finance-tab-content[hidden],
+.finance-chart-grid[hidden],
+.finance-lower-grid[hidden] {
+  display: none !important;
+}
+.finance-lower-grid.finance-tab-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+.finance-branch-report {
+  margin-bottom: 24px;
+}
+.finance-branch-report h2 {
+  margin: 0 0 8px;
+}
+.finance-branch-report p {
+  color: var(--muted);
+}
+@media (max-width: 640px) {
+  .finance-workspace-tabs {
+    margin-inline: -4px;
+  }
+  .finance-workspace-tabs button {
+    padding: 10px 14px;
+  }
+}
+
+.finance-chart-area {
+  fill: #fee2e2 !important;
+}
+.finance-chart-line {
+  stroke: #dc2626 !important;
+}
+.finance-chart-dot {
+  fill: #dc2626 !important;
+  stroke: #fff !important;
+}
+.finance-mix-track .collected {
+  background: #dc2626 !important;
+}
+.finance-mix-track .refunded {
+  background: #f87171 !important;
+}
+.finance-mix-track .commission {
+  background: #991b1b !important;
+}
+.finance-legend-dot {
+  background: #dc2626 !important;
+}
+
+.finance-tier-row > label { min-width: 0; }
+.finance-tier-row input { width: 100%; min-width: 0; }
+@media (max-width: 560px) {
+  .finance-tier-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 380px) {
+  .finance-tier-row { grid-template-columns: minmax(0, 1fr); }
+}

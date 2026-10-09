@@ -17,7 +17,7 @@ import { createDefaultSeatLayout, SeatLayoutEditor, type SeatLayoutData } from "
 export function SeatLayoutBuilder() {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busId, setBusId] = useState("");
-  const [layout, setLayout] = useState<SeatLayoutData>(createDefaultSeatLayout(40));
+  const [layout, setLayout] = useState<SeatLayoutData>(() => createDefaultSeatLayout(40));
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

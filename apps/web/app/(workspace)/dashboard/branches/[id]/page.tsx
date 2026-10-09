@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowRight,
-  BusFront,
-  CalendarDays,
-  Mail,
-  MapPin,
-  Phone,
-  Users,
-} from "lucide-react";
+import { ArrowRight, Mail, MapPin, Phone } from "lucide-react";
 import {
   getBranch,
   getBuses,
@@ -20,7 +12,11 @@ import {
   type Bus,
   type Trip,
 } from "../../../../../src/features/auth/services/api-client";
-import { RecordPage, EditRecordLink } from "../../../../../src/ui/RecordPage";
+import {
+  RecordPage,
+  RecordSection,
+  EditRecordLink,
+} from "../../../../../src/ui/RecordPage";
 import { useAuth } from "../../../../../src/features/auth/components/AuthProvider";
 import { Card } from "../../../../../src/ui/Card";
 import { Badge } from "../../../../../src/ui/Badge";
@@ -74,6 +70,21 @@ export default function BranchProfilePage() {
         branch ? `${branch.agency.name} · ${branch.code}` : "Loading branch"
       }
       backHref="/dashboard/branches"
+      eyebrow="Branch profile"
+      summary={
+        branch
+          ? [
+              {
+                label: "Team members",
+                value: branch._count.users,
+                href: `/dashboard/team?agencyId=${branch.agencyId}&branchId=${id}`,
+              },
+              { label: "Buses", value: buses.length },
+              { label: "Status", value: branch.status },
+              { label: "City", value: branch.city || "—" },
+            ]
+          : undefined
+      }
       actions={
         (user?.role === "SUPER_ADMIN" ||
           user?.permissions.includes("branch:update")) && (
@@ -88,36 +99,17 @@ export default function BranchProfilePage() {
       )}
       {branch && (
         <div className="directory-profile">
-          <Card className="directory-profile-hero">
-            <div className="directory-profile-icon">
-              <MapPin size={28} />
-            </div>
-            <div>
-              <p className="eyebrow">BRANCH PROFILE</p>
-              <h2>{branch.name}</h2>
-              <p>
-                {branch.agency.name} · Code {branch.code}
-              </p>
-            </div>
-            <Badge>{branch.status}</Badge>
-          </Card>
-          <div className="directory-stats">
-            <Card>
-              <Users size={20} />
-              <strong>{branch._count.users}</strong>
-              <span>Team members</span>
-            </Card>
-            <Card>
-              <BusFront size={20} />
-              <strong>{buses.length}</strong>
-              <span>Buses</span>
-            </Card>
-            <Card>
-              <CalendarDays size={20} />
-              <strong>{trips.length}</strong>
-              <span>Recent trips shown</span>
-            </Card>
-          </div>
+          <RecordSection
+            title="Branch team"
+            description="View people assigned to this location."
+          >
+            <Link
+              className="record-related-link"
+              href={`/dashboard/team?agencyId=${branch.agencyId}&branchId=${id}`}
+            >
+              View team members <ArrowRight size={16} />
+            </Link>
+          </RecordSection>
           <div className="directory-columns">
             <Card className="directory-panel">
               <h2>Contact & location</h2>

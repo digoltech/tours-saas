@@ -1,11 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, FileText, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Building2,
+  BusFront,
+  CircleDollarSign,
+  Eye,
+  FileText,
+  MapPin,
+  Pencil,
+  Route,
+  ShieldCheck,
+  Ticket,
+  UserRound,
+} from "lucide-react";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageHeader } from "./PageHeader";
 import { useTranslations } from "../i18n/LocaleProvider";
 import "../styles/record-page.css";
+
+export function ViewRecordLink({ href }: { href: string }) {
+  const t = useTranslations();
+  return (
+    <Link
+      prefetch={false}
+      href={href}
+      className="button button-secondary record-edit-link"
+    >
+      <Eye size={15} aria-hidden="true" />
+      {t("View")}
+    </Link>
+  );
+}
 
 export function EditRecordLink({
   href,
@@ -16,7 +45,11 @@ export function EditRecordLink({
 }) {
   const t = useTranslations();
   return (
-    <Link href={href} className="button button-secondary record-edit-link">
+    <Link
+      prefetch={false}
+      href={href}
+      className="button button-secondary record-edit-link"
+    >
       <Pencil size={15} aria-hidden="true" />
       {t(label)}
     </Link>
@@ -31,6 +64,7 @@ export function RecordPage({
   eyebrow = "Record details",
   actions,
   children,
+  summary,
 }: {
   title: string;
   description: string;
@@ -39,18 +73,58 @@ export function RecordPage({
   eyebrow?: string;
   actions?: ReactNode;
   children: ReactNode;
+  summary?: { label: string; value: ReactNode; href?: string }[];
 }) {
   const t = useTranslations();
+  const pathname = usePathname();
+  const editing = pathname.endsWith("/edit");
+  const creating = pathname.endsWith("/new");
+  const kind = pathname.split("/")[2];
+  const Icon =
+    (
+      {
+        branches: MapPin,
+        agencies: Building2,
+        agents: UserRound,
+        team: UserRound,
+        customers: UserRound,
+        buses: BusFront,
+        trips: Route,
+        routes: Route,
+        stops: MapPin,
+        drivers: UserRound,
+        bookings: Ticket,
+        cancellations: Ticket,
+        finance: CircleDollarSign,
+        roles: ShieldCheck,
+        operators: Building2,
+      } as Record<string, typeof FileText>
+    )[kind] ?? FileText;
   return (
-    <div className="record-page">
+    <div
+      className="record-page"
+      data-mode={editing ? "edit" : creating ? "new" : "detail"}
+    >
       <PageHeader title={title} description={description} />
-      <Link href={backHref} className="record-back">
-        <ArrowLeft size={16} />
-        {t(backLabel)}
-      </Link>
+      <div className="record-toolbar">
+        <Link prefetch={false} href={backHref} className="record-back">
+          <ArrowLeft size={16} aria-hidden="true" />
+          {t(backLabel)}
+        </Link>
+        <span className="record-mode">
+          <span aria-hidden="true" />
+          {t(
+            editing
+              ? "Edit record"
+              : creating
+                ? "New record"
+                : "Record details",
+          )}
+        </span>
+      </div>
       <header className="record-hero">
         <span className="record-hero-icon">
-          <FileText size={25} />
+          <Icon size={29} strokeWidth={1.6} aria-hidden="true" />
         </span>
         <div>
           <p className="eyebrow">{t(eyebrow)}</p>
@@ -59,7 +133,26 @@ export function RecordPage({
         </div>
         {actions && <div className="record-hero-actions">{actions}</div>}
       </header>
-      {children}
+      {summary?.length ? (
+        <dl className="record-summary">
+          {summary.map(({ label, value, href }) => (
+            <div key={label}>
+              <dt>{t(label)}</dt>
+              <dd>
+                {href ? (
+                  <Link prefetch={false} href={href}>
+                    {value}
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </Link>
+                ) : (
+                  (value ?? "—")
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      <div className="record-content">{children}</div>
     </div>
   );
 }

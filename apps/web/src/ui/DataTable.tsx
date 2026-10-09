@@ -54,6 +54,8 @@ type DataTableProps<T> = {
   initialPageSize?: number;
 };
 
+const emptyTableFilters: TableFilter<unknown>[] = [];
+
 export function DataTable<T>({
   data,
   columns,
@@ -64,7 +66,7 @@ export function DataTable<T>({
   searchValue,
   onSearchChange,
   searchText,
-  filters = [],
+  filters = emptyTableFilters as TableFilter<T>[],
   toolbarActions,
   loading = false,
   emptyMessage = "No records found. Adjust your search or filters.",

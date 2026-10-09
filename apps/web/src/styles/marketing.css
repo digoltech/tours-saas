@@ -1,3 +1,25 @@
 @import "./mapped-public.css";
 @import "./direct-public.css";
 @import "./public.css";
+
+.landing .landing-nav { display: grid; grid-template-columns: 1fr auto 1fr; width: 100%; max-width: none; padding-inline: clamp(20px, 3vw, 48px); gap: 24px; }
+.landing .landing-brand { justify-self: start; }
+.landing .landing-nav-links { margin: 0; justify-content: center; }
+.landing .landing-nav-actions { justify-self: end; }
+@media (max-width: 760px) {
+  .landing .landing-nav { grid-template-columns: 1fr auto; gap: 16px; }
+  .landing .landing-nav-links { display: flex; grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; gap: 20px; padding-bottom: 16px; }
+  .landing .landing-nav-actions { grid-column: 2; grid-row: 1; }
+  .landing .landing-nav-cta { font-size: 12px; padding-inline: 14px; }
+}
+
+@media (max-width: 760px) {
+  .public-header { display: grid; grid-template-columns: auto auto auto 1fr; gap: 16px 12px; padding: 16px 18px; }
+  .public-header > .digol-brand { grid-column: 1 / 4; grid-row: 1; width: fit-content; flex-shrink: 0; }
+  .public-header .digol-brand img { flex-shrink: 0; width: 36px; }
+  .public-header .digol-brand > span { display: grid; }
+  .public-header nav { display: contents; }
+  .public-header nav a:nth-child(-n+3) { display: block; grid-row: 2; }
+  .public-header nav > .language-selector { grid-row: 2; justify-self: end; }
+  .public-header nav .public-header-cta { grid-column: 4; grid-row: 1; justify-self: end; white-space: nowrap; padding: 12px; }
+}

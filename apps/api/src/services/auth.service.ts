@@ -5,17 +5,39 @@ import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext, SafeUser } from "../types/auth.js";
 import { sendPasswordResetOtp } from "./email.service.js";
+import {
+  standardRoleNames,
+  standardRolePermissions,
+} from "@a-one-tours/shared/team-access";
+import {
+  assertAssignableRole,
+  assertActiveBranch,
+  assertManagedMember,
+} from "./team-policy.js";
 
 const secret = new TextEncoder().encode(environment.JWT_SECRET);
 
 type UserWithAccess = User & {
-  role: { code: string; name: string; scope: "PLATFORM" | "AGENCY" | "BRANCH"; permissions: { permission: { code: string } }[] };
+  role: {
+    code: string;
+    name: string;
+    scope: "PLATFORM" | "AGENCY" | "BRANCH";
+    permissions: { permission: { code: string } }[];
+  };
   agency?: { name: string; status: string } | null;
   branch?: { status: string } | null;
 };
 
 export function accountIsActive(user: UserWithAccess) {
-  return user.status === "ACTIVE" && user.agency?.status !== "INACTIVE" && user.branch?.status !== "INACTIVE";
+  const needsBranch =
+    ["AGENCY_ADMIN", "BRANCH_ADMIN", "AGENT"].includes(user.role.code) ||
+    user.role.scope === "BRANCH";
+  return (
+    user.status === "ACTIVE" &&
+    user.agency?.status !== "INACTIVE" &&
+    user.branch?.status !== "INACTIVE" &&
+    (!needsBranch || Boolean(user.branchId))
+  );
 }
 
 export function toAuthContext(user: UserWithAccess): AuthContext {
@@ -25,12 +47,20 @@ export function toAuthContext(user: UserWithAccess): AuthContext {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role.code,
-    roleName: user.role.name,
-    roleScope: user.role.scope,
+    roleName: standardRoleNames[user.role.code] ?? user.role.name,
+    roleScope:
+      user.role.code === "AGENCY_ADMIN"
+        ? "AGENCY"
+        : ["AGENT", "BRANCH_ADMIN"].includes(user.role.code)
+          ? "BRANCH"
+          : user.role.scope,
     agencyId: user.agencyId,
     agencyName: user.agency?.name ?? null,
     branchId: user.branchId,
-    permissions: user.role.permissions.map(({ permission }) => permission.code),
+    permissions: [
+      ...(standardRolePermissions[user.role.code] ??
+        user.role.permissions.map(({ permission }) => permission.code)),
+    ],
     onboardingCompleted: user.onboardingCompleted,
     emailVerified: user.emailVerifiedAt !== null,
   };
@@ -79,11 +109,13 @@ export async function findUserById(id: string) {
 export async function createSession(user: AuthContext) {
   const sessionId = randomBytes(32).toString("hex");
   const ttlSeconds = user.role === "SUPER_ADMIN" ? 8 * 3600 : 24 * 3600;
-  await prisma.session.create({ data: {
-    userId: user.userId,
-    tokenHash: hashToken(sessionId),
-    expiresAt: new Date(Date.now() + ttlSeconds * 1000),
-  } });
+  await prisma.session.create({
+    data: {
+      userId: user.userId,
+      tokenHash: hashToken(sessionId),
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+    },
+  });
   return new SignJWT({ type: "session" })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.userId)
@@ -95,29 +127,80 @@ export async function createSession(user: AuthContext) {
 
 export async function verifySession(token: string) {
   const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
-  if (payload.type !== "session" || typeof payload.sub !== "string" || typeof payload.jti !== "string")
+  if (
+    payload.type !== "session" ||
+    typeof payload.sub !== "string" ||
+    typeof payload.jti !== "string"
+  )
     return null;
-  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(payload.jti) } });
+  const session = await prisma.session.findUnique({
+    where: {
+      tokenHash: hashToken(payload.jti),
+      userId: payload.sub,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: {
+      userId: true,
+      revokedAt: true,
+      expiresAt: true,
+      user: {
+        include: {
+          role: { select: { code: true, name: true, scope: true } },
+          agency: { select: { name: true, status: true } },
+          branch: { select: { status: true } },
+        },
+      },
+    },
+  });
   if (!sessionIsActive(session, payload.sub)) return null;
-  return findUserById(payload.sub);
+  const user = session!.user;
+  // Standard-role permissions come from the shared contract. Custom roles still
+  // read their current assignments from Postgres on each request.
+  const permissions = standardRolePermissions[user.role.code]
+    ? []
+    : await prisma.rolePermission.findMany({
+        where: { roleId: user.roleId },
+        select: { permission: { select: { code: true } } },
+      });
+  return { ...user, role: { ...user.role, permissions } };
 }
 
-export function sessionIsActive(session: { userId: string; revokedAt: Date | null; expiresAt: Date } | null, userId: string, now = new Date()) {
-  return Boolean(session && session.userId === userId && !session.revokedAt && session.expiresAt > now);
+export function sessionIsActive(
+  session: { userId: string; revokedAt: Date | null; expiresAt: Date } | null,
+  userId: string,
+  now = new Date(),
+) {
+  return Boolean(
+    session &&
+    session.userId === userId &&
+    !session.revokedAt &&
+    session.expiresAt > now,
+  );
 }
 
 export async function revokeSession(token: string) {
   let sessionId: string | undefined;
   try {
-    const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, secret, {
+      algorithms: ["HS256"],
+    });
     sessionId = typeof payload.jti === "string" ? payload.jti : undefined;
-  } catch { return; }
+  } catch {
+    return;
+  }
   if (sessionId)
-    await prisma.session.updateMany({ where: { tokenHash: hashToken(sessionId) }, data: { revokedAt: new Date() } });
+    await prisma.session.updateMany({
+      where: { tokenHash: hashToken(sessionId) },
+      data: { revokedAt: new Date() },
+    });
 }
 
 export async function revokeAllSessions(userId: string) {
-  await prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  await prisma.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 }
 
 export async function verifyPassword(password: string, passwordHash: string) {
@@ -138,7 +221,7 @@ export async function registerUser(input: {
   const role = await prisma.role.findUnique({
     where: { code: "AGENCY_ADMIN" },
   });
-  if (!role) throw new Error("Agency Admin role is not configured");
+  if (!role) throw new Error("Agency owner role is not configured");
   const slug = `new-agency-${crypto.randomUUID().slice(0, 8)}`;
   const passwordHash = await hashPassword(input.password);
   try {
@@ -195,7 +278,12 @@ export async function completeOnboarding(
   userId: string,
   input: { agencyName: string; branchName: string; phone?: string },
 ) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { role: true },
+  });
+  if (user?.role.code !== "AGENCY_ADMIN")
+    throw new Error("Only agency owners can configure agency onboarding");
   if (!user || !user.agencyId || !user.branchId)
     throw new Error("Onboarding account is invalid");
   await prisma.$transaction([
@@ -227,7 +315,10 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function createEmailVerificationToken(userId: string, pendingEmail?: string) {
+export async function createEmailVerificationToken(
+  userId: string,
+  pendingEmail?: string,
+) {
   const token = randomBytes(32).toString("hex");
   await prisma.emailVerificationToken.deleteMany({
     where: { userId, usedAt: null },
@@ -260,7 +351,14 @@ export async function verifyEmail(token: string) {
       where: { id: record.id },
       data: { usedAt: new Date() },
     }),
-    ...(record.pendingEmail ? [prisma.session.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: new Date() } })] : []),
+    ...(record.pendingEmail
+      ? [
+          prisma.session.updateMany({
+            where: { userId: record.userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          }),
+        ]
+      : []),
   ]);
   return { emailChanged: Boolean(record.pendingEmail) };
 }
@@ -274,6 +372,22 @@ export async function resendEmailVerification(userId: string) {
 export async function acceptInvitation(token: string, password: string) {
   const invitation = await prisma.invitation.findUnique({
     where: { tokenHash: hashToken(token) },
+    include: {
+      user: {
+        include: {
+          role: { include: { permissions: { include: { permission: true } } } },
+          agency: true,
+          branch: true,
+        },
+      },
+      invitedBy: {
+        include: {
+          role: { include: { permissions: { include: { permission: true } } } },
+          agency: true,
+          branch: true,
+        },
+      },
+    },
   });
   if (
     !invitation ||
@@ -281,6 +395,21 @@ export async function acceptInvitation(token: string, password: string) {
     invitation.expiresAt <= new Date()
   )
     throw new Error("This invitation is invalid or expired");
+  if (
+    !accountIsActive(invitation.user) ||
+    !accountIsActive(invitation.invitedBy)
+  )
+    throw new Error("This invitation is no longer available");
+  const inviter = toAuthContext(invitation.invitedBy);
+  assertAssignableRole(inviter, invitation.user.role, invitation.agencyId);
+  assertManagedMember(inviter, invitation.user);
+  if (
+    ["AGENCY_ADMIN", "BRANCH_ADMIN", "AGENT"].includes(
+      invitation.user.role.code,
+    ) ||
+    invitation.user.role.scope === "BRANCH"
+  )
+    await assertActiveBranch(invitation.agencyId, invitation.user.branchId);
   const passwordHash = await hashPassword(password);
   await prisma.$transaction([
     prisma.user.update({
@@ -396,6 +525,9 @@ export async function resetPassword(
       where: { id: record.id },
       data: { usedAt: new Date() },
     }),
-    prisma.session.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+    prisma.session.updateMany({
+      where: { userId: record.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
   ]);
 }

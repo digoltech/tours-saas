@@ -6,6 +6,7 @@ import { serverApiRequest } from "../../lib/server-api";
 export type BookingDashboardSummary = {
   todayBookings: number;
   todaySales: number;
+  activeBuses: number;
   upcomingTrips: number;
 };
 

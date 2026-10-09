@@ -32,7 +32,10 @@ import {
 } from "../controllers/transport.controller.js";
 
 export const transportRouter = Router();
-transportRouter.use(authenticate);
+transportRouter.use(
+  ["/buses", "/drivers", "/routes", "/stops", "/trips"],
+  authenticate,
+);
 
 transportRouter.get(
   "/buses",
@@ -148,10 +151,26 @@ transportRouter.get(
   requirePermission("trip:read"),
   listTripsController,
 );
-transportRouter.post("/trips/recurring/preview", requirePermission("trip:create"), previewRecurringTripsController);
-transportRouter.post("/trips/recurring", requirePermission("trip:create"), createRecurringTripsController);
-transportRouter.post("/trips/recurring/preview", requirePermission("trip:create"), previewRecurringTripsController);
-transportRouter.post("/trips/recurring", requirePermission("trip:create"), createRecurringTripsController);
+transportRouter.post(
+  "/trips/recurring/preview",
+  requirePermission("trip:create"),
+  previewRecurringTripsController,
+);
+transportRouter.post(
+  "/trips/recurring",
+  requirePermission("trip:create"),
+  createRecurringTripsController,
+);
+transportRouter.post(
+  "/trips/recurring/preview",
+  requirePermission("trip:create"),
+  previewRecurringTripsController,
+);
+transportRouter.post(
+  "/trips/recurring",
+  requirePermission("trip:create"),
+  createRecurringTripsController,
+);
 transportRouter.get(
   "/trips/:id",
   requirePermission("trip:read"),

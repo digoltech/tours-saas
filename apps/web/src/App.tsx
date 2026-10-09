@@ -32,13 +32,12 @@ import {
   ChevronsRight,
   GitBranch,
   LayoutDashboard,
-  FileSpreadsheet,
+  PanelsTopLeft,
   LogOut,
   Map,
   Menu,
   Building2,
   Settings,
-  ShieldCheck,
   UserRound,
   Users,
   X,
@@ -104,15 +103,13 @@ const navGroups = [
         permission: "branch:read",
       },
       {
-        label: "Agents",
-        path: "/dashboard/agents",
+        label: "Team",
+        path: "/dashboard/team",
         icon: Users,
         permission: "agent:read",
       },
-      { label: "Roles & permissions", path: "/dashboard/roles", icon: ShieldCheck, permission: "agency:read", adminOnly: true },
       { label: "Agency activity", path: "/dashboard/activity", icon: Activity, permission: "agency:read" },
-      { label: "Bulk data", path: "/dashboard/data", icon: FileSpreadsheet, permission: "bus:read" },
-      { label: "Privacy requests", path: "/dashboard/privacy", icon: ShieldCheck },
+      { label: "Extra", path: "/dashboard/extra", icon: PanelsTopLeft },
       {
         label: "Finance",
         path: "/dashboard/finance",
@@ -397,7 +394,10 @@ export function Shell({ children }: { children: ReactNode }) {
     null,
   );
   const pathname = usePathname();
-  const { user, status, logout } = useAuth();
+  const { user, logout } = useAuth();
+  useEffect(() => {
+    try { document.documentElement.dataset.density = localStorage.getItem("digol-density") === "compact" ? "compact" : "comfortable"; } catch { /* Use the default when storage is unavailable. */ }
+  }, []);
   useEffect(() => {
     if (!user?.agencyId) {
       const timer = window.setTimeout(() => setAgencyBranding(null), 0);
@@ -441,6 +441,8 @@ export function Shell({ children }: { children: ReactNode }) {
     rows: "CSV rows",
     activity: "Agency activity",
     data: "Bulk data",
+    extra: "Extra",
+    privacy: "Privacy requests",
   };
   const pathParts = pathname.split("/").filter(Boolean);
   const breadcrumbParts = pathParts.map((part, index) => ({
@@ -503,11 +505,10 @@ export function Shell({ children }: { children: ReactNode }) {
                 {group.items
                   .filter(
                     (item) =>
-                      !item.permission ||
+                      (item.label !== "Agency activity" || user?.role === "BRANCH_ADMIN" || user?.role === "SUPER_ADMIN" || (user?.role !== "AGENT" && user?.permissions.includes("agency:read"))) && (item.label !== "Branches" || user?.role === "AGENCY_ADMIN" || user?.role === "SUPER_ADMIN") && (
+                      (item.label === "Agency activity" && user?.role === "BRANCH_ADMIN") || !item.permission ||
                       user?.role === "SUPER_ADMIN" ||
-                      (item.label === "Bulk data" && ["bus:read", "driver:read", "route:read", "stop:read"].some((permission) => user?.permissions.includes(permission))) ||
-                      (user?.permissions.includes(item.permission) &&
-                        (!item.adminOnly || user?.role === "AGENCY_ADMIN")),
+                      user?.permissions.includes(item.permission)),
                   )
                   .map((item) =>
                     (() => {
@@ -516,22 +517,27 @@ export function Shell({ children }: { children: ReactNode }) {
                       const active =
                         item.label === "Dashboard"
                           ? pathname === dashboardPath
-                          : item.label === "Finance"
+                          : item.label === "Team"
+                            ? ["/dashboard/team", "/dashboard/agents"].some((path) => pathname === path || pathname.startsWith(`${path}/`))
+                            : item.label === "Extra"
+                            ? ["/dashboard/extra", "/dashboard/data", "/dashboard/privacy"].some((path) => pathname === path || pathname.startsWith(`${path}/`))
+                            : item.label === "Finance"
                             ? pathname === "/dashboard/finance"
                             : pathname === item.path ||
                               pathname.startsWith(`${item.path}/`);
                       return (
                         <Link
+                          prefetch={false}
                           key={item.path}
                           onClick={() => setMobileOpen(false)}
                           href={destination}
                           className={cn(
                             `nav-item ${active ? "nav-item-active" : ""}`,
                           )}
-                          title={sidebarCollapsed ? t(item.label) : undefined}
+                          title={sidebarCollapsed ? t(item.label === "Agency activity" && user?.role === "BRANCH_ADMIN" ? "Branch activity" : item.label) : undefined}
                         >
                           <item.icon size={18} />
-                          <span>{t(item.label)}</span>
+                          <span>{t(item.label === "Agency activity" && user?.role === "BRANCH_ADMIN" ? "Branch activity" : item.label)}</span>
                         </Link>
                       );
                     })(),
@@ -582,7 +588,6 @@ export function Shell({ children }: { children: ReactNode }) {
               </div>
             )}
             <div className={cn("topbar-actions")}>
-              <LanguageSelector />
               <HeaderSearch user={user} />
               <Link
                 className={cn("icon-button notification-button")}
@@ -592,36 +597,9 @@ export function Shell({ children }: { children: ReactNode }) {
               >
                 <Bell size={19} />
               </Link>
-              <Link
-                className={cn("icon-button")}
-                href="/dashboard/settings"
-                aria-label={t("Settings")}
-                title={t("Settings")}
-              >
-                <Settings size={19} />
-              </Link>
-              <details className={cn("profile-menu")}>
-                <summary className={cn("profile profile-compact")}>
-                  <span className={cn("profile-symbol")}>
-                    <UserRound size={17} />
-                  </span>
-                  <div className={cn("profile-info")}>
-                    <strong>
-                      {status === "loading"
-                        ? t("Loading account...")
-                        : user
-                          ? `${user.firstName} ${user.lastName}`
-                          : t("Unauthenticated")}
-                    </strong>
-                    <span>
-                      {user?.roleName ?? (user?.role
-                        .replaceAll("_", " ")
-                        .toLowerCase()
-                        .replace(/\b\w/g, (letter) => letter.toUpperCase()) ??
-                        t("Sign in required"))}
-                    </span>
-                  </div>
-                  <ChevronDown size={16} />
+              <details className={cn("profile-menu")} onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.open = false; }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }} onClick={(event) => { if (event.target instanceof Element && event.target.closest("a")) event.currentTarget.open = false; }}>
+                <summary className={cn("profile profile-compact")} role="button" aria-label={t("User menu")} title={t("User menu")}>
+                  <span className={cn("profile-symbol")}><UserRound size={20} /></span>
                 </summary>
                 {user && (
                   <div className={cn("profile-dropdown")}>
@@ -629,11 +607,12 @@ export function Shell({ children }: { children: ReactNode }) {
                       <span className="profile-dropdown-avatar" aria-hidden="true">{user.firstName?.[0]}{user.lastName?.[0]}</span>
                       <span className="profile-dropdown-eyebrow"><Translate text={"Signed in as"} /></span>
                       <strong>
-                        {user.firstName} {user.lastName}
+                        {user.firstName}
                       </strong>
                       <span>{user.email}</span>
-                      <span>{user.agencyName ?? "Digol Tours"}</span>
+                      <span>{user.roleName ?? user.role.replaceAll("_", " ")}</span>
                     </div>
+                    <div className="profile-dropdown-language"><span>{t("Language")}</span><LanguageSelector /></div>
                     <Link href="/dashboard/profile"><UserRound size={16} /> {t("My profile")}</Link>
                     <Link href="/dashboard/settings"><Settings size={16} /> {t("Settings")}</Link>
                     <button

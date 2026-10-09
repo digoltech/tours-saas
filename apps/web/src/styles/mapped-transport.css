@@ -277,7 +277,7 @@
     opacity: 0.42;
   }
   .seat-unit-selected {
-    box-shadow: 0 0 0 2px #4977c4;
+    box-shadow: 0 0 0 2px var(--brand);
   }
   .seat-inspector {
     box-shadow: 0 8px 24px #243b530d;
@@ -286,7 +286,7 @@
     background: #1f2937;
   }
   .seat-unit-selected {
-    background: #dfeaff;
+    background: var(--brand-soft);
   }
   .operator-icon {
     background: #e5f3ee;
@@ -332,7 +332,7 @@
   }
   @media (hover: hover) {
     .seat-button:hover {
-      border-color: #34784c;
+      border-color: var(--brand);
     }
   }
   .seat-button:focus-visible {
@@ -359,13 +359,13 @@
   }
   .operator-card h2 {
     font:
-      700 17px Space Grotesk,
+      700 17px var(--font-display),
       sans-serif;
   }
   .operators-toolbar h2,
   .operator-empty h2 {
     font:
-      700 18px Space Grotesk,
+      700 18px var(--font-display),
       sans-serif;
   }
   .seat-inspector h3 {
@@ -421,7 +421,7 @@
   }
   .operators-search input {
     font:
-      500 12px Manrope,
+      500 12px var(--font-manrope),
       sans-serif;
   }
   .seat-inspector label {

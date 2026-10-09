@@ -1,0 +1,51 @@
+.app-shell .topbar { position: relative; z-index: 40; overflow: visible; gap: 20px; }
+.app-shell .dialog-backdrop { z-index: 100; }
+.app-shell .topbar-page-meta { flex: 1 1 180px; min-width: 0; }
+.app-shell .topbar-actions { margin-left: auto; flex: 0 1 600px; justify-content: flex-end; min-width: 0; }
+.app-shell .header-search { width: clamp(260px, 32vw, 480px); min-width: 0; flex: 1 1 480px; }
+.app-shell .header-search input { display: block; width: 100%; min-width: 0; }
+.app-shell .profile-menu { flex: 0 0 44px; width: 44px; min-width: 0; }
+.app-shell .profile-compact { display: grid; place-items: center; width: 44px; min-width: 0; height: 44px; padding: 0; border-radius: 12px; cursor: pointer; }
+.app-shell .profile-compact .profile-symbol { width: 38px; height: 38px; }
+.app-shell .profile-compact::-webkit-details-marker { display: none; }
+.app-shell .profile-dropdown { z-index: 120; width: 290px; max-width: calc(100dvw - 64px); }
+.app-shell .profile-dropdown-identity { overflow-wrap: anywhere; }
+.app-shell .profile-dropdown-language { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.app-shell .profile-dropdown-language .language-selector { gap: 8px; }
+.workspace-tabs { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 6px; margin-bottom: 24px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.workspace-tabs > a, .workspace-tabs > button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; flex: none; min-height: 44px; padding: 10px 18px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: color .15s, background .15s; }
+.workspace-tabs > :hover { color: var(--ink); background: #f7f5f3; }
+.workspace-tabs > [aria-current="page"], .workspace-tabs > [aria-selected="true"] { background: #fceceb; color: #a32329; }
+.workspace-tabs > :focus-visible, .profile-compact:focus-visible { outline: 2px solid #c62828; outline-offset: 2px; }
+.profile-layout.profile-tab-layout { grid-template-columns: minmax(0, 1fr); }
+.notifications-layout.notifications-settings-layout { grid-template-columns: minmax(0, 720px); }
+.preferences-card { max-width: 960px; padding: clamp(20px, 3vw, 32px); }
+.invitation-role { padding: 16px; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--pale); }
+.invitation-role p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.preferences-card h2 { margin: 4px 0 8px; font-size: 22px; }
+.preferences-card p, .preference-help { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.preference-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0; border-top: 1px solid var(--line); }
+.preference-row strong { font-size: 14px; }
+.preference-row p { margin: 5px 0 0; }
+.preference-help { display: block; margin-top: 5px; }
+.preference-row select { min-height: 44px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; color: var(--ink); background: #fff; font: inherit; font-size: 13px; }
+html[data-density="compact"] .app-shell .content { padding: 20px; }
+html[data-density="compact"] .app-shell .data-card, html[data-density="compact"] .app-shell .privacy-card { padding: 18px; }
+html[data-density="compact"] .app-shell .data-table td { padding-block: 8px; }
+@media (max-width: 1100px) {
+  .app-shell .topbar { flex-wrap: wrap; gap: 12px; }
+  .app-shell .topbar-actions { flex: 1 1 400px; }
+}
+@media (max-width: 900px) {
+  .app-shell .sidebar { z-index: 80; }
+  .app-shell .mobile-backdrop { z-index: 70; }
+}
+@media (max-width: 640px) {
+  .app-shell .topbar-actions { flex-basis: 100%; width: 100%; }
+  .app-shell .header-search { display: flex; width: auto; min-width: 0; }
+  .app-shell .header-search { justify-content: flex-start; padding-inline: 10px; border: 1px solid var(--line); background: #f7f9f8; border-radius: 10px; }
+  .app-shell .header-search kbd { display: none; }
+  .app-shell .topbar .header-search-results { width: min(420px, calc(100dvw - 64px)); left: 0; right: auto; }
+  .preference-row { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .workspace-tabs > a, .workspace-tabs > button { padding-inline: 12px; }
+}

@@ -70,10 +70,17 @@ export function RolesPage() {
       active = false;
     };
   }, [isPlatformAdmin]);
+  if (!admin)
+    return (
+      <PageHeader
+        title="Advanced access settings"
+        description="Only agency owners can manage advanced access."
+      />
+    );
   return (
     <>
       <PageHeader
-        title="Roles & permissions"
+        title="Advanced access settings"
         description="Manage team access across your agency."
       />
       {isPlatformAdmin && (
@@ -112,6 +119,7 @@ export function RolesPage() {
               </div>
               {admin && (
                 <Link
+                  prefetch={false}
                   className="button button-primary"
                   href={`/dashboard/roles/new${query}`}
                 >
@@ -136,6 +144,7 @@ export function RolesPage() {
                     </div>
                     <h3>
                       <Link
+                        prefetch={false}
                         className="text-link"
                         href={`/dashboard/roles/${role.id}${query}`}
                       >
@@ -226,8 +235,9 @@ export function RolesPage() {
                       </span>
                       <span>
                         <Link
+                          prefetch={false}
                           className="text-link"
-                          href={`/dashboard/team/${member.id}${query}`}
+                          href={`/dashboard/team/${member.id}`}
                         >
                           <strong>
                             {member.firstName} {member.lastName}
@@ -257,6 +267,7 @@ export function RolesPage() {
                     );
                     return role ? (
                       <Link
+                        prefetch={false}
                         className="text-link"
                         href={`/dashboard/roles/${role.id}${query}`}
                       >
@@ -277,7 +288,7 @@ export function RolesPage() {
                     (isPlatformAdmin ||
                       user?.permissions.includes("agent:update")) ? (
                       <EditRecordLink
-                        href={`/dashboard/team/${member.id}/edit${query}`}
+                        href={`/dashboard/roles/members/${member.id}/edit${query}`}
                       />
                     ) : (
                       "—"

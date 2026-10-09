@@ -84,7 +84,9 @@ export function TripPage({
   const [error, setError] = useState(initialError);
   const [message, setMessage] = useState("");
   const skipInitialLoad = useRef(initialPage !== undefined);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<Record<string, string>>({
+    branchId: user?.branchId ?? "",
+  });
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [weekdays, setWeekdays] = useState<number[]>([]);
@@ -657,6 +659,7 @@ export function TripPage({
               />
             </Button>
             <Link
+              prefetch={false}
               className="button button-secondary"
               href={tripId ? `/dashboard/trips/${tripId}` : "/dashboard/trips"}
             >
@@ -727,6 +730,7 @@ export function TripPage({
           toolbarActions={
             can("create") && (
               <Link
+                prefetch={false}
                 className="button button-primary"
                 href="/dashboard/trips/new"
               >
@@ -741,6 +745,7 @@ export function TripPage({
               header: "Trip",
               render: (trip) => (
                 <Link
+                  prefetch={false}
                   className="text-link"
                   href={`/dashboard/trips/${trip.id}`}
                 >

@@ -11,13 +11,19 @@ import { cn } from "../../lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../auth/components/AuthProvider";
-import { EditRecordLink } from "../../ui/RecordPage";
+import { EditRecordLink, ViewRecordLink } from "../../ui/RecordPage";
 import { Badge } from "../../ui/Badge";
 import { BookingRecord, getBookings } from "../auth/services/api-client";
 
-export function BookingHistory({ compact = false }: { compact?: boolean }) {
+export function BookingHistory({
+  compact = false,
+  initialSearch = "",
+}: {
+  compact?: boolean;
+  initialSearch?: string;
+}) {
   const { user } = useAuth();
-  const [pnr, setPnr] = useState("");
+  const [pnr, setPnr] = useState(initialSearch);
   const [tripCode, setTripCode] = useState("");
   const [date, setDate] = useState("");
   const [page, setPage] = useState(1);
@@ -34,7 +40,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
       const result = await getBookings({
         page: String(page),
         limit: compact ? "5" : "20",
-        pnr,
+        search: pnr,
         tripCode,
         date,
       });
@@ -90,6 +96,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
           (user?.role === "SUPER_ADMIN" ||
             user?.permissions.includes("booking:create")) && (
             <Link
+              prefetch={false}
               className="button button-primary"
               href="/dashboard/bookings/new"
             >
@@ -99,7 +106,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
         }
         searchValue={pnr}
         onSearchChange={setPnr}
-        searchPlaceholder="Search PNR"
+        searchPlaceholder="Search PNR, email or phone number"
         filters={
           compact
             ? []
@@ -140,6 +147,7 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
           <tr key={row.id}>
             <td>
               <Link
+                prefetch={false}
                 className="text-link"
                 href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}`}
               >
@@ -163,9 +171,14 @@ export function BookingHistory({ compact = false }: { compact?: boolean }) {
               <Badge>{row.status}</Badge>
             </td>
             <td>
-              <EditRecordLink
-                href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}/edit`}
-              />
+              <div className="table-actions">
+                <ViewRecordLink
+                  href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}`}
+                />
+                <EditRecordLink
+                  href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}/edit`}
+                />
+              </div>
             </td>
           </tr>
         )}

@@ -67,7 +67,7 @@
   margin: 0 0 10px;
   color: #fff;
   font:
-    700 13px "Space Grotesk",
+    700 13px var(--font-display),
     sans-serif;
 }
 .site-footer nav a {
@@ -204,7 +204,7 @@
 .public-intro h1 {
   margin: 12px 0 13px;
   font:
-    700 clamp(38px, 5vw, 62px)/1.05 "Space Grotesk",
+    700 clamp(38px, 5vw, 62px)/1.05 var(--font-display),
     sans-serif;
   letter-spacing: -0.055em;
 }
@@ -228,7 +228,7 @@
   margin: 32px 0 8px;
   color: #24332d;
   font:
-    700 20px "Space Grotesk",
+    700 20px var(--font-display),
     sans-serif;
 }
 .legal-copy p {
@@ -263,7 +263,7 @@
 .contact-aside h2 {
   margin: 20px 0 10px;
   font:
-    700 25px "Space Grotesk",
+    700 25px var(--font-display),
     sans-serif;
 }
 .contact-aside p {
@@ -297,7 +297,7 @@
   background: #fcfdfb;
   color: #1d3026;
   font:
-    500 13px "Manrope",
+    500 13px var(--font-manrope),
     sans-serif;
 }
 .contact-form input {
@@ -353,7 +353,7 @@
 }
 .simple-result h1 {
   font:
-    700 29px "Space Grotesk",
+    700 29px var(--font-display),
     sans-serif;
 }
 .simple-result p {

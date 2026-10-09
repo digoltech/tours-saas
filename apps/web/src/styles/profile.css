@@ -48,7 +48,7 @@
   border-radius: 23px;
   background: linear-gradient(145deg, #efb1a0, #d87566);
   color: #502b2a;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: 28px;
   font-weight: 700;
   box-shadow: 0 8px 25px #0003;
@@ -62,7 +62,7 @@
 .profile-hero h1 {
   margin: 5px 0 3px;
   color: white;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: clamp(23px, 3vw, 32px);
   letter-spacing: -0.035em;
 }
@@ -192,7 +192,7 @@
 }
 .profile-panel h2 {
   margin: 0;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: 20px;
   letter-spacing: -0.025em;
 }

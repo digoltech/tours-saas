@@ -120,6 +120,35 @@ export function FinanceRecordPage({
           : "/dashboard/finance"
       }
       backLabel={mode === "edit" ? "Back to details" : "Back to list"}
+      summary={
+        entry
+          ? [
+              {
+                label: "Amount",
+                value: Number(entry.amount ?? 0).toLocaleString(locale),
+              },
+              {
+                label: "Type",
+                value: String(entry.type ?? "—").replaceAll("_", " "),
+              },
+              {
+                label: "Date",
+                value: new Date(String(entry.createdAt)).toLocaleDateString(
+                  locale,
+                ),
+              },
+            ]
+          : request
+            ? [
+                {
+                  label: "Booking",
+                  value: request.booking.pnr,
+                  href: `/dashboard/bookings/${encodeURIComponent(request.booking.pnr)}`,
+                },
+                { label: "Status", value: t("PENDING") },
+              ]
+            : undefined
+      }
       actions={
         request &&
         mode === "detail" &&

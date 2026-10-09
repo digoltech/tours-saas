@@ -1,5 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import { verifySession, toAuthContext, accountIsActive } from "../services/auth.service.js";
+import {
+  verifySession,
+  toAuthContext,
+  accountIsActive,
+} from "../services/auth.service.js";
 import { AUTH_COOKIE, readCookie } from "../utils/cookies.js";
 import { sendError } from "../utils/api-response.js";
 import { canAccessTenant } from "./tenant-policy.js";
@@ -9,6 +13,9 @@ export async function authenticate(
   response: Response,
   next: NextFunction,
 ) {
+  // Routers may overlap (for example booking payments). Authenticate once per request,
+  // while retaining a fresh database session/permission check on every new request.
+  if (request.auth) return next();
   try {
     const token = readCookie(request, AUTH_COOKIE) ?? readBearerToken(request);
     if (!token)
@@ -27,8 +34,16 @@ export async function authenticate(
         "Authentication is invalid or expired",
       );
     request.auth = toAuthContext(user);
-    if (!request.auth.emailVerified && !["/me", "/onboarding", "/verify-email/resend"].includes(request.path))
-      return sendError(response, 403, "EMAIL_VERIFICATION_REQUIRED", "Verify your email address to continue");
+    if (
+      !request.auth.emailVerified &&
+      !["/me", "/onboarding", "/verify-email/resend"].includes(request.path)
+    )
+      return sendError(
+        response,
+        403,
+        "EMAIL_VERIFICATION_REQUIRED",
+        "Verify your email address to continue",
+      );
     return next();
   } catch {
     return sendError(

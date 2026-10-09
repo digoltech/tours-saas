@@ -7,6 +7,7 @@ import { RecordFields, RecordPage, RecordSection } from "../../ui/RecordPage";
 import { useTranslations } from "../../i18n/LocaleProvider";
 
 export function CustomerRecordPage({ id }: { id: string }) {
+  const customerId = decodeURIComponent(id);
   const t = useTranslations();
   const [customer, setCustomer] = useState<CustomerRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,11 +18,11 @@ export function CustomerRecordPage({ id }: { id: string }) {
       let page = 1;
       while (active) {
         const result = await getCustomers({
-          search: id.split(":")[0],
+          search: customerId.split(":")[0],
           limit: 50,
           page,
         });
-        const found = result.data.find((row) => row.id === id);
+        const found = result.data.find((row) => row.id === customerId);
         if (found) {
           if (active) setCustomer(found);
           return;
@@ -44,7 +45,7 @@ export function CustomerRecordPage({ id }: { id: string }) {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [customerId]);
   return (
     <RecordPage
       title={
@@ -56,6 +57,23 @@ export function CustomerRecordPage({ id }: { id: string }) {
       backHref="/dashboard/customers"
       backLabel="Back to list"
       eyebrow="Customer profile"
+      summary={
+        customer
+          ? [
+              { label: "Bookings", value: customer.bookings },
+              { label: "Phone", value: customer.phone || "—" },
+              {
+                label: "Latest booking",
+                value: customer.latestBooking?.pnr ?? "—",
+                ...(customer.latestBooking
+                  ? {
+                      href: `/dashboard/bookings/${encodeURIComponent(customer.latestBooking.pnr)}`,
+                    }
+                  : {}),
+              },
+            ]
+          : undefined
+      }
     >
       {error && (
         <div className="state-message state-error" role="alert">
@@ -86,7 +104,7 @@ export function CustomerRecordPage({ id }: { id: string }) {
               {customer.latestBooking ? (
                 <>
                   <Link
-                    className="text-link"
+                    className="record-related-link"
                     href={`/dashboard/bookings/${encodeURIComponent(customer.latestBooking.pnr)}`}
                   >
                     {customer.latestBooking.pnr}

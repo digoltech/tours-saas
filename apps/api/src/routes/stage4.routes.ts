@@ -7,7 +7,18 @@ import {
 import * as controller from "../controllers/stage4.controller.js";
 
 export const stage4Router = Router();
-stage4Router.use(authenticate);
+stage4Router.use(
+  [
+    "/notifications",
+    "/bookings",
+    "/cancellation-requests",
+    "/agency/settings",
+    "/audit-logs",
+    "/subscription",
+    "/admin/agencies",
+  ],
+  authenticate,
+);
 stage4Router.get("/notifications", controller.notifications);
 stage4Router.get("/notifications/preferences", controller.preferences);
 stage4Router.put("/notifications/preferences", controller.notifications);

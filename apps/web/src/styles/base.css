@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: "Manrope", sans-serif;
+  font-family: var(--font-manrope), sans-serif;
   color: #15212b;
   background: #f5f7f6;
   font-synthesis: none;
@@ -19,6 +19,10 @@
   --muted: #64727c;
   --line: #e5e9e8;
   --navy: #102a36;
+  --brand: #c62828;
+  --brand-hover: #a51f24;
+  --brand-soft: #fff1f1;
+  --brand-border: #efb9bb;
   --teal: #c62828;
   --pale: #fbeaea;
   --canvas: #f5f7f6;
@@ -47,7 +51,7 @@
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   margin: 0;
 }
 

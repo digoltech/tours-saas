@@ -25,7 +25,7 @@ const channels = [
   { key: "whatsapp", label: "WhatsApp", detail: "Messages on WhatsApp", icon: MessageSquare },
 ] as const;
 
-export function NotificationsPage() {
+export function NotificationsPage({ preferencesOnly = false }: { preferencesOnly?: boolean }) {
   const [preferences, setPreferences] = useState(defaults);
   const [items, setItems] = useState<Notification[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export function NotificationsPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([getNotificationPreferences(), getNotifications()]).then(([prefs, page]) => {
+    Promise.allSettled([getNotificationPreferences(), preferencesOnly ? Promise.resolve({ items: [] as Notification[], nextCursor: null }) : getNotifications()]).then(([prefs, page]) => {
       if (!active) return;
       if (prefs.status === "fulfilled") setPreferences(prefs.value);
       else setError(localizeText("Unable to load delivery preferences."));
@@ -51,7 +51,7 @@ export function NotificationsPage() {
       setLoading(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [preferencesOnly]);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;
@@ -98,9 +98,9 @@ export function NotificationsPage() {
 
   return (
     <>
-      <PageHeader title="Notifications" description="Your updates and delivery preferences, all in one place." />
-      <div className="notifications-layout">
-        <section className="notifications-main" aria-label="Notification inbox">
+      {!preferencesOnly && <PageHeader title="Notifications" description="Your updates and delivery preferences, all in one place." />}
+      <div className={`notifications-layout ${preferencesOnly ? "notifications-settings-layout" : ""}`}>
+        {!preferencesOnly && <section className="notifications-main" aria-label="Notification inbox">
           <div className="notifications-intro">
             <span className="notifications-intro-icon"><Inbox size={22} /></span>
             <div><p className="eyebrow"><Translate text={"YOUR INBOX"} /></p><h1><Translate text={"All notifications"} /></h1><p><Translate text={"Review updates across every delivery channel."} /></p></div>
@@ -133,12 +133,12 @@ export function NotificationsPage() {
             ) : <div className="notifications-placeholder"><span className="notification-empty-icon">{filter === "unread" ? <CheckCheck size={24} /> : <Bell size={24} />}</span><h2><LocalizedValue value={items.length ? "Nothing matches this view" : "No notifications yet"} /></h2><p><LocalizedValue value={items.length ? "Try another filter or search." : "Booking and agency updates will appear here."} /></p></div>}
             {nextCursor && <div className="notifications-more"><Button variant="secondary" loading={loadingMore} loadingLabel="Loading…" onClick={() => void loadMore()}><Translate text={"Load older notifications"} />{" "}<ChevronDown size={16} /></Button></div>}
           </Card>
-        </section>
+        </section>}
         <aside className="notifications-aside" aria-labelledby="delivery-heading">
           <Card className="notifications-preferences">
             <p className="eyebrow"><Translate text={"SETTINGS"} /></p><h2 id="delivery-heading"><Translate text={"Delivery preferences"} /></h2><p className="notifications-aside-copy"><Translate text={"Choose where you receive updates."} /></p>
             <div className="notifications-channels">{channels.map(({ key, label, detail, icon: Icon }) => <label key={key} className="notifications-channel"><Icon size={19} /><span><strong>{label}</strong><small>{detail}</small></span><input type="checkbox" checked={preferences[key]} onChange={(event) => setPreferences((current) => ({ ...current, [key]: event.target.checked }))} /></label>)}</div>
-            <Button className="notifications-save" loading={saving} loadingLabel="Saving…" onClick={() => void save()}><Save size={16} /> <Translate text={"Save preferences"} /></Button>
+            <Button className="notifications-save" disabled={loading} loading={saving} loadingLabel="Saving…" onClick={() => void save()}><Save size={16} /> <Translate text={"Save preferences"} /></Button>
             {message && <p className="notifications-saved" role="status"><LocalizedValue value={message} /></p>}
           </Card>
         </aside>

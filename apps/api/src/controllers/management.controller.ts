@@ -327,7 +327,7 @@ export async function updateAgentController(request: Request, response: Response
       firstName: payload.firstName,
       lastName: payload.lastName,
       phone: payload.phone || null,
-      branchId: payload.branchId ?? undefined,
+      branchId: payload.branchId,
       status: payload.status ? RecordStatus[payload.status as keyof typeof RecordStatus] : undefined,
       roleId: payload.roleId,
     });

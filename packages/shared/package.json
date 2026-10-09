@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./ticket": "./src/ticket.ts"
+    "./ticket": "./src/ticket.ts",
+    "./team-access": "./src/team-access.ts"
   }
 }

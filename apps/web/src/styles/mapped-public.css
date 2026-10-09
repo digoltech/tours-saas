@@ -439,7 +439,7 @@
     text-align: center;
   }
   .landing {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .landing-map-mark {
     font-size: 9px;
@@ -642,12 +642,12 @@
   }
   .landing-step-number {
     font:
-      700 10px IBM Plex Mono,
+      700 10px var(--font-mono),
       monospace;
   }
   .landing-brand-mark {
     font:
-      700 19px Space Grotesk,
+      700 19px var(--font-display),
       sans-serif;
   }
   .home-brand {
@@ -698,7 +698,7 @@
     align-items: center;
   }
   .home-nav-links a {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .home-nav-links a,
   .landing-nav-links a {
@@ -756,7 +756,7 @@
   }
   .landing-hero h1 {
     font:
-      700 clamp(54px, 6.4vw, 84px)/0.98 Space Grotesk,
+      700 clamp(54px, 6.4vw, 84px)/0.98 var(--font-display),
       sans-serif;
   }
   .landing-hero h1 em {
@@ -777,7 +777,7 @@
   .home-highlights h2,
   .home-foundation h2 {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .landing-final-cta h2 {
@@ -801,19 +801,19 @@
   }
   .home-highlights h2 {
     font:
-      700 34px Space Grotesk,
+      700 34px var(--font-display),
       sans-serif;
   }
   .home-foundation h2 {
     font:
-      700 37px/1.15 Space Grotesk,
+      700 37px/1.15 var(--font-display),
       sans-serif;
   }
   .landing-section-heading h2,
   .landing-workflow-intro h2,
   .landing-final-cta h2 {
     font:
-      700 clamp(39px, 4.4vw, 57px)/1.03 Space Grotesk,
+      700 clamp(39px, 4.4vw, 57px)/1.03 var(--font-display),
       sans-serif;
   }
   .landing-section-heading h2 em {
@@ -843,12 +843,12 @@
   }
   .landing-step h3 {
     font:
-      600 15px Space Grotesk,
+      600 15px var(--font-display),
       sans-serif;
   }
   .landing-feature h3 {
     font:
-      700 19px/1.25 Space Grotesk,
+      700 19px/1.25 var(--font-display),
       sans-serif;
   }
   .landing-feature p,
@@ -868,7 +868,7 @@
     max-width: 430px;
   }
   .home-foundation p {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .landing-step p {
     font-size: 10px;
@@ -960,7 +960,7 @@
   }
   .landing-feature-top span {
     font:
-      700 9px IBM Plex Mono,
+      700 9px var(--font-mono),
       monospace;
   }
   .home-brand strong,
@@ -969,7 +969,7 @@
   }
   .home-brand strong {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .landing-brand-copy strong {
@@ -977,12 +977,12 @@
   }
   .landing-brand-copy strong {
     font:
-      700 15px Space Grotesk,
+      700 15px var(--font-display),
       sans-serif;
   }
   .home-brand strong {
     font:
-      800 15px Space Grotesk,
+      800 15px var(--font-display),
       sans-serif;
   }
   .landing-route-stamp svg {

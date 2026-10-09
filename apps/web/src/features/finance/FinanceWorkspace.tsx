@@ -1,16 +1,19 @@
 "use client";
-import { useConfirmation, type ConfirmationOptions } from "../../ui/ConfirmationModal";
+import {
+  useConfirmation,
+  type ConfirmationOptions,
+} from "../../ui/ConfirmationModal";
 import Link from "next/link";
 import { DataTable } from "../../ui/DataTable";
 import { LocalizedValue } from "../../i18n/LocalizedValue";
 import { localizeText } from "../../i18n/errors";
-import { getFormattingLocale } from "../../i18n/format-client";
+import { formatDecimal, getFormattingLocale } from "../../i18n/format-client";
 import { Translate } from "../../i18n/Translate";
 
 import "../../styles/finance.css";
 
 import { cn } from "../../lib/utils";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FinanceMethod } from "@a-one-tours/shared";
 import {
   Activity,
@@ -39,10 +42,9 @@ import {
   cancelBookingFinance,
   financeExportUrl,
   getAgencies,
-  getAgents,
+  getFinancePeople,
   getBookingFinanceByPnr,
   getBranches,
-  getFinanceLedger,
   getFinanceReports,
   getFinanceSettings,
   getTrips,
@@ -66,12 +68,15 @@ type FinanceMethodValue = FinanceMethod;
 type AgencyOption = { id: string; name: string };
 type BranchOption = { id: string; name: string };
 type AgentOption = {
+  branchId?: string | null;
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
 };
 type TripOption = {
+  branchId?: string;
+  agencyId?: string;
   id: string;
   travelDate: string;
   route: { name: string; source: string; destination: string };
@@ -91,8 +96,7 @@ const methods: FinanceMethodValue[] = [
   "UPI",
   "OTHER",
 ];
-const money = (value: number | string) =>
-  `₹${Number(value).toLocaleString(getFormattingLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value: number | string) => `₹${formatDecimal(Number(value))}`;
 const localDate = (date: Date) => {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
@@ -101,7 +105,16 @@ const localDate = (date: Date) => {
 export function FinanceWorkspace() {
   const { user } = useAuth();
   const confirm = useConfirmation();
+  const [tab, setTab] = useState("overview");
+  const reportRequest = useRef(0);
+  const reportController = useRef<AbortController | null>(null);
+  const [reportSearch, setReportSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [reportStatus, setReportStatus] = useState("");
+  const [reportPosition, setReportPosition] = useState({ scope: "", page: 1 });
+  const branchScoped = user?.roleScope === "BRANCH";
   const [settings, setSettings] = useState(defaultSettings);
+  const settingsAgency = useRef<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [agencyId, setAgencyId] = useState("");
@@ -130,7 +143,8 @@ export function FinanceWorkspace() {
 
   const canSettings =
     user?.role === "SUPER_ADMIN" ||
-    (user?.roleScope === "AGENCY" && user?.permissions.includes("finance:settings"));
+    (user?.roleScope === "AGENCY" &&
+      user?.permissions.includes("finance:settings"));
   const canSettle = user?.permissions.includes("finance:settlement");
   const filters = useMemo(
     () => ({
@@ -142,29 +156,71 @@ export function FinanceWorkspace() {
     [user?.role, agencyId, branchId, agentId, tripId],
   );
 
+  const reportScope = JSON.stringify([
+    from,
+    to,
+    filters,
+    debouncedSearch,
+    reportStatus,
+  ]);
+  const reportPage =
+    reportPosition.scope === reportScope ? reportPosition.page : 1;
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearch(reportSearch.trim()),
+      300,
+    );
+    return () => window.clearTimeout(timer);
+  }, [reportSearch]);
+  const invalidateReports = useCallback(() => {
+    reportRequest.current += 1;
+    reportController.current?.abort();
+  }, []);
+
   const refresh = useCallback(async () => {
+    const requestId = ++reportRequest.current;
+    reportController.current?.abort();
+    const controller = new AbortController();
+    reportController.current = controller;
     setLoading(true);
     setError("");
     try {
-      const [report, entries] = await Promise.all([
-        getFinanceReports(from || undefined, to || undefined, filters),
-        getFinanceLedger(),
-      ]);
+      const report = await getFinanceReports(
+        from || undefined,
+        to || undefined,
+        filters,
+        {
+          page: reportPage,
+          limit: 20,
+          search: debouncedSearch,
+          status: reportStatus,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        controller.signal,
+      );
+      if (requestId !== reportRequest.current) return;
       setReports(report);
-      setLedger(entries);
+      setLedger(report.ledger);
     } catch (cause) {
+      if (controller.signal.aborted || requestId !== reportRequest.current)
+        return;
       setError(
-        cause instanceof Error ? cause.message : localizeText("Unable to load finance data"),
+        cause instanceof Error
+          ? cause.message
+          : localizeText("Unable to load finance data"),
       );
     } finally {
-      setLoading(false);
+      if (requestId === reportRequest.current) setLoading(false);
     }
-  }, [from, to, filters]);
+  }, [from, to, filters, reportPage, debouncedSearch, reportStatus]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => void refresh());
-    return () => window.cancelAnimationFrame(frame);
-  }, [refresh]);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      invalidateReports();
+    };
+  }, [refresh, invalidateReports]);
 
   useEffect(() => {
     if (user?.role !== "SUPER_ADMIN") return;
@@ -185,7 +241,10 @@ export function FinanceWorkspace() {
       }, 0);
       return () => window.clearTimeout(timer);
     }
-    void Promise.all([getBranches(optionAgencyId), getAgents(optionAgencyId)])
+    void Promise.all([
+      getBranches(optionAgencyId),
+      getFinancePeople(optionAgencyId),
+    ])
       .then(([branchRows, agentRows]) => {
         setBranches(branchRows as BranchOption[]);
         setAgents(agentRows as AgentOption[]);
@@ -203,9 +262,19 @@ export function FinanceWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (!canSettings || (user?.role === "SUPER_ADMIN" && !agencyId)) return;
+    if (
+      tab !== "policy" ||
+      !canSettings ||
+      (user?.role === "SUPER_ADMIN" && !agencyId)
+    )
+      return;
+    const selectedAgency = user?.agencyId ?? agencyId;
+    if (settingsAgency.current === selectedAgency) return;
+    let active = true;
     void getFinanceSettings(user?.role === "SUPER_ADMIN" ? agencyId : undefined)
-      .then((value) =>
+      .then((value) => {
+        if (!active) return;
+        settingsAgency.current = selectedAgency;
         setSettings({
           gstRate: String(value.settings?.gstRate ?? 0),
           gstAfterDiscount: value.settings?.gstAfterDiscount ?? true,
@@ -215,32 +284,25 @@ export function FinanceWorkspace() {
             hoursBeforeDeparture: String(tier.hoursBeforeDeparture),
             feePercent: String(tier.feePercent),
           })),
-        }),
-      )
+        });
+      })
       .catch(() => undefined);
-  }, [canSettings, user?.role, agencyId]);
+    return () => {
+      active = false;
+    };
+  }, [tab, canSettings, user?.role, user?.agencyId, agencyId]);
 
-  const dailySales = useMemo(() => {
-    const grouped = (reports?.bookings ?? []).reduce<
-      Record<string, { value: number; count: number }>
-    >((days, row) => {
-      const date = row.createdAt.slice(0, 10);
-      const current = days[date] ?? { value: 0, count: 0 };
-      current.value += Number(row.totalAmount);
-      current.count += 1;
-      days[date] = current;
-      return days;
-    }, {});
-    return Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-14);
-  }, [reports]);
+  const dailySales = useMemo(
+    () =>
+      (reports?.dailySales ?? []).map(
+        (day) =>
+          [day.day, { value: Number(day.value), count: day.count }] as const,
+      ),
+    [reports],
+  );
   const chartMax = Math.max(1, ...dailySales.map(([, value]) => value.value));
-  const confirmedCount =
-    reports?.bookings.filter((row) => row.status !== "CANCELLED").length ?? 0;
-  const cancelledCount =
-    reports?.bookings.filter((row) => row.status === "CANCELLED").length ?? 0;
-  const bookingCount = confirmedCount + cancelledCount;
+  const bookingCount = reports?.totals.bookings ?? 0;
+  const cancelledCount = reports?.totals.cancellations ?? 0;
   const cancelledPercent = bookingCount
     ? (cancelledCount / bookingCount) * 100
     : 0;
@@ -260,15 +322,49 @@ export function FinanceWorkspace() {
     if (user?.role === "SUPER_ADMIN") setAgencyId("");
   }
 
-  async function act(operation: () => Promise<unknown>, success: string, confirmation?: ConfirmationOptions) {
+  async function act(
+    operation: () => Promise<unknown>,
+    success: string,
+    confirmation?: ConfirmationOptions,
+  ) {
     if (busy) return;
     const prompts: Record<string, ConfirmationOptions> = {
-      "Payment recorded successfully": { title: "Record payment?", description: `${booking?.pnr} · ${money(formAmount)} · ${method}. Confirm to record this payment.`, confirmLabel: "Record payment", destructive: false },
-      "Refund recorded successfully": { title: "Record refund?", description: `${booking?.pnr} · ${money(formAmount)} · ${method}. Confirm to record this refund.`, confirmLabel: "Record refund", destructive: false },
-      "Booking cancelled and seats released": { title: "Cancel booking?", description: `${booking?.pnr}: this cancels the ticket and releases its seats. Cancellation fees follow the agency policy.`, confirmLabel: "Cancel booking" },
-      "Settlement posted successfully": { title: "Post settlement?", description: `${party} · ${money(formAmount)} · ${method}. Confirm to post this settlement.`, confirmLabel: "Post settlement", destructive: false },
+      "Payment recorded successfully": {
+        title: "Record payment?",
+        description: `${booking?.pnr} · ${money(formAmount)} · ${method}. Confirm to record this payment.`,
+        confirmLabel: "Record payment",
+        destructive: false,
+      },
+      "Refund recorded successfully": {
+        title: "Record refund?",
+        description: `${booking?.pnr} · ${money(formAmount)} · ${method}. Confirm to record this refund.`,
+        confirmLabel: "Record refund",
+        destructive: false,
+      },
+      "Booking cancelled and seats released": {
+        title: "Cancel booking?",
+        description: `${booking?.pnr}: this cancels the ticket and releases its seats. Cancellation fees follow the agency policy.`,
+        confirmLabel: "Cancel booking",
+      },
+      "Settlement posted successfully": {
+        title: "Post settlement?",
+        description: `${party} · ${money(formAmount)} · ${method}. Confirm to post this settlement.`,
+        confirmLabel: "Post settlement",
+        destructive: false,
+      },
     };
-    if (!(await confirm(confirmation ?? prompts[success] ?? { title: "Confirm action?", description: "Confirm to save these finance changes.", confirmLabel: "Confirm", destructive: false }))) return;
+    if (
+      !(await confirm(
+        confirmation ??
+          prompts[success] ?? {
+            title: "Confirm action?",
+            description: "Confirm to save these finance changes.",
+            confirmLabel: "Confirm",
+            destructive: false,
+          },
+      ))
+    )
+      return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -279,7 +375,9 @@ export function FinanceWorkspace() {
       if (booking) setBooking(await getBookingFinanceByPnr(booking.pnr));
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : localizeText("Finance action failed"),
+        cause instanceof Error
+          ? cause.message
+          : localizeText("Finance action failed"),
       );
     } finally {
       setBusy(false);
@@ -298,7 +396,11 @@ export function FinanceWorkspace() {
       setFormAmount("");
     } catch (cause) {
       setBooking(null);
-      setError(cause instanceof Error ? cause.message : localizeText("Booking not found"));
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : localizeText("Booking not found"),
+      );
     }
   }
 
@@ -318,7 +420,9 @@ export function FinanceWorkspace() {
       (settings.commissionType === "PERCENTAGE" && commission > 100)
     ) {
       setError(
-        localizeText("Commission must be zero or greater, and a percentage cannot exceed 100%."),
+        localizeText(
+          "Commission must be zero or greater, and a percentage cannot exceed 100%.",
+        ),
       );
       return;
     }
@@ -333,7 +437,9 @@ export function FinanceWorkspace() {
       )
     ) {
       setError(
-        localizeText("Complete each cancellation tier and use a fee between 0% and 100%."),
+        localizeText(
+          "Complete each cancellation tier and use a fee between 0% and 100%.",
+        ),
       );
       return;
     }
@@ -403,14 +509,56 @@ export function FinanceWorkspace() {
     <>
       <PageHeader
         title="Finance & reports"
-        description="Track finance and reports."
+        description={
+          branchScoped
+            ? "Monitor collections, bookings and finance within your assigned branch."
+            : "Monitor agency finances and compare performance across branches."
+        }
       />
-      {user?.permissions.includes("finance:cancel") && <CancellationRequests />}
+      <div className="finance-scope-note">
+        <ShieldCheck size={17} />
+        <span>
+          {branchScoped ? (
+            <Translate text="Assigned branch only" />
+          ) : (
+            <Translate text="Agency and all branches" />
+          )}
+        </span>
+      </div>
+      <nav className="finance-workspace-tabs" aria-label="Finance sections">
+        {[
+          { id: "overview", label: "Overview" },
+          { id: "reports", label: "Reports & bookings" },
+          { id: "payments", label: "Payments & settlements" },
+          { id: "ledger", label: "Ledger" },
+          ...(user?.permissions.includes("finance:cancel")
+            ? [{ id: "cancellations", label: "Cancellations" }]
+            : []),
+          ...(canSettings ? [{ id: "policy", label: "Agency policy" }] : []),
+        ].map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            aria-current={tab === item.id ? "page" : undefined}
+            onClick={() => setTab(item.id)}
+          >
+            <Translate text={item.label} />
+          </button>
+        ))}
+      </nav>
+      {tab === "cancellations" &&
+        user?.permissions.includes("finance:cancel") && (
+          <CancellationRequests />
+        )}
       <div className={cn("finance-toolbar-card")}>
         <div className={cn("finance-filter-heading")}>
           <div>
-            <span className={cn("finance-overline")}><Translate text={"REPORT PERIOD"} /></span>
-            <strong><Translate text={"Filter your overview"} /></strong>
+            <span className={cn("finance-overline")}>
+              <Translate text={"REPORT PERIOD"} />
+            </span>
+            <strong>
+              <Translate text={"Filter your overview"} />
+            </strong>
           </div>
           <div className={cn("finance-presets")} aria-label="Date presets">
             <button
@@ -420,7 +568,8 @@ export function FinanceWorkspace() {
                 setTo("");
               }}
             >
-              <Translate text={"All time"} /></button>
+              <Translate text={"All time"} />
+            </button>
             <button type="button" onClick={() => setDateRange(7)}>
               7 days
             </button>
@@ -440,11 +589,13 @@ export function FinanceWorkspace() {
               size={15}
               className={cn(loading ? "finance-spin" : "")}
             />{" "}
-            <Translate text={"Refresh"} /></Button>
+            <Translate text={"Refresh"} />
+          </Button>
         </div>
         <div className={cn("finance-filters")}>
           <label>
-            <Translate text={"Date from"} /><input
+            <Translate text={"Date from"} />
+            <input
               type="date"
               value={from}
               max={to || undefined}
@@ -452,7 +603,8 @@ export function FinanceWorkspace() {
             />
           </label>
           <label>
-            <Translate text={"Date to"} /><input
+            <Translate text={"Date to"} />
+            <input
               type="date"
               value={to}
               min={from || undefined}
@@ -461,7 +613,8 @@ export function FinanceWorkspace() {
           </label>
           {user?.role === "SUPER_ADMIN" && (
             <label>
-              <Translate text={"Agency"} /><select
+              <Translate text={"Agency"} />
+              <select
                 value={agencyId}
                 onChange={(event) => {
                   setAgencyId(event.target.value);
@@ -470,7 +623,9 @@ export function FinanceWorkspace() {
                   setTripId("");
                 }}
               >
-                <option value=""><Translate text={"All agencies"} /></option>
+                <option value="">
+                  <Translate text={"All agencies"} />
+                </option>
                 {agencies.map((agency) => (
                   <option key={agency.id} value={agency.id}>
                     {agency.name}
@@ -479,44 +634,69 @@ export function FinanceWorkspace() {
               </select>
             </label>
           )}
-          <label>
-            <Translate text={"Branch"} /><select
-              value={branchId}
-              onChange={(event) => setBranchId(event.target.value)}
-            >
-              <option value=""><Translate text={"All branches"} /></option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
+          {!branchScoped && (
+            <label>
+              <Translate text={"Branch"} />
+              <select
+                value={branchId}
+                onChange={(event) => {
+                  setBranchId(event.target.value);
+                  setAgentId("");
+                  setTripId("");
+                }}
+              >
+                <option value="">
+                  <Translate text={"All branches"} />
                 </option>
-              ))}
-            </select>
-          </label>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
-            <Translate text={"Agent"} /><select
+            <Translate text={"Team member"} />
+            <select
               value={agentId}
               onChange={(event) => setAgentId(event.target.value)}
             >
-              <option value=""><Translate text={"All agents"} /></option>
-              {agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.firstName} {agent.lastName}
-                </option>
-              ))}
+              <option value="">
+                <Translate text={"All team members"} />
+              </option>
+              {agents
+                .filter((agent) => !branchId || agent.branchId === branchId)
+                .map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.firstName} {agent.lastName}
+                  </option>
+                ))}
             </select>
           </label>
           <label>
-            <Translate text={"Trip"} /><select
+            <Translate text={"Trip"} />
+            <select
               value={tripId}
               onChange={(event) => setTripId(event.target.value)}
             >
-              <option value=""><Translate text={"All trips"} /></option>
-              {trips.map((trip) => (
-                <option key={trip.id} value={trip.id}>
-                  {trip.route.name} ·{" "}
-                  {new Date(trip.travelDate).toLocaleDateString(getFormattingLocale())}
-                </option>
-              ))}
+              <option value="">
+                <Translate text={"All trips"} />
+              </option>
+              {trips
+                .filter(
+                  (trip) =>
+                    (!branchId || trip.branchId === branchId) &&
+                    (!optionAgencyId || trip.agencyId === optionAgencyId),
+                )
+                .map((trip) => (
+                  <option key={trip.id} value={trip.id}>
+                    {trip.route.name} ·{" "}
+                    {new Date(trip.travelDate).toLocaleDateString(
+                      getFormattingLocale(),
+                    )}
+                  </option>
+                ))}
             </select>
           </label>
           <button
@@ -524,17 +704,20 @@ export function FinanceWorkspace() {
             type="button"
             onClick={clearFilters}
           >
-            <FilterX size={15} /> <Translate text={"Clear filters"} /></button>
+            <FilterX size={15} /> <Translate text={"Clear filters"} />
+          </button>
           <a
             className={cn("button button-secondary finance-export-button")}
             href={financeExportUrl("excel", from, to, filters)}
           >
-            <FileSpreadsheet size={15} /> <Translate text={"Export Excel"} /></a>
+            <FileSpreadsheet size={15} /> <Translate text={"Export Excel"} />
+          </a>
           <a
             className={cn("button button-secondary finance-export-button")}
             href={financeExportUrl("pdf", from, to, filters)}
           >
-            <Download size={15} /> <Translate text={"Export PDF"} /></a>
+            <Download size={15} /> <Translate text={"Export PDF"} />
+          </a>
         </div>
       </div>
 
@@ -564,21 +747,27 @@ export function FinanceWorkspace() {
         ))}
       </div>
 
-      <nav className={cn("finance-section-nav")} aria-label="Finance sections">
-        <a href="#finance-overview"><Translate text={"Overview"} /></a>
-        <a href="#finance-bookings"><Translate text={"Bookings"} /></a>
-        <a href="#finance-actions"><Translate text={"Payments &amp; settlements"} /></a>
-        {canSettings && <a href="#finance-policy"><Translate text={"Policy"} /></a>}
-        <a href="#finance-ledger"><Translate text={"Ledger"} /></a>
-      </nav>
-
-      <div className={cn("finance-chart-grid")} id="finance-overview">
+      <div
+        hidden={tab !== "overview"}
+        className={cn("finance-chart-grid")}
+        id="finance-overview"
+      >
         <Card className={cn("finance-panel finance-revenue-panel")}>
           <div className={cn("finance-panel-heading")}>
             <div>
-              <span className={cn("finance-overline")}><Translate text={"PERFORMANCE"} /></span>
-              <h2><Translate text={"Booking value trend"} /></h2>
-              <p><Translate text={"Daily confirmed booking value for the selected filters."} /></p>
+              <span className={cn("finance-overline")}>
+                <Translate text={"PERFORMANCE"} />
+              </span>
+              <h2>
+                <Translate text={"Booking value trend"} />
+              </h2>
+              <p>
+                <Translate
+                  text={
+                    "Daily confirmed booking value for the selected filters."
+                  }
+                />
+              </p>
             </div>
             <span className={cn("finance-panel-mark")}>
               <Activity size={17} />
@@ -645,7 +834,8 @@ export function FinanceWorkspace() {
                           >
                             <title>
                               {day}: {money(value.value)} · {value.count}{" "}
-                              <Translate text={"bookings"} /></title>
+                              <Translate text={"bookings"} />
+                            </title>
                           </circle>
                         );
                       })}
@@ -674,32 +864,48 @@ export function FinanceWorkspace() {
             </div>
           ) : (
             <div className={cn("finance-chart-empty")}>
-              <LocalizedValue value={loading
-                ? "Loading report data…"
-                : "No bookings match these filters yet."} />
+              <LocalizedValue
+                value={
+                  loading
+                    ? "Loading report data…"
+                    : "No bookings match these filters yet."
+                }
+              />
             </div>
           )}
           <div className={cn("finance-chart-footnote")}>
             <span>
-              <i className={cn("finance-legend-dot")} /> <Translate text={"Booking value"} /></span>
+              <i className={cn("finance-legend-dot")} />{" "}
+              <Translate text={"Booking value"} />
+            </span>
             <span>
-              {dailySales.reduce((sum, [, day]) => sum + day.count, 0)} <Translate text={"bookings in trend"} /></span>
+              {dailySales.reduce((sum, [, day]) => sum + day.count, 0)}{" "}
+              <Translate text={"bookings in trend"} />
+            </span>
           </div>
         </Card>
 
         <Card className={cn("finance-panel finance-mix-panel")}>
           <div className={cn("finance-panel-heading")}>
             <div>
-              <span className={cn("finance-overline")}><Translate text={"CASH FLOW"} /></span>
-              <h2><Translate text={"Financial mix"} /></h2>
-              <p><Translate text={"Collections and deductions at a glance."} /></p>
+              <span className={cn("finance-overline")}>
+                <Translate text={"CASH FLOW"} />
+              </span>
+              <h2>
+                <Translate text={"Financial mix"} />
+              </h2>
+              <p>
+                <Translate text={"Collections and deductions at a glance."} />
+              </p>
             </div>
             <span className={cn("finance-panel-mark")}>
               <Wallet size={17} />
             </span>
           </div>
           <div className={cn("finance-mix-total")}>
-            <span><Translate text={"Net collections"} /></span>
+            <span>
+              <Translate text={"Net collections"} />
+            </span>
             <strong>
               {money(
                 Number(reports?.totals.revenue ?? 0) -
@@ -745,125 +951,432 @@ export function FinanceWorkspace() {
             <div
               className={cn("finance-donut")}
               style={{
-                background: `conic-gradient(#c93b32 ${cancelledPercent}%, #deeee9 0)`,
+                background: `conic-gradient(#c93b32 ${cancelledPercent}%, #fce5e5 0)`,
               }}
             >
               <span>{Math.round(cancelledPercent)}%</span>
             </div>
             <div>
-              <strong><Translate text={"Cancellation rate"} /></strong>
+              <strong>
+                <Translate text={"Cancellation rate"} />
+              </strong>
               <span>
-                {cancelledCount} <Translate text={"cancelled of"} />{" "}{bookingCount} <Translate text={"bookings"} /></span>
+                {cancelledCount} <Translate text={"cancelled of"} />{" "}
+                {bookingCount} <Translate text={"bookings"} />
+              </span>
             </div>
           </div>
         </Card>
       </div>
 
-      <Card
-        className={cn("finance-panel finance-bookings-panel")}
-        id="finance-bookings"
-      >
-        <div className={cn("finance-panel-heading finance-table-heading")}>
-          <div>
-            <span className={cn("finance-overline")}><Translate text={"TRANSACTIONS"} /></span>
-            <h2><Translate text={"Recent bookings"} /></h2>
-            <p><Translate text={"Booking amounts, tax and commission for the selected period."} /></p>
-          </div>
-          <span className={cn("finance-record-count")}>
-            {reports?.bookings.length ?? 0} <Translate text={"records"} /></span>
-        </div>
-        <DataTable title="Recent bookings" data={reports?.bookings ?? []} rowKey={(row) => row.id} loading={loading}
-          searchPlaceholder="Search booking PNR" searchText={(row) => row.pnr}
-          filters={[{ id: "status", label: "Status", options: Array.from(new Set((reports?.bookings ?? []).map((row) => row.status))).map((value) => ({ value, label: value.replaceAll("_", " ") })), matches: (row, value) => row.status === value }]}
-          columns={[{ id: "0", header: "Booking" }, { id: "1", header: "Date" }, { id: "2", header: "Status" }, { id: "3", header: "Total" }, { id: "4", header: "Tax" }, { id: "5", header: "Commission" }, { id: "6", header: "Refund" }]}
-          renderRow={(row: FinanceBooking) => (
-                  <tr key={row.id}>
-                    <td>
-                      <Link className="text-link finance-pnr" href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}`}>{row.pnr}</Link>
-                    </td>
-                    <td>{new Date(row.createdAt).toLocaleDateString(getFormattingLocale())}</td>
-                    <td>
-                      <span
-                        className={cn(
-                          `finance-status ${row.status === "CANCELLED" ? "cancelled" : "confirmed"}`,
-                        )}
-                      >
-                        <LocalizedValue value={row.status.toLowerCase().replaceAll("_", " ")} />
-                      </span>
-                    </td>
-                    <td>{money(row.totalAmount)}</td>
-                    <td>{money(row.taxAmount)}</td>
-                    <td>{money(row.commissionAmount)}</td>
-                    <td>
-                      {money(
-                        row.refunds.reduce(
-                          (sum, refund) => sum + Number(refund.amount),
-                          0,
-                        ),
-                      )}
-                    </td>
-                  </tr>)}
-        />
-      </Card>
-
-      <div className={cn("finance-section-heading")} id="finance-actions">
-        <div>
-          <span className={cn("finance-overline")}><Translate text={"FINANCE OPERATIONS"} /></span>
-          <h2><Translate text={"Payments, refunds and settlements"} /></h2>
-        </div>
-        <p><Translate text={"Record manual transactions and manage your agency policy."} /></p>
-      </div>
-      <div className={cn("finance-workflow-grid")}>
-        <Card className={cn("finance-panel finance-operation-card")}>
-          <div className={cn("finance-panel-heading")}>
+      {!branchScoped && tab === "overview" && (
+        <Card className="finance-panel finance-branch-report">
+          <h2>
+            <Translate text="Branch performance" />
+          </h2>
+          <p>
+            <Translate text="Booking value and refunds for the selected period." />
+          </p>
+          <DataTable
+            title="Branch performance"
+            data={branches
+              .filter((branch) => !branchId || branch.id === branchId)
+              .map((branch) => {
+                const summary = reports?.branches.find(
+                  (row) => row.branchId === branch.id,
+                );
+                return {
+                  ...branch,
+                  count: summary?.count ?? 0,
+                  value: summary?.value ?? 0,
+                  refunds: summary?.refunds ?? 0,
+                };
+              })}
+            rowKey={(row) => row.id}
+            loading={loading}
+            columns={[
+              { id: "name", header: "Branch", render: (row) => row.name },
+              { id: "count", header: "Bookings", render: (row) => row.count },
+              {
+                id: "value",
+                header: "Booking value",
+                render: (row) => money(row.value),
+              },
+              {
+                id: "refunds",
+                header: "Refunds",
+                render: (row) => money(row.refunds),
+              },
+            ]}
+          />
+        </Card>
+      )}
+      <div hidden={tab !== "reports"} className="finance-tab-content">
+        <Card
+          className={cn("finance-panel finance-bookings-panel")}
+          id="finance-bookings"
+        >
+          <div className={cn("finance-panel-heading finance-table-heading")}>
             <div>
               <span className={cn("finance-overline")}>
-                <Translate text={"BOOKING COLLECTIONS"} /></span>
-              <h2><Translate text={"Payment & refund records"} /></h2>
-              <p><Translate text={"Find a booking to record a payment, cancellation or refund."} /></p>
+                <Translate text={"TRANSACTIONS"} />
+              </span>
+              <h2>
+                <Translate text={"Recent bookings"} />
+              </h2>
+              <p>
+                <Translate
+                  text={
+                    "Booking amounts, tax and commission for the selected period."
+                  }
+                />
+              </p>
             </div>
-            <span className={cn("finance-panel-mark")}>
-              <Banknote size={17} />
+            <span className={cn("finance-record-count")}>
+              {reports?.meta.total ?? 0} <Translate text={"records"} />
             </span>
           </div>
-          <div className={cn("finance-inline-search")}>
-            <label>
-              <Translate text={"Booking PNR"} /><input
-                value={pnr}
-                onChange={(event) => setPnr(event.target.value)}
-                placeholder="Enter a booking PNR"
-              />
-            </label>
-            <Button variant="secondary" onClick={() => void findBooking()}>
-              <Search size={15} /> <Translate text={"Find booking"} /></Button>
-          </div>
-          {booking && (
-            <div className={cn("finance-booking-detail")}>
-              <div className={cn("finance-booking-summary")}>
-                <strong>{booking.pnr}</strong>
-                <span
-                  className={cn(
-                    `finance-status ${booking.status === "CANCELLED" ? "cancelled" : "confirmed"}`,
+          <DataTable
+            title="Recent bookings"
+            data={reports?.bookings ?? []}
+            rowKey={(row) => row.id}
+            loading={loading}
+            searchPlaceholder="Search booking PNR"
+            searchValue={reportSearch}
+            onSearchChange={setReportSearch}
+            pagination={{
+              page: reportPage,
+              pageSize: 20,
+              total: reports?.meta.total ?? 0,
+              totalPages: reports?.meta.totalPages ?? 1,
+              onPageChange: (page) =>
+                setReportPosition({ scope: reportScope, page }),
+            }}
+            filters={[
+              {
+                id: "status",
+                label: "Status",
+                value: reportStatus,
+                onChange: setReportStatus,
+                options: ["CONFIRMED", "CANCELLED"].map((value) => ({
+                  value,
+                  label: value.replaceAll("_", " "),
+                })),
+                matches: (row, value) => row.status === value,
+              },
+            ]}
+            columns={[
+              { id: "0", header: "Booking" },
+              { id: "1", header: "Date" },
+              { id: "2", header: "Status" },
+              { id: "3", header: "Total" },
+              { id: "4", header: "Tax" },
+              { id: "5", header: "Commission" },
+              { id: "6", header: "Refund" },
+            ]}
+            renderRow={(row: FinanceBooking) => (
+              <tr key={row.id}>
+                <td>
+                  <Link
+                    className="text-link finance-pnr"
+                    href={`/dashboard/bookings/${encodeURIComponent(row.pnr)}`}
+                  >
+                    {row.pnr}
+                  </Link>
+                </td>
+                <td>
+                  {new Date(row.createdAt).toLocaleDateString(
+                    getFormattingLocale(),
                   )}
-                >
-                  <LocalizedValue value={booking.status.toLowerCase()} />
-                </span>
-                <span>
-                  <Translate text={"Booking total"} />{" "}<b>{money(booking.totalAmount)}</b>
-                </span>
-                <span>
-                  <Translate text={"GST"} />{" "}<b>{money(booking.taxAmount)}</b>
-                </span>
-                {booking.cancellation && (
-                  <span>
-                    <Translate text={"Eligible refund"} />{" "}
-                    <b>{money(booking.cancellation.eligibleRefund)}</b>
+                </td>
+                <td>
+                  <span
+                    className={cn(
+                      `finance-status ${row.status === "CANCELLED" ? "cancelled" : "confirmed"}`,
+                    )}
+                  >
+                    <LocalizedValue
+                      value={row.status.toLowerCase().replaceAll("_", " ")}
+                    />
                   </span>
-                )}
+                </td>
+                <td>{money(row.totalAmount)}</td>
+                <td>{money(row.taxAmount)}</td>
+                <td>{money(row.commissionAmount)}</td>
+                <td>
+                  {money(
+                    row.refunds.reduce(
+                      (sum, refund) => sum + Number(refund.amount),
+                      0,
+                    ),
+                  )}
+                </td>
+              </tr>
+            )}
+          />
+        </Card>
+      </div>
+      <div hidden={tab !== "payments"} className="finance-tab-content">
+        <div className={cn("finance-section-heading")} id="finance-actions">
+          <div>
+            <span className={cn("finance-overline")}>
+              <Translate text={"FINANCE OPERATIONS"} />
+            </span>
+            <h2>
+              <Translate text={"Payments, refunds and settlements"} />
+            </h2>
+          </div>
+          <p>
+            <Translate
+              text={"Record manual transactions and manage your agency policy."}
+            />
+          </p>
+        </div>
+        <div className={cn("finance-workflow-grid")}>
+          <Card className={cn("finance-panel finance-operation-card")}>
+            <div className={cn("finance-panel-heading")}>
+              <div>
+                <span className={cn("finance-overline")}>
+                  <Translate text={"BOOKING COLLECTIONS"} />
+                </span>
+                <h2>
+                  <Translate text={"Payment & refund records"} />
+                </h2>
+                <p>
+                  <Translate
+                    text={
+                      "Find a booking to record a payment, cancellation or refund."
+                    }
+                  />
+                </p>
+              </div>
+              <span className={cn("finance-panel-mark")}>
+                <Banknote size={17} />
+              </span>
+            </div>
+            <div className={cn("finance-inline-search")}>
+              <label>
+                <Translate text={"Booking PNR"} />
+                <input
+                  value={pnr}
+                  onChange={(event) => setPnr(event.target.value)}
+                  placeholder="Enter a booking PNR"
+                />
+              </label>
+              <Button variant="secondary" onClick={() => void findBooking()}>
+                <Search size={15} /> <Translate text={"Find booking"} />
+              </Button>
+            </div>
+            {booking && (
+              <div className={cn("finance-booking-detail")}>
+                <div className={cn("finance-booking-summary")}>
+                  <strong>{booking.pnr}</strong>
+                  <span
+                    className={cn(
+                      `finance-status ${booking.status === "CANCELLED" ? "cancelled" : "confirmed"}`,
+                    )}
+                  >
+                    <LocalizedValue value={booking.status.toLowerCase()} />
+                  </span>
+                  <span>
+                    <Translate text={"Booking total"} />{" "}
+                    <b>{money(booking.totalAmount)}</b>
+                  </span>
+                  <span>
+                    <Translate text={"GST"} /> <b>{money(booking.taxAmount)}</b>
+                  </span>
+                  {booking.cancellation && (
+                    <span>
+                      <Translate text={"Eligible refund"} />{" "}
+                      <b>{money(booking.cancellation.eligibleRefund)}</b>
+                    </span>
+                  )}
+                </div>
+                <div className={cn("finance-entry-grid")}>
+                  <label>
+                    <Translate text={"Amount"} />
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={formAmount}
+                      onChange={(event) => setFormAmount(event.target.value)}
+                      placeholder="0.00"
+                    />
+                  </label>
+                  <label>
+                    <Translate text={"Method"} />
+                    <select
+                      value={method}
+                      onChange={(event) =>
+                        setMethod(event.target.value as FinanceMethodValue)
+                      }
+                    >
+                      {methods.map((value) => (
+                        <option key={value} value={value}>
+                          {value.replaceAll("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <Translate text={"Reference"} />
+                    <input
+                      value={reference}
+                      onChange={(event) => setReference(event.target.value)}
+                      placeholder="Optional receipt/reference"
+                    />
+                  </label>
+                </div>
+                <div className={cn("finance-button-row")}>
+                  <Button
+                    disabled={
+                      busy ||
+                      !(Number(formAmount) > 0) ||
+                      booking.status !== "CONFIRMED"
+                    }
+                    onClick={() =>
+                      void act(
+                        () =>
+                          recordBookingPayment(booking.id, {
+                            amount: Number(formAmount),
+                            method,
+                            reference,
+                          }),
+                        "Payment recorded successfully",
+                      )
+                    }
+                  >
+                    <Wallet size={15} /> <Translate text={"Record payment"} />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy || booking.status === "CANCELLED"}
+                    onClick={() =>
+                      void act(
+                        () => cancelBookingFinance(booking.id),
+                        "Booking cancelled and seats released",
+                      )
+                    }
+                  >
+                    <Ban size={15} /> <Translate text={"Cancel booking"} />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={
+                      busy ||
+                      booking.status !== "CANCELLED" ||
+                      !(Number(formAmount) > 0)
+                    }
+                    onClick={() =>
+                      void act(
+                        () =>
+                          recordBookingRefund(booking.id, {
+                            amount: Number(formAmount),
+                            method,
+                            reference,
+                          }),
+                        "Refund recorded successfully",
+                      )
+                    }
+                  >
+                    <ArrowDownRight size={15} />{" "}
+                    <Translate text={"Record refund"} />
+                  </Button>
+                </div>
+                <div className={cn("finance-history-lines")}>
+                  <span>
+                    <ArrowUpRight size={14} /> <Translate text={"Payments:"} />{" "}
+                    {booking.payments
+                      .map(
+                        (payment) =>
+                          `${money(payment.amount)} ${payment.method}${payment.reference ? ` (${payment.reference})` : ""}`,
+                      )
+                      .join(" · ") || "No payments recorded"}
+                  </span>
+                  <span>
+                    <ArrowDownRight size={14} /> <Translate text={"Refunds:"} />{" "}
+                    {booking.refunds
+                      .map(
+                        (refund) =>
+                          `${money(refund.amount)} ${refund.method}${refund.reference ? ` (${refund.reference})` : ""}`,
+                      )
+                      .join(" · ") || "No refunds recorded"}
+                  </span>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {canSettle && (
+            <Card className={cn("finance-panel finance-operation-card")}>
+              <div className={cn("finance-panel-heading")}>
+                <div>
+                  <span className={cn("finance-overline")}>
+                    <Translate text={"TEAM & OPERATOR BALANCES"} />
+                  </span>
+                  <h2>
+                    <Translate text={"Post a settlement"} />
+                  </h2>
+                  <p>
+                    <Translate
+                      text={
+                        "Record a direct payment against an agency balance."
+                      }
+                    />
+                  </p>
+                </div>
+                <span className={cn("finance-panel-mark")}>
+                  <ShieldCheck size={17} />
+                </span>
               </div>
               <div className={cn("finance-entry-grid")}>
                 <label>
-                  <Translate text={"Amount"} /><input
+                  <Translate text={"Settlement party"} />
+                  <select
+                    value={party}
+                    onChange={(event) => {
+                      const next = event.target.value as "AGENT" | "OPERATOR";
+                      setParty(next);
+                      setPartyId(
+                        next === "OPERATOR" ? (user?.agencyId ?? "") : "",
+                      );
+                    }}
+                  >
+                    <option value="AGENT">
+                      <Translate text={"Employee commission"} />
+                    </option>
+                    <option value="OPERATOR">
+                      <Translate text={"Trip agency / operator"} />
+                    </option>
+                  </select>
+                </label>
+                {party === "AGENT" ? (
+                  <label>
+                    <Translate text={"Team member"} />
+                    <select
+                      value={partyId}
+                      onChange={(event) => setPartyId(event.target.value)}
+                    >
+                      <option value="">
+                        <Translate text={"Select an agent"} />
+                      </option>
+                      {agents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.firstName} {agent.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <label>
+                    <Translate text={"Operator agency"} />
+                    <input value={user?.agencyName ?? ""} readOnly />
+                  </label>
+                )}
+                <label>
+                  <Translate text={"Amount"} />
+                  <input
                     type="number"
                     min="0.01"
                     step="0.01"
@@ -873,7 +1386,8 @@ export function FinanceWorkspace() {
                   />
                 </label>
                 <label>
-                  <Translate text={"Method"} /><select
+                  <Translate text={"Method"} />
+                  <select
                     value={method}
                     onChange={(event) =>
                       setMethod(event.target.value as FinanceMethodValue)
@@ -887,214 +1401,76 @@ export function FinanceWorkspace() {
                   </select>
                 </label>
                 <label>
-                  <Translate text={"Reference"} /><input
+                  <Translate text={"Reference"} />
+                  <input
                     value={reference}
                     onChange={(event) => setReference(event.target.value)}
-                    placeholder="Optional receipt/reference"
+                    placeholder="Optional reference"
                   />
                 </label>
               </div>
               <div className={cn("finance-button-row")}>
                 <Button
-                  disabled={
-                    busy ||
-                    !(Number(formAmount) > 0) ||
-                    booking.status !== "CONFIRMED"
-                  }
+                  disabled={busy || !partyId || !(Number(formAmount) > 0)}
                   onClick={() =>
                     void act(
                       () =>
-                        recordBookingPayment(booking.id, {
+                        postFinanceSettlement({
+                          party,
+                          partyId,
                           amount: Number(formAmount),
                           method,
                           reference,
                         }),
-                      "Payment recorded successfully",
+                      "Settlement posted successfully",
                     )
                   }
                 >
-                  <Wallet size={15} /> <Translate text={"Record payment"} /></Button>
-                <Button
-                  variant="secondary"
-                  disabled={busy || booking.status === "CANCELLED"}
-                  onClick={() =>
-                    void act(
-                      () => cancelBookingFinance(booking.id),
-                      "Booking cancelled and seats released",
-                    )
-                  }
-                >
-                  <Ban size={15} /> <Translate text={"Cancel booking"} /></Button>
-                <Button
-                  variant="secondary"
-                  disabled={
-                    busy ||
-                    booking.status !== "CANCELLED" ||
-                    !(Number(formAmount) > 0)
-                  }
-                  onClick={() =>
-                    void act(
-                      () =>
-                        recordBookingRefund(booking.id, {
-                          amount: Number(formAmount),
-                          method,
-                          reference,
-                        }),
-                      "Refund recorded successfully",
-                    )
-                  }
-                >
-                  <ArrowDownRight size={15} /> <Translate text={"Record refund"} /></Button>
+                  <ArrowUpRight size={15} />{" "}
+                  <Translate text={"Post settlement"} />
+                </Button>
               </div>
-              <div className={cn("finance-history-lines")}>
-                <span>
-                  <ArrowUpRight size={14} /> <Translate text={"Payments:"} />{" "}
-                  {booking.payments
-                    .map(
-                      (payment) =>
-                        `${money(payment.amount)} ${payment.method}${payment.reference ? ` (${payment.reference})` : ""}`,
-                    )
-                    .join(" · ") || "No payments recorded"}
-                </span>
-                <span>
-                  <ArrowDownRight size={14} /> <Translate text={"Refunds:"} />{" "}
-                  {booking.refunds
-                    .map(
-                      (refund) =>
-                        `${money(refund.amount)} ${refund.method}${refund.reference ? ` (${refund.reference})` : ""}`,
-                    )
-                    .join(" · ") || "No refunds recorded"}
-                </span>
-              </div>
-            </div>
+            </Card>
           )}
-        </Card>
-
-        {canSettle && (
-          <Card className={cn("finance-panel finance-operation-card")}>
-            <div className={cn("finance-panel-heading")}>
-              <div>
-                <span className={cn("finance-overline")}>
-                  <Translate text={"AGENT & OPERATOR BALANCES"} /></span>
-                <h2><Translate text={"Post a settlement"} /></h2>
-                <p><Translate text={"Record a direct payment against an agency balance."} /></p>
-              </div>
-              <span className={cn("finance-panel-mark")}>
-                <ShieldCheck size={17} />
-              </span>
-            </div>
-            <div className={cn("finance-entry-grid")}>
-              <label>
-                <Translate text={"Settlement party"} /><select
-                  value={party}
-                  onChange={(event) => {
-                    const next = event.target.value as "AGENT" | "OPERATOR";
-                    setParty(next);
-                    setPartyId(
-                      next === "OPERATOR" ? (user?.agencyId ?? "") : "",
-                    );
-                  }}
-                >
-                  <option value="AGENT"><Translate text={"Agent commission"} /></option>
-                  <option value="OPERATOR"><Translate text={"Trip agency / operator"} /></option>
-                </select>
-              </label>
-              {party === "AGENT" ? (
-                <label>
-                  <Translate text={"Agent"} /><select
-                    value={partyId}
-                    onChange={(event) => setPartyId(event.target.value)}
-                  >
-                    <option value=""><Translate text={"Select an agent"} /></option>
-                    {agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.firstName} {agent.lastName} · {agent.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <label>
-                  <Translate text={"Operator agency"} /><input value={user?.agencyName ?? ""} readOnly />
-                </label>
-              )}
-              <label>
-                <Translate text={"Amount"} /><input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={formAmount}
-                  onChange={(event) => setFormAmount(event.target.value)}
-                  placeholder="0.00"
-                />
-              </label>
-              <label>
-                <Translate text={"Method"} /><select
-                  value={method}
-                  onChange={(event) =>
-                    setMethod(event.target.value as FinanceMethodValue)
-                  }
-                >
-                  {methods.map((value) => (
-                    <option key={value} value={value}>
-                      {value.replaceAll("_", " ")}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <Translate text={"Reference"} /><input
-                  value={reference}
-                  onChange={(event) => setReference(event.target.value)}
-                  placeholder="Optional reference"
-                />
-              </label>
-            </div>
-            <div className={cn("finance-button-row")}>
-              <Button
-                disabled={busy || !partyId || !(Number(formAmount) > 0)}
-                onClick={() =>
-                  void act(
-                    () =>
-                      postFinanceSettlement({
-                        party,
-                        partyId,
-                        amount: Number(formAmount),
-                        method,
-                        reference,
-                      }),
-                    "Settlement posted successfully",
-                  )
-                }
-              >
-                <ArrowUpRight size={15} /> <Translate text={"Post settlement"} /></Button>
-            </div>
-          </Card>
-        )}
+        </div>
       </div>
-
-      <div className={cn("finance-lower-grid")}>
-        {canSettings && (
+      <div
+        hidden={tab !== "policy" && tab !== "ledger"}
+        className={cn("finance-lower-grid finance-tab-content")}
+      >
+        {tab === "policy" && canSettings && (
           <Card
             className={cn("finance-panel finance-policy-card")}
             id="finance-policy"
           >
             <div className={cn("finance-panel-heading")}>
               <div>
-                <span className={cn("finance-overline")}><Translate text={"AGENCY POLICY"} /></span>
-                <h2><Translate text={"Tax, commission & cancellation"} /></h2>
-                <p><Translate text={"Set the defaults applied to new bookings."} /></p>
+                <span className={cn("finance-overline")}>
+                  <Translate text={"AGENCY POLICY"} />
+                </span>
+                <h2>
+                  <Translate text={"Tax, commission & cancellation"} />
+                </h2>
+                <p>
+                  <Translate
+                    text={"Set the defaults applied to new bookings."}
+                  />
+                </p>
               </div>
               <Button onClick={() => void saveSettings()} disabled={busy}>
-                <Save size={15} /> <Translate text={"Save policy"} /></Button>
+                <Save size={15} /> <Translate text={"Save policy"} />
+              </Button>
             </div>
             {user?.role === "SUPER_ADMIN" && (
               <label className={cn("finance-policy-agency")}>
-                <Translate text={"Agency"} /><select
+                <Translate text={"Agency"} />
+                <select
                   value={agencyId}
                   onChange={(event) => setAgencyId(event.target.value)}
                 >
-                  <option value=""><Translate text={"Select agency to manage policy"} /></option>
+                  <option value="">
+                    <Translate text={"Select agency to manage policy"} />
+                  </option>
                   {agencies.map((agency) => (
                     <option key={agency.id} value={agency.id}>
                       {agency.name}
@@ -1105,7 +1481,8 @@ export function FinanceWorkspace() {
             )}
             <div className={cn("finance-entry-grid")}>
               <label>
-                <Translate text={"GST rate (%)"} /><input
+                <Translate text={"GST rate (%)"} />
+                <input
                   type="number"
                   min="0"
                   max="100"
@@ -1117,7 +1494,8 @@ export function FinanceWorkspace() {
                 />
               </label>
               <label>
-                <Translate text={"GST basis"} /><select
+                <Translate text={"GST basis"} />
+                <select
                   value={String(settings.gstAfterDiscount)}
                   onChange={(event) =>
                     setSettings({
@@ -1126,12 +1504,17 @@ export function FinanceWorkspace() {
                     })
                   }
                 >
-                  <option value="true"><Translate text={"After discount"} /></option>
-                  <option value="false"><Translate text={"Before discount"} /></option>
+                  <option value="true">
+                    <Translate text={"After discount"} />
+                  </option>
+                  <option value="false">
+                    <Translate text={"Before discount"} />
+                  </option>
                 </select>
               </label>
               <label>
-                <Translate text={"Commission type"} /><select
+                <Translate text={"Commission type"} />
+                <select
                   value={settings.commissionType}
                   onChange={(event) =>
                     setSettings({
@@ -1141,12 +1524,17 @@ export function FinanceWorkspace() {
                     })
                   }
                 >
-                  <option value="PERCENTAGE"><Translate text={"Percentage"} /></option>
-                  <option value="FIXED"><Translate text={"Fixed per seat"} /></option>
+                  <option value="PERCENTAGE">
+                    <Translate text={"Percentage"} />
+                  </option>
+                  <option value="FIXED">
+                    <Translate text={"Fixed per seat"} />
+                  </option>
                 </select>
               </label>
               <label>
-                <Translate text={"Commission value"} /><input
+                <Translate text={"Commission value"} />
+                <input
                   type="number"
                   min="0"
                   step="0.01"
@@ -1162,8 +1550,14 @@ export function FinanceWorkspace() {
             </div>
             <div className={cn("finance-tier-heading")}>
               <div>
-                <h3><Translate text={"Cancellation tiers"} /></h3>
-                <p><Translate text={"Fee percentage applied by hours before departure."} /></p>
+                <h3>
+                  <Translate text={"Cancellation tiers"} />
+                </h3>
+                <p>
+                  <Translate
+                    text={"Fee percentage applied by hours before departure."}
+                  />
+                </p>
               </div>
               <Button
                 variant="secondary"
@@ -1177,16 +1571,19 @@ export function FinanceWorkspace() {
                   })
                 }
               >
-                <Plus size={15} /> <Translate text={"Add tier"} /></Button>
+                <Plus size={15} /> <Translate text={"Add tier"} />
+              </Button>
             </div>
             {settings.tiers.length === 0 && (
               <p className={cn("finance-policy-empty")}>
-                <Translate text={"No cancellation tiers configured yet."} /></p>
+                <Translate text={"No cancellation tiers configured yet."} />
+              </p>
             )}
             {settings.tiers.map((tier, index) => (
               <div className={cn("finance-tier-row")} key={index}>
                 <label>
-                  <Translate text={"Hours before departure"} /><input
+                  <Translate text={"Hours before departure"} />
+                  <input
                     type="number"
                     min="0"
                     step="0.5"
@@ -1207,7 +1604,8 @@ export function FinanceWorkspace() {
                   />
                 </label>
                 <label>
-                  <Translate text={"Cancellation fee (%)"} /><input
+                  <Translate text={"Cancellation fee (%)"} />
+                  <input
                     type="number"
                     min="0"
                     max="100"
@@ -1230,40 +1628,93 @@ export function FinanceWorkspace() {
                   type="button"
                   aria-label={`Remove cancellation tier ${index + 1}`}
                   onClick={async () => {
-                    if (!(await confirm({ title: "Remove cancellation tier?", description: `Remove tier ${index + 1} from the policy? Save the policy to apply this change.`, confirmLabel: "Remove" }))) return;
-                    setSettings({ ...settings, tiers: settings.tiers.filter((_, i) => i !== index) });
+                    if (
+                      !(await confirm({
+                        title: "Remove cancellation tier?",
+                        description: `Remove tier ${index + 1} from the policy? Save the policy to apply this change.`,
+                        confirmLabel: "Remove",
+                      }))
+                    )
+                      return;
+                    setSettings({
+                      ...settings,
+                      tiers: settings.tiers.filter((_, i) => i !== index),
+                    });
                   }}
                 >
                   <Trash2 size={15} />
-                  <span className="finance-style-1287"><Translate text={"Remove"} /></span>
+                  <span className="finance-style-1287">
+                    <Translate text={"Remove"} />
+                  </span>
                 </button>
               </div>
             ))}
           </Card>
         )}
-        <Card
-          className={cn("finance-panel finance-ledger-card")}
-          id="finance-ledger"
-        >
-          <div className={cn("finance-panel-heading")}>
-            <div>
-              <span className={cn("finance-overline")}><Translate text={"ACCOUNT ACTIVITY"} /></span>
-              <h2><Translate text={"Recent ledger entries"} /></h2>
-              <p><Translate text={"Latest posted finance movements."} /></p>
+        {tab === "ledger" && (
+          <Card
+            className={cn("finance-panel finance-ledger-card")}
+            id="finance-ledger"
+          >
+            <div className={cn("finance-panel-heading")}>
+              <div>
+                <span className={cn("finance-overline")}>
+                  <Translate text={"ACCOUNT ACTIVITY"} />
+                </span>
+                <h2>
+                  <Translate text={"Recent ledger entries"} />
+                </h2>
+                <p>
+                  <Translate text={"Latest posted finance movements."} />
+                </p>
+              </div>
+              <span className={cn("finance-record-count")}>
+                {ledger.length} <Translate text={"entries"} />
+              </span>
             </div>
-            <span className={cn("finance-record-count")}>
-              {ledger.length} <Translate text={"entries"} /></span>
-          </div>
-          <DataTable title="Recent ledger entries" data={ledger} rowKey={(entry) => String(entry.id)} loading={loading}
-            searchPlaceholder="Search ledger entries"
-            columns={[
-              { id: "description", header: "Description", render: (entry) => <Link className="text-link" href={`/dashboard/finance/ledger/${encodeURIComponent(String(entry.id))}`}>{String(entry.description ?? entry.type ?? "Ledger entry")}</Link> },
-              { id: "date", header: "Date", render: (entry) => new Date(String(entry.createdAt)).toLocaleDateString(getFormattingLocale()) },
-              { id: "party", header: "Party", render: (entry) => String(entry.party ?? "Account") },
-              { id: "amount", header: "Amount", render: (entry) => money(String(entry.amount ?? 0)) },
-            ]}
-          />
-        </Card>
+            <DataTable
+              title="Recent ledger entries"
+              data={ledger}
+              rowKey={(entry) => String(entry.id)}
+              loading={loading}
+              searchPlaceholder="Search ledger entries"
+              columns={[
+                {
+                  id: "description",
+                  header: "Description",
+                  render: (entry) => (
+                    <Link
+                      className="text-link"
+                      href={`/dashboard/finance/ledger/${encodeURIComponent(String(entry.id))}`}
+                    >
+                      {String(
+                        entry.description ?? entry.type ?? "Ledger entry",
+                      )}
+                    </Link>
+                  ),
+                },
+                {
+                  id: "date",
+                  header: "Date",
+                  render: (entry) =>
+                    new Date(String(entry.createdAt)).toLocaleDateString(
+                      getFormattingLocale(),
+                    ),
+                },
+                {
+                  id: "party",
+                  header: "Party",
+                  render: (entry) => String(entry.party ?? "Account"),
+                },
+                {
+                  id: "amount",
+                  header: "Amount",
+                  render: (entry) => money(String(entry.amount ?? 0)),
+                },
+              ]}
+            />
+          </Card>
+        )}
       </div>
     </>
   );

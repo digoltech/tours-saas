@@ -1,2 +1,11 @@
 @import "./mapped-transport.css";
 @import "./direct-transport.css";
+
+.layout-setup-card, .seat-layout-builder-style-64 { min-width:0; }
+.seat-layout-builder-style-64 select { width:100%; min-width:0; max-width:100%; }
+
+.bus-editor > * { min-width:0; }
+.bus-outline { max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
+.seat-inspector select { width:100%; min-width:0; max-width:100%; }
+.seat-legend { flex-wrap:wrap; }
+@media(max-width:640px) { .bus-editor { grid-template-columns:minmax(0,1fr); } }

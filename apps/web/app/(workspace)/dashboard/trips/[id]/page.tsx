@@ -94,6 +94,20 @@ export default function TripDetailPage() {
           : "Loading trip"
       }
       backHref="/dashboard/trips"
+      eyebrow="Trip details"
+      summary={
+        trip
+          ? [
+              { label: "Status", value: trip.status.replaceAll("_", " ") },
+              {
+                label: "Bus",
+                value: trip.bus.busNumber,
+                href: `/dashboard/buses/${trip.bus.id}`,
+              },
+              { label: "Branch", value: trip.branch.name },
+            ]
+          : undefined
+      }
       actions={
         (user?.role === "SUPER_ADMIN" ||
           user?.permissions.includes("trip:update")) && (

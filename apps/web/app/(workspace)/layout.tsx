@@ -1,3 +1,5 @@
+import { privateMetadata } from "../../src/lib/seo";
+export const metadata = privateMetadata;
 import type { ReactNode } from "react";
 import "../../src/styles/workspace.css";
 import { ConfirmationProvider } from "../../src/ui/ConfirmationModal";

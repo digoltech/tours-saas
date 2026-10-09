@@ -2,12 +2,16 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import * as service from "../services/finance.service.js";
 import { sendError } from "../utils/api-response.js";
+export const people = (req: Request, res: Response) =>
+  run(res, () =>
+    service.listFinancePeople(
+      req.auth!,
+      typeof req.query.agencyId === "string" ? req.query.agencyId : undefined,
+    ),
+  );
 import { sendBookingNotifications } from "../services/stage4.service.js";
 
-async function run(
-  res: Response,
-  action: () => Promise<unknown>,
-) {
+async function run(res: Response, action: () => Promise<unknown>) {
   try {
     return res.json({ success: true, data: await action() });
   } catch (error) {
@@ -124,7 +128,14 @@ export const settlement = (req: Request, res: Response) =>
     ),
   );
 export const ledger = (req: Request, res: Response) =>
-  run(res, () => service.listLedger(req.auth!));
+  run(res, () =>
+    service.listLedger(
+      req.auth!,
+      reportDate(req, "from"),
+      reportDate(req, "to"),
+      reportFilters(req),
+    ),
+  );
 function reportFilters(req: Request) {
   return {
     agencyId:
@@ -147,6 +158,26 @@ export const reports = (req: Request, res: Response) =>
       reportDate(req, "from"),
       reportDate(req, "to"),
       reportFilters(req),
+      z
+        .object({
+          page: z.coerce.number().int().min(1).max(100000).optional(),
+          limit: z.coerce.number().int().min(1).max(100).optional(),
+          search: z.string().trim().max(100).optional(),
+          timezone: z
+            .string()
+            .max(100)
+            .refine((value) => {
+              try {
+                new Intl.DateTimeFormat("en", { timeZone: value });
+                return true;
+              } catch {
+                return false;
+              }
+            }, "Invalid timezone")
+            .optional(),
+          status: z.enum(["CONFIRMED", "CANCELLED"]).optional(),
+        })
+        .parse(req.query),
     ),
   );
 export async function exportReport(req: Request, res: Response) {
@@ -156,6 +187,7 @@ export async function exportReport(req: Request, res: Response) {
       reportDate(req, "from"),
       reportDate(req, "to"),
       reportFilters(req),
+      { allBookings: true },
     );
     const rows = [
       [

@@ -1,57 +1,39 @@
 "use client";
-import { useFormattingLocale } from "../../i18n/format-client";
-import { useTranslations } from "../../i18n/LocaleProvider";
-import { Translate } from "../../i18n/Translate";
 
-import { cn } from "../../lib/utils";
-import Link from "next/link";
-import { ArrowRight, Armchair, Bus, CalendarDays, CircleDollarSign, Route, Users } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { Card } from "../../ui/Card";
+import { Armchair, Bus, CalendarDays, CircleDollarSign, Plus, Ticket, Users } from "lucide-react";
 import { PageHeader } from "../../ui/PageHeader";
 import { useAuth } from "../auth/components/AuthProvider";
+import { useFormattingLocale } from "../../i18n/format-client";
 import type { Trip } from "../auth/services/api-client";
+import type { BookingDashboardSummary } from "./dashboard-data";
+import { DashboardActions, DashboardStats, type DashboardAction, type DashboardMetric } from "./DashboardPanels";
 import { UpcomingTrips } from "./UpcomingTrips";
 
-type Summary = { todayBookings: number; todaySales: number; upcomingTrips: number };
-
-export function WorkspaceDashboard({
-  summary,
-  summaryError,
-  trips,
-  tripsError,
-}: {
-  summary: Summary | null;
-  summaryError?: string;
-  trips: Trip[];
-  tripsError?: string;
+export function WorkspaceDashboard({ summary, summaryError, trips, tripsError }: {
+  summary: BookingDashboardSummary | null; summaryError?: string; trips: Trip[]; tripsError?: string;
 }) {
   const { user } = useAuth();
-  const formattingLocale = useFormattingLocale();
-  const t = useTranslations();
-
-  const isAgencyAdmin = user?.role === "AGENCY_ADMIN";
-  const title = isAgencyAdmin ? "Agency dashboard" : "Branch dashboard";
-  const shortcuts = [
-    ...(user?.permissions.includes("booking:read") ? [["Bookings", "/dashboard/bookings", Armchair] as const] : []),
-    ...(user?.permissions.includes("booking:read") ? [["Customers", "/dashboard/customers", Users] as const] : []),
-    ...(user?.permissions.includes("trip:read") ? [["Trips", "/dashboard/trips", CalendarDays] as const] : []),
-    ...(user?.permissions.includes("bus:read") ? [["Buses", "/dashboard/buses", Bus] as const] : []),
-    ...(user?.permissions.includes("agent:read") ? [["Agents", "/dashboard/agents", Users] as const] : []),
-    ...(user?.permissions.includes("route:read") ? [["Routes", "/dashboard/routes", Route] as const] : []),
+  const locale = useFormattingLocale();
+  const owner = user?.role === "AGENCY_ADMIN";
+  const can = (permission: string) => user?.permissions.includes(permission);
+  const actions: DashboardAction[] = [
+    ...(can("booking:create") ? [{ title: "Quick booking", description: "Find a trip and reserve seats", href: "/dashboard/bookings/new", icon: Plus, primary: true }] : []),
+    ...(can("booking:read") ? [{ title: "Tickets & bookings", description: "Find tickets and manage bookings", href: "/dashboard/bookings", icon: Ticket }] : []),
+    ...(can("bus:read") ? [{ title: "Manage buses", description: "Keep your fleet ready to travel", href: "/dashboard/buses", icon: Bus }] : []),
+    ...(can("trip:read") ? [{ title: "Manage trips", description: "Review departures and schedules", href: "/dashboard/trips", icon: CalendarDays }] : []),
+    ...(can("finance:read") ? [{ title: "Finance", description: "Payments, refunds, and balances", href: "/dashboard/finance", icon: CircleDollarSign }] : []),
+    ...(can("agent:read") ? [{ title: "Manage team", description: owner ? "Manage staff and branch assignments" : "Manage employees in your assigned branch.", href: "/dashboard/team", icon: Users }] : []),
   ];
-  const metrics: { label: string; value: string | number | undefined; detail: string; icon: LucideIcon }[] = [
-    { label: "Bookings today", value: summary?.todayBookings, detail: "Confirmed bookings", icon: Armchair },
-    { label: "Sales today", value: summary?.todaySales == null ? undefined : `₹${summary.todaySales.toLocaleString(formattingLocale)}`, detail: "Confirmed booking value", icon: CircleDollarSign },
-    { label: "Upcoming trips", value: summary?.upcomingTrips, detail: "Scheduled departures", icon: CalendarDays },
-  ];
-
+  const metrics: DashboardMetric[] = [
+    { label: "Bookings today", value: summary?.todayBookings, detail: "Confirmed bookings", icon: Armchair, href: "/dashboard/bookings" },
+    { label: "Sales today", value: summary == null ? undefined : `₹${summary.todaySales.toLocaleString(locale)}`, detail: "Confirmed booking value", icon: CircleDollarSign, ...(can("finance:read") ? { href: "/dashboard/finance" } : {}) },
+    { label: "Upcoming trips", value: summary?.upcomingTrips, detail: "Scheduled departures", icon: CalendarDays, href: "/dashboard/trips" },
+    { label: "Active buses", value: summary?.activeBuses, detail: "Ready for operations", icon: Bus, href: "/dashboard/buses" },
+  ].filter((metric) => !metric.href || can(metric.href.endsWith("buses") ? "bus:read" : metric.href.endsWith("trips") ? "trip:read" : "booking:read"));
   return <>
-    <PageHeader title={title} description={`A live overview of ${isAgencyAdmin ? "your agency" : "your branch"} operations.`} />
-    {summaryError ? <div className={cn("state-message state-error")} role="alert"><strong>{summaryError}</strong></div> : <div className={cn("metric-grid metric-grid-three")}>
-      {metrics.map(({ label, value, detail, icon: Icon }) => <Card className={cn("metric-card")} key={label}><Icon size={18} /><p>{t(label)}</p><strong>{typeof value === "number" ? value.toLocaleString(formattingLocale) : (value ?? "…")}</strong><span>{t(detail)}</span></Card>)}
-    </div>}
-    <UpcomingTrips initialTrips={trips} initialError={tripsError} />
-    <Card className={cn("workspace-shortcuts")}><div className={cn("card-heading")}><div><p className={cn("eyebrow")}><Translate text={"OPERATIONS"} /></p><h2><Translate text={"Manage your operations"} /></h2></div></div><div className={cn("workspace-shortcut-list")}>{shortcuts.map(([label, href, Icon]) => <Link className={cn("setup-row")} href={href} key={href}><Icon size={18} /><strong>{t(label)}</strong><ArrowRight size={17} /></Link>)}</div></Card>
+    <PageHeader title={owner ? "Agency dashboard" : "Branch dashboard"} description={owner ? "A live overview of your agency operations." : "A live overview of your branch operations."} />
+    <DashboardActions actions={actions} />
+    <DashboardStats metrics={metrics} error={summaryError} />
+    {can("trip:read") && <UpcomingTrips initialTrips={trips} initialError={tripsError} />}
   </>;
 }

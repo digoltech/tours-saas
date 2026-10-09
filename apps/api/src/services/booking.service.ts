@@ -2,7 +2,10 @@ import { Prisma, type DiscountType } from "@prisma/client";
 import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
-import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
+import {
+  canAccessTenant,
+  isBranchScoped,
+} from "../middleware/tenant-policy.js";
 import {
   calculateCommission,
   calculateTax,
@@ -142,25 +145,38 @@ export async function searchTrips(
     },
     orderBy: { departureTime: "asc" },
   });
-  const available = await Promise.all(
-    trips.map(async (trip) => {
-      const { names } = seatsFor(trip.bus);
-      const [booked, held] = await Promise.all([
-        prisma.tripSeat.count({ where: { tripId: trip.id, status: "BOOKED" } }),
-        prisma.tripSeat.count({
-          where: {
-            tripId: trip.id,
-            status: "HELD",
-            holdExpiresAt: { gt: new Date() },
-          },
-        }),
-      ]);
-      return {
-        ...trip,
-        availableSeats: Math.max(0, names.length - booked - held),
-      };
+  if (!trips.length) return [];
+  // Two aggregate queries for the result set, rather than two queries per trip.
+  const tripIds = trips.map((trip) => trip.id);
+  const [booked, held] = await Promise.all([
+    prisma.tripSeat.groupBy({
+      by: ["tripId"],
+      where: { tripId: { in: tripIds }, status: "BOOKED" },
+      _count: { _all: true },
     }),
+    prisma.tripSeat.groupBy({
+      by: ["tripId"],
+      where: {
+        tripId: { in: tripIds },
+        status: "HELD",
+        holdExpiresAt: { gt: new Date() },
+      },
+      _count: { _all: true },
+    }),
+  ]);
+  const bookedCounts = new Map(
+    booked.map((row) => [row.tripId, row._count._all]),
   );
+  const heldCounts = new Map(held.map((row) => [row.tripId, row._count._all]));
+  const available = trips.map((trip) => ({
+    ...trip,
+    availableSeats: Math.max(
+      0,
+      seatsFor(trip.bus).names.length -
+        (bookedCounts.get(trip.id) ?? 0) -
+        (heldCounts.get(trip.id) ?? 0),
+    ),
+  }));
   return available;
 }
 
@@ -182,6 +198,9 @@ export async function tripAvailability(context: AuthContext, tripId: string) {
     where: { tripId, seatName: { in: names } },
     select: { seatName: true, status: true, holdExpiresAt: true },
   });
+  const settings = await prisma.financeSettings.findUnique({
+    where: { agencyId: trip.agencyId },
+  });
   return {
     trip,
     rows,
@@ -196,6 +215,10 @@ export async function tripAvailability(context: AuthContext, tripId: string) {
         holdExpiresAt: item?.holdExpiresAt ?? null,
       };
     }),
+    pricing: {
+      taxRate: Number(settings?.gstRate ?? 0),
+      gstAfterDiscount: settings?.gstAfterDiscount !== false,
+    },
     discountCap: {
       type: trip.agency.maxDiscountType,
       value: Number(trip.agency.maxDiscountValue),
@@ -216,12 +239,6 @@ export async function saveSeatLayout(
   const bus = await prisma.bus.findUnique({ where: { id: busId } });
   if (!bus) fail(404, "NOT_FOUND", "Bus not found");
   assertAccess(context, bus.agencyId, bus.branchId);
-  if (context.role === "AGENT")
-    fail(
-      403,
-      "FORBIDDEN",
-      "Only agency administrators can update seat layouts",
-    );
   const validNames = Array.from({ length: bus.totalSeats }, (_, i) =>
     seatName(i, input.columns),
   );
@@ -256,8 +273,7 @@ export async function getSeatLayout(context: AuthContext, busId: string) {
 }
 
 export async function getDiscountCap(context: AuthContext) {
-  if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency first");
+  if (!context.agencyId) fail(400, "INVALID_REQUEST", "Select an agency first");
   const agency = await prisma.agency.findUnique({
     where: { id: context.agencyId },
     select: { maxDiscountType: true, maxDiscountValue: true },
@@ -273,8 +289,7 @@ export async function updateDiscountCap(
   context: AuthContext,
   input: { type: DiscountType; value: number },
 ) {
-  if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency first");
+  if (!context.agencyId) fail(400, "INVALID_REQUEST", "Select an agency first");
   if (context.role !== "AGENCY_ADMIN")
     fail(
       403,
@@ -379,6 +394,12 @@ export async function confirmBooking(
     dropOffStopId: string;
     discountType?: DiscountType;
     discountValue?: number;
+    initialPayment?: {
+      mode: "FULL" | "PARTIAL";
+      amount?: number;
+      method: "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER";
+      reference?: string;
+    };
     passengers: {
       seatName: string;
       firstName: string;
@@ -412,6 +433,39 @@ export async function confirmBooking(
       input.passengers.length
   )
     fail(400, "INVALID_REQUEST", "Each selected seat needs one passenger");
+  if (
+    input.passengers.some(
+      (passenger) =>
+        !passenger.firstName.trim() ||
+        !passenger.lastName.trim() ||
+        !Number.isInteger(passenger.age) ||
+        passenger.age < 0 ||
+        passenger.age > 120 ||
+        !["Female", "Male", "Other"].includes(passenger.gender) ||
+        !/^\+?\d{7,15}$/.test(passenger.phone.replace(/[ ()-]/g, "")),
+    )
+  )
+    fail(
+      400,
+      "INVALID_REQUEST",
+      "Enter valid required details for every passenger",
+    );
+  const layout = seatsFor(trip.bus);
+  if (
+    input.passengers.some((passenger) => {
+      const restriction = layout.seatDetails[passenger.seatName]?.restriction;
+      return (
+        (restriction === "FEMALE" && passenger.gender !== "Female") ||
+        (restriction === "MALE" && passenger.gender !== "Male") ||
+        (restriction === "SENIOR" && passenger.age < 60)
+      );
+    })
+  )
+    fail(
+      400,
+      "INVALID_REQUEST",
+      "Passenger details must match seat eligibility",
+    );
   const routeStops = trip.route.stops;
   const boarding = routeStops.find(
     (stop) =>
@@ -480,6 +534,27 @@ export async function confirmBooking(
     commissionRate,
   );
   const totalAmount = money(baseFare - discountAmount + taxAmount);
+  const paymentAmount =
+    input.initialPayment?.mode === "FULL"
+      ? totalAmount
+      : (input.initialPayment?.amount ?? 0);
+  if (input.initialPayment) {
+    if (
+      context.role !== "SUPER_ADMIN" &&
+      !context.permissions.includes("finance:payment")
+    )
+      fail(403, "FORBIDDEN", "You cannot record booking payments");
+    if (
+      !Number.isFinite(paymentAmount) ||
+      paymentAmount <= 0 ||
+      paymentAmount > totalAmount
+    )
+      fail(
+        400,
+        "INVALID_REQUEST",
+        "Payment must be positive and cannot exceed the booking total",
+      );
+  }
   const pnr = `A1${randomBytes(5).toString("hex").toUpperCase()}`;
   const now = new Date();
   try {
@@ -543,6 +618,9 @@ export async function confirmBooking(
             passengers: {
               create: input.passengers.map((passenger) => ({
                 ...passenger,
+                firstName: passenger.firstName.trim(),
+                lastName: passenger.lastName.trim(),
+                phone: passenger.phone.replace(/[ ()-]/g, ""),
                 email: passenger.email || null,
                 documentType: passenger.documentType || null,
                 documentReference: passenger.documentReference || null,
@@ -556,6 +634,42 @@ export async function confirmBooking(
             dropOffStop: true,
           },
         });
+        if (input.initialPayment) {
+          await tx.paymentRecord.create({
+            data: {
+              bookingId: booking.id,
+              agencyId: trip.agencyId,
+              recordedById: context.userId,
+              amount: paymentAmount,
+              method: input.initialPayment.method,
+              reference: input.initialPayment.reference || null,
+            },
+          });
+          await tx.financeLedger.create({
+            data: {
+              agencyId: trip.agencyId,
+              branchId: trip.branchId,
+              bookingId: booking.id,
+              type: "PAYMENT",
+              amount: paymentAmount,
+              description: `Payment received for booking ${booking.pnr}`,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              agencyId: trip.agencyId,
+              branchId: trip.branchId,
+              actorId: context.userId,
+              action: "PAYMENT_RECORDED",
+              entityType: "Booking",
+              entityId: booking.id,
+              details: {
+                amount: paymentAmount,
+                method: input.initialPayment.method,
+              },
+            },
+          });
+        }
         await tx.agentCommission.create({
           data: {
             bookingId: booking.id,
@@ -566,6 +680,7 @@ export async function confirmBooking(
         });
         await tx.financeLedger.create({
           data: {
+            branchId: trip.branchId,
             agencyId: trip.agencyId,
             bookingId: booking.id,
             type: "COMMISSION",
@@ -580,6 +695,7 @@ export async function confirmBooking(
             agencyId: trip.agencyId,
             bookingId: booking.id,
             type: "OPERATOR_PAYABLE",
+            branchId: trip.branchId,
             party: "OPERATOR",
             partyId: trip.agencyId,
             amount: Math.max(0, totalAmount - taxAmount - commissionAmount),
@@ -651,7 +767,18 @@ export async function getBookingByPnr(context: AuthContext, pnr: string) {
   const booking = await prisma.booking.findUnique({
     where: { pnr: pnr.toUpperCase() },
     include: {
-      agency: { select: { name: true, email: true, phone: true, address: true, city: true, state: true, logoUrl: true, brandColor: true } },
+      agency: {
+        select: {
+          name: true,
+          email: true,
+          phone: true,
+          address: true,
+          city: true,
+          state: true,
+          logoUrl: true,
+          brandColor: true,
+        },
+      },
       payments: { select: { amount: true } },
       refunds: { select: { amount: true } },
       passengers: true,
@@ -672,6 +799,7 @@ export async function listBookings(
     page: number;
     limit: number;
     pnr?: string;
+    search?: string;
     tripCode?: string;
     date?: string;
   },
@@ -696,6 +824,34 @@ export async function listBookings(
             ? { branchId: context.branchId ?? "__missing__" }
             : {}),
         }),
+    ...(query.search
+      ? {
+          OR: [
+            { pnr: { contains: query.search, mode: "insensitive" as const } },
+            {
+              passengers: {
+                some: {
+                  email: {
+                    contains: query.search,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+            {
+              passengers: {
+                some: {
+                  phone: {
+                    contains:
+                      query.search.replace(/[ ()-]/g, "") || query.search,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
     ...(query.pnr
       ? { pnr: { contains: query.pnr.trim(), mode: "insensitive" } }
       : {}),
@@ -768,17 +924,18 @@ export async function getBookingDashboardSummary(context: AuthContext) {
   const todayWhere: Prisma.BookingWhereInput = {
     ...scope,
     createdAt: { gte: startOfDay, lt: endOfDay },
+    status: "CONFIRMED",
   };
   const tripScope: Prisma.TripWhereInput =
     context.role === "SUPER_ADMIN"
       ? {}
       : {
           agencyId: context.agencyId ?? "__missing__",
-            ...(isBranchScoped(context)
+          ...(isBranchScoped(context)
             ? { branchId: context.branchId ?? "__missing__" }
             : {}),
         };
-  const [todayBookings, sales, upcomingTrips] = await Promise.all([
+  const [todayBookings, sales, upcomingTrips, activeBuses] = await Promise.all([
     prisma.booking.count({ where: todayWhere }),
     prisma.booking.aggregate({
       where: todayWhere,
@@ -794,8 +951,24 @@ export async function getBookingDashboardSummary(context: AuthContext) {
         bus: { status: "ACTIVE" },
       },
     }),
+    prisma.bus.count({
+      where: {
+        ...(context.role === "SUPER_ADMIN"
+          ? {}
+          : {
+              agencyId: context.agencyId ?? "__missing__",
+              ...(isBranchScoped(context)
+                ? { branchId: context.branchId ?? "__missing__" }
+                : {}),
+            }),
+        status: "ACTIVE",
+        agency: { status: "ACTIVE" },
+        branch: { status: "ACTIVE" },
+      },
+    }),
   ]);
   return {
+    activeBuses,
     todayBookings,
     todaySales: Number(sales._sum.totalAmount ?? 0),
     upcomingTrips,

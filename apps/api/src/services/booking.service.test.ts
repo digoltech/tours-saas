@@ -3,8 +3,16 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 const state: {
   seats: Array<Record<string, unknown>>;
   bookings: Array<Record<string, unknown>>;
+  payments: Array<Record<string, unknown>>;
+  ledger: Array<Record<string, unknown>>;
   serial: Promise<void>;
-} = { seats: [], bookings: [], serial: Promise.resolve() };
+} = {
+  seats: [],
+  bookings: [],
+  payments: [],
+  ledger: [],
+  serial: Promise.resolve(),
+};
 const future = new Date("2099-06-01T12:00:00.000Z");
 const stops = [
   {
@@ -51,7 +59,18 @@ const matches = (
 ) =>
   Object.entries(where).every(([key, value]) => {
     if (typeof value === "object" && value !== null) {
-      const filter = value as { in?: unknown[]; lte?: Date; gt?: Date };
+      const filter = value as {
+        in?: unknown[];
+        lte?: Date;
+        gt?: Date;
+        gte?: Date;
+        lt?: Date;
+      };
+      if (filter.gte && filter.lt)
+        return (
+          new Date(String(row[key])) >= filter.gte &&
+          new Date(String(row[key])) < filter.lt
+        );
       if (filter.in) return filter.in.includes(row[key]);
       if (filter.lte)
         return new Date(String(row[key])).getTime() <= filter.lte.getTime();
@@ -64,7 +83,18 @@ const matches = (
 const tx = {
   $queryRaw: async () => [],
   agentCommission: { create: async () => ({}) },
-  financeLedger: { create: async () => ({}) },
+  financeLedger: {
+    create: async ({ data }: { data: Record<string, unknown> }) => {
+      state.ledger.push(data);
+      return data;
+    },
+  },
+  paymentRecord: {
+    create: async ({ data }: { data: Record<string, unknown> }) => {
+      state.payments.push(data);
+      return data;
+    },
+  },
   auditLog: { create: async () => ({}) },
   tripSeat: {
     createMany: async ({
@@ -124,8 +154,38 @@ const tx = {
 };
 const prisma = {
   financeSettings: { findUnique: async () => null },
-  trip: { findUnique: async () => trip },
+  trip: {
+    findUnique: async () => trip,
+    findMany: mock(async (query: unknown) => {
+      void query;
+      return [
+        trip,
+        { ...trip, id: "trip-2", bus: { ...trip.bus, totalSeats: 5 } },
+      ];
+    }),
+    count: mock(async (query: unknown) => {
+      void query;
+      return 1;
+    }),
+  },
+  bus: {
+    count: mock(async (query: unknown) => {
+      void query;
+      return 2;
+    }),
+  },
   tripSeat: {
+    groupBy: mock(async ({ where }: { where: Record<string, unknown> }) => {
+      const counts = new Map<string, number>();
+      for (const seat of state.seats.filter((row) => matches(row, where))) {
+        const id = String(seat.tripId);
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+      return [...counts].map(([tripId, count]) => ({
+        tripId,
+        _count: { _all: count },
+      }));
+    }),
     updateMany: tx.tripSeat.updateMany,
     findMany: async ({ where }: { where: Record<string, unknown> }) =>
       state.seats.filter((seat) => matches(seat, where)),
@@ -138,8 +198,21 @@ const prisma = {
             booking.idempotencyKey === where.idempotencyKey) ||
           (where.pnr && booking.pnr === where.pnr),
       ) ?? null,
-    count: async () => state.bookings.length,
-    findMany: async () => state.bookings,
+    count: async ({ where }: { where?: Record<string, unknown> } = {}) =>
+      where
+        ? state.bookings.filter((row) => matches(row, where)).length
+        : state.bookings.length,
+    aggregate: async ({ where }: { where: Record<string, unknown> }) => ({
+      _sum: {
+        totalAmount: state.bookings
+          .filter((row) => matches(row, where))
+          .reduce((sum, row) => sum + Number(row.totalAmount), 0),
+      },
+    }),
+    findMany: mock(async (query: unknown) => {
+      void query;
+      return state.bookings;
+    }),
   },
   $transaction: async (work: (client: typeof tx) => Promise<unknown>) => {
     let unlock!: () => void;
@@ -159,9 +232,11 @@ const prisma = {
 mock.module("../config/prisma.js", () => ({ prisma }));
 const {
   confirmBooking,
+  getBookingDashboardSummary,
   getBookingByPnr,
   holdSeats,
   listBookings,
+  searchTrips,
   tripAvailability,
 } = await import("./booking.service.js");
 const { releaseExpiredSeatHolds } =
@@ -205,9 +280,41 @@ const confirmInput = (
 beforeEach(() => {
   state.seats = [];
   state.bookings = [];
+  state.payments = [];
+  state.ledger = [];
   state.serial = Promise.resolve();
 });
 describe("booking service", () => {
+  test("trip search batches seat counts, ignores expired holds, and keeps tenant scope", async () => {
+    prisma.tripSeat.groupBy.mockClear();
+    prisma.trip.findMany.mockClear();
+    state.seats = [
+      { tripId: "trip-1", status: "BOOKED" },
+      {
+        tripId: "trip-1",
+        status: "HELD",
+        holdExpiresAt: new Date(Date.now() + 60000),
+      },
+      { tripId: "trip-2", status: "BOOKED" },
+      {
+        tripId: "trip-2",
+        status: "HELD",
+        holdExpiresAt: new Date(Date.now() - 60000),
+      },
+    ];
+    const result = await searchTrips(agent, {
+      source: "Origin",
+      destination: "Destination",
+      date: "2099-06-01",
+    });
+    expect(result.map((row) => row.availableSeats)).toEqual([0, 4]);
+    expect(prisma.tripSeat.groupBy.mock.calls).toHaveLength(2);
+    const query = prisma.trip.findMany.mock.calls[0][0] as {
+      where: { agencyId: string; branchId: string };
+    };
+    expect(query.where.agencyId).toBe(agent.agencyId);
+    expect(query.where.branchId).toBe(agent.branchId);
+  });
   test("only one concurrent agent can hold the same seat", async () => {
     const results = await Promise.allSettled([
       holdSeats(agent, { tripId: trip.id, seats: ["A1"] }),
@@ -301,6 +408,100 @@ describe("booking service", () => {
     expect(state.bookings).toHaveLength(1);
     expect((await getBookingByPnr(agent, result.pnr)).pnr).toBe(result.pnr);
   });
+  test("initial payments are recorded once with booking and ledger", async () => {
+    const hold = await holdSeats(agent, { tripId: trip.id, seats: ["A1"] });
+    const input = {
+      ...confirmInput(hold.holdToken, crypto.randomUUID()),
+      initialPayment: { mode: "FULL" as const, method: "CASH" as const },
+    };
+    const cashier = {
+      ...agent,
+      permissions: [...agent.permissions, "finance:payment"],
+    };
+    const result = await confirmBooking(cashier, input);
+    await confirmBooking(cashier, input);
+    expect(state.payments).toHaveLength(1);
+    expect(state.payments[0]).toMatchObject({
+      bookingId: result.id,
+      amount: 100,
+      recordedById: agent.userId,
+    });
+    expect(state.ledger.filter((row) => row.type === "PAYMENT")).toHaveLength(
+      1,
+    );
+  });
+  test("invalid, excessive and unauthorized initial payments do not create bookings", async () => {
+    const hold = await holdSeats(agent, { tripId: trip.id, seats: ["A1"] });
+    const input = {
+      ...confirmInput(hold.holdToken, crypto.randomUUID()),
+      initialPayment: {
+        mode: "PARTIAL" as const,
+        amount: 101,
+        method: "UPI" as const,
+      },
+    };
+    await expect(confirmBooking(agent, input)).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    const cashier = {
+      ...agent,
+      permissions: [...agent.permissions, "finance:payment"],
+    };
+    await expect(confirmBooking(cashier, input)).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    await expect(
+      confirmBooking(cashier, {
+        ...input,
+        initialPayment: { ...input.initialPayment, amount: 0 },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(state.bookings).toHaveLength(0);
+    expect(state.payments).toHaveLength(0);
+  });
+  test("required passenger details reject whitespace, invalid age, gender and phone", async () => {
+    const hold = await holdSeats(agent, { tripId: trip.id, seats: ["A1"] });
+    const input = confirmInput(hold.holdToken, crypto.randomUUID());
+    for (const invalid of [
+      { firstName: " " },
+      { lastName: " " },
+      { age: NaN },
+      { age: 121 },
+      { gender: "invalid" },
+      { phone: "123" },
+    ]) {
+      await expect(
+        confirmBooking(agent, {
+          ...input,
+          passengers: [{ ...input.passengers[0]!, ...invalid }],
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(state.bookings).toHaveLength(0);
+  });
+  test("ticket search applies PNR, email and phone matching inside branch scope", async () => {
+    await listBookings(agent, { page: 1, limit: 20, search: "9800002002" });
+    const call = prisma.booking.findMany.mock.calls.at(-1)?.[0] as {
+      where: Record<string, unknown>;
+    };
+    expect(call.where).toMatchObject({
+      agencyId: "agency-1",
+      branchId: "branch-1",
+    });
+    expect(call.where.OR).toEqual([
+      { pnr: { contains: "9800002002", mode: "insensitive" } },
+      {
+        passengers: {
+          some: { email: { contains: "9800002002", mode: "insensitive" } },
+        },
+      },
+      {
+        passengers: {
+          some: { phone: { contains: "9800002002", mode: "insensitive" } },
+        },
+      },
+    ]);
+  });
   test("booking history is paginated", async () => {
     state.bookings = [
       { id: "booking-1", agencyId: agent.agencyId, branchId: agent.branchId },
@@ -312,5 +513,60 @@ describe("booking service", () => {
       total: 1,
       totalPages: 1,
     });
+  });
+});
+
+describe("dashboard totals", () => {
+  test("exclude cancelled bookings and count colleagues only within the employee's branch", async () => {
+    const common = {
+      createdAt: new Date(),
+      status: "CONFIRMED",
+      agencyId: "agency-1",
+      agentId: "colleague",
+    };
+    state.bookings = [
+      { ...common, branchId: "branch-1", totalAmount: 200 },
+      {
+        ...common,
+        branchId: "branch-1",
+        status: "CANCELLED",
+        totalAmount: 900,
+      },
+      { ...common, branchId: "branch-2", totalAmount: 300 },
+      {
+        ...common,
+        agencyId: "agency-2",
+        branchId: "branch-3",
+        totalAmount: 500,
+      },
+    ];
+    const employee = await getBookingDashboardSummary(agent as never);
+    expect(employee.todayBookings).toBe(1);
+    expect(employee.todaySales).toBe(200);
+    expect(prisma.bus.count.mock.lastCall?.[0]).toMatchObject({
+      where: { agencyId: "agency-1", branchId: "branch-1", status: "ACTIVE" },
+    });
+    expect(prisma.trip.count.mock.lastCall?.[0]).toMatchObject({
+      where: {
+        agencyId: "agency-1",
+        branchId: "branch-1",
+        status: "SCHEDULED",
+      },
+    });
+    const owner = await getBookingDashboardSummary({
+      ...agent,
+      role: "AGENCY_ADMIN",
+      roleScope: "AGENCY",
+    } as never);
+    expect(owner.todayBookings).toBe(2);
+    expect(owner.todaySales).toBe(500);
+    expect(prisma.bus.count.mock.lastCall?.[0]).toMatchObject({
+      where: { agencyId: "agency-1", status: "ACTIVE" },
+    });
+    expect(
+      (prisma.bus.count.mock.lastCall?.[0] as { where: { branchId?: string } })
+        .where.branchId,
+    ).toBeUndefined();
+    state.bookings = [];
   });
 });

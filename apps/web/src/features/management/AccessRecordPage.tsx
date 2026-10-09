@@ -56,6 +56,8 @@ export function AccessRecordPage({
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [name, setName] = useState("");
   const [scope, setScope] = useState<"AGENCY" | "BRANCH">("BRANCH");
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [templateId, setTemplateId] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [customize, setCustomize] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,8 @@ export function AccessRecordPage({
   const allowed =
     kind === "role"
       ? admin && (mode === "new" || !role?.isSystem)
-      : member?.id !== user?.id &&
+      : admin &&
+        member?.id !== user?.id &&
         role?.code !== "SUPER_ADMIN" &&
         (user?.role === "SUPER_ADMIN" ||
           Boolean(user?.permissions.includes("agent:update")));
@@ -73,7 +76,8 @@ export function AccessRecordPage({
     user?.role === "SUPER_ADMIN"
       ? `?agencyId=${encodeURIComponent(agencyId)}`
       : "";
-  const base = kind === "role" ? "/dashboard/roles" : "/dashboard/team";
+  const base =
+    kind === "role" ? "/dashboard/roles" : "/dashboard/roles/members";
   const href = `${base}/${id}${query}`;
   useEffect(() => {
     if (user?.role !== "SUPER_ADMIN") return;
@@ -124,7 +128,7 @@ export function AccessRecordPage({
               ? `${nextRole.name}${copyId ? " custom" : ""}`
               : "",
         );
-        setScope(nextRole?.scope === "BRANCH" ? "BRANCH" : "AGENCY");
+        setScope(nextRole?.scope === "AGENCY" ? "AGENCY" : "BRANCH");
         setSelected(nextRole?.permissions ?? []);
       })
       .catch((cause) => {
@@ -201,7 +205,11 @@ export function AccessRecordPage({
         ? "Create role"
         : (role?.name ?? "Role details");
   const groups = Object.groupBy(
-    permissions,
+    permissions.filter((permission) =>
+      `${permission.code} ${permission.description}`
+        .toLowerCase()
+        .includes(permissionSearch.toLowerCase()),
+    ),
     (permission) => permission.code.split(":")[0],
   );
   return (
@@ -213,6 +221,15 @@ export function AccessRecordPage({
           : "Manage access to your agency's records and workflows."
       }
       eyebrow={mode === "detail" ? "Access control" : "Edit permissions"}
+      summary={
+        mode === "detail" && role
+          ? [
+              { label: "Role", value: role.name },
+              { label: "Scope", value: t(role.scope) },
+              { label: "Permissions", value: role.permissions.length },
+            ]
+          : undefined
+      }
       backHref={mode === "edit" ? href : `/dashboard/roles${query}`}
       backLabel={mode === "edit" ? "Back to details" : "Back to list"}
       actions={
@@ -441,10 +458,100 @@ export function AccessRecordPage({
                   title="Permissions"
                   description="Select the actions this role can perform."
                 >
+                  {mode === "new" && (
+                    <label className="roles-permission-template">
+                      {t("Start from an existing role")}
+                      <select
+                        value={templateId}
+                        onChange={(event) => {
+                          setTemplateId(event.target.value);
+                          const template = roles.find(
+                            (role) => role.id === event.target.value,
+                          );
+                          if (template) {
+                            setSelected(template.permissions);
+                            setScope(
+                              template.scope === "BRANCH" ? "BRANCH" : "AGENCY",
+                            );
+                          } else setSelected([]);
+                        }}
+                      >
+                        <option value="">{t("Build from scratch")}</option>
+                        {roles.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {t(role.name)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <div className="roles-permission-toolbar">
+                    <label>
+                      {t("Search permissions")}
+                      <input
+                        type="search"
+                        value={permissionSearch}
+                        onChange={(event) =>
+                          setPermissionSearch(event.target.value)
+                        }
+                        placeholder={t("Search by action or feature")}
+                      />
+                    </label>
+                    <span role="status">
+                      {selected.length} {t("permissions selected")}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setSelected([])}
+                      disabled={!selected.length}
+                    >
+                      {t("Clear selection")}
+                    </Button>
+                  </div>
+                  {!Object.keys(groups).length && (
+                    <p className="record-help">
+                      {t("No permissions match your search.")}
+                    </p>
+                  )}
                   <div className="roles-permission-groups">
                     {Object.entries(groups).map(([group, options]) => (
                       <fieldset key={group} className="roles-permission-group">
-                        <legend>{group.replaceAll("_", " ")}</legend>
+                        <legend>{t(group.replaceAll("_", " "))}</legend>
+                        <div className="roles-permission-group-actions">
+                          <span>
+                            {options?.filter((permission) =>
+                              selected.includes(permission.code),
+                            ).length ?? 0}
+                            /{options?.length ?? 0} {t("selected")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelected((current) => {
+                                const codes =
+                                  options?.map(
+                                    (permission) => permission.code,
+                                  ) ?? [];
+                                const all = codes.every((code) =>
+                                  current.includes(code),
+                                );
+                                return all
+                                  ? current.filter(
+                                      (code) => !codes.includes(code),
+                                    )
+                                  : [...new Set([...current, ...codes])];
+                              })
+                            }
+                          >
+                            {t(
+                              options?.every((permission) =>
+                                selected.includes(permission.code),
+                              )
+                                ? "Clear group"
+                                : "Select group",
+                            )}
+                          </button>
+                        </div>
                         <div>
                           {options?.map((permission) => (
                             <label key={permission.code}>
@@ -462,8 +569,22 @@ export function AccessRecordPage({
                                 }
                               />
                               <span>
-                                <strong>{permission.code.split(":")[1]}</strong>
-                                <small>{permission.description}</small>
+                                <strong>
+                                  {t(
+                                    (
+                                      {
+                                        read: "View",
+                                        create: "Add",
+                                        update: "Edit",
+                                        delete: "Deactivate",
+                                      } as Record<string, string>
+                                    )[permission.code.split(":")[1]] ??
+                                      permission.code
+                                        .split(":")[1]
+                                        .replaceAll("_", " "),
+                                  )}
+                                </strong>
+                                <small>{t(permission.description)}</small>
                               </span>
                             </label>
                           ))}

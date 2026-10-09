@@ -107,7 +107,7 @@
     --animate-spin: spin 1s linear infinite;
     --default-transition-duration: 0.15s;
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    --default-font-family: "Manrope", sans-serif;
+    --default-font-family: var(--font-manrope), sans-serif;
     --default-mono-font-family: var(--font-mono);
   }
   @supports (color: lab(0% 0 0)) {

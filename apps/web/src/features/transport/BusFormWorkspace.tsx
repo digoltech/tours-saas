@@ -13,7 +13,7 @@ import { useConfirmation, confirmStatusChange } from "../../ui/ConfirmationModal
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
-import { PageHeader } from "../../ui/PageHeader";
+import { RecordPage } from "../../ui/RecordPage";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../auth/components/AuthProvider";
 import { createBus, getAgencies, getBranches, getBusById, getSeatLayout, saveSeatLayout, updateBus, type Branch } from "../auth/services/api-client";
@@ -57,12 +57,12 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
   const [originalStatus, setOriginalStatus] = useState<string>();
   const { user } = useAuth();
   const editing = Boolean(busId);
-  const [form, setForm] = useState<BusForm>(emptyForm);
+  const [form, setForm] = useState<BusForm>({ ...emptyForm, branchId: user?.branchId ?? "" });
   const [createdBusId, setCreatedBusId] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [selectedAgencyId, setSelectedAgencyId] = useState("");
-  const [layout, setLayout] = useState<SeatLayoutData>(createDefaultSeatLayout(40));
+  const [layout, setLayout] = useState<SeatLayoutData>(() => createDefaultSeatLayout(40));
   const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
@@ -216,17 +216,13 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
   if (loading) return <Card><div className="bus-form-style-203"><LoaderCircle className="bus-form-style-203-2" size={18} /> <Translate text={"Loading bus details…"} /></div></Card>;
 
   return (
-    <div className="bus-form-style-206">
-      <div className="bus-form-style-207">
-        <Link href={busId ? `/dashboard/buses/${busId}` : "/dashboard/buses"} className="bus-form-style-208">
-          <ArrowLeft size={16} /> <Translate text={"Back to buses"} /></Link>
-        {(busId || createdBusId) && <span className="bus-form-style-211"><Translate text={"Bus ID ·"} />{" "}{busId || createdBusId}</span>}
-      </div>
-      <PageHeader
-        title={editing ? "Edit bus" : "Add a bus"}
-        description={editing ? "Update vehicle information, photos, or passenger layout." : "Set up the vehicle, add optional fleet details, then map its seats."}
-      />
-
+    <RecordPage
+      title={editing ? "Edit bus" : "Add a bus"}
+      description={editing ? "Update vehicle information, photos, or passenger layout." : "Set up the vehicle, add optional fleet details, then map its seats."}
+      backHref={busId ? `/dashboard/buses/${busId}` : "/dashboard/buses"}
+      backLabel={busId ? "Back to details" : "Back to list"}
+      eyebrow={editing ? "Edit vehicle" : "New vehicle"}
+    >
       <Card className="bus-form-style-218">
         <nav aria-label="Bus setup steps" className="bus-form-style-219">
           {steps.map(({ title, description, icon: Icon }, index) => (
@@ -284,7 +280,7 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
               <div className="bus-form-style-272">
                 <label htmlFor="bus-photo-url" className={labelClass}><Translate text={"Bus image URL"} />{" "}<span className="bus-form-style-273"><Translate text={"Optional · up to 12"} /></span></label>
                 <div className="bus-form-style-274"><input id="bus-photo-url" className={inputClass + "bus-form-style-274-2"} type="url" value={photoDraft} onChange={(event) => setPhotoDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPhoto(); } }} placeholder="https://example.com/bus-front.jpg" /><Button type="button" variant="secondary" onClick={addPhoto} disabled={!photoDraft.trim()}><Plus size={16} /> <Translate text={"Add image"} /></Button></div>
-                {form.photos.length > 0 ? <div className="bus-form-style-275">{form.photos.map((photo, index) => <figure key={photo} className="group bus-form-style-275-2"><img src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-275-3" /><figcaption className="bus-form-style-275-4"><Translate text={"Photo"} />{" "}{index + 1}</figcaption><button type="button" aria-label={`Remove bus photo ${index + 1}`} onClick={async () => { if (await confirm({ title: "Remove photo?", description: `Remove photo ${index + 1} from this bus? Save the bus to apply this change.`, confirmLabel: "Remove" })) setField("photos", form.photos.filter((value) => value !== photo)); }} className="bus-form-style-275-5"><Trash2 size={16} /></button></figure>)}</div> : <div className="bus-form-style-275-6"><ImagePlus size={18} /> <Translate text={"No bus photos added"} /></div>}
+                {form.photos.length > 0 ? <div className="bus-form-style-275">{form.photos.map((photo, index) => <figure key={photo} className="group bus-form-style-275-2"><img loading="lazy" decoding="async" src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-275-3" /><figcaption className="bus-form-style-275-4"><Translate text={"Photo"} />{" "}{index + 1}</figcaption><button type="button" aria-label={`Remove bus photo ${index + 1}`} onClick={async () => { if (await confirm({ title: "Remove photo?", description: `Remove photo ${index + 1} from this bus? Save the bus to apply this change.`, confirmLabel: "Remove" })) setField("photos", form.photos.filter((value) => value !== photo)); }} className="bus-form-style-275-5"><Trash2 size={16} /></button></figure>)}</div> : <div className="bus-form-style-275-6"><ImagePlus size={18} /> <Translate text={"No bus photos added"} /></div>}
               </div>
             </section>
           )}
@@ -298,7 +294,7 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
                 <div className="bus-form-style-286"><div className="bus-form-style-286-2"><div><p className="bus-form-style-286-3"><Translate text={"Vehicle"} /></p><h3 className="bus-form-style-286-4">{form.busNumber || "Bus number not set"}</h3></div><Badge>{form.status}</Badge></div><dl className="bus-form-style-286-5"><div><dt className="bus-form-style-286-6"><Translate text={"Registration"} /></dt><dd className="bus-form-style-286-7">{form.registrationNumber || "—"}</dd></div><div><dt className="bus-form-style-286-8"><Translate text={"Type"} /></dt><dd className="bus-form-style-286-9">{form.busType.replaceAll("_", " + ")}</dd></div><div><dt className="bus-form-style-286-10"><Translate text={"Seats"} /></dt><dd className="bus-form-style-286-11">{form.totalSeats}</dd></div><div><dt className="bus-form-style-286-12"><Translate text={"Branch"} /></dt><dd className="bus-form-style-286-13">{availableBranches.find((branch) => branch.id === form.branchId)?.name ?? "—"}</dd></div><div><dt className="bus-form-style-286-14"><Translate text={"Make / model"} /></dt><dd className="bus-form-style-286-15">{[form.make, form.model].filter(Boolean).join(" ") || "—"}</dd></div><div><dt className="bus-form-style-286-16"><Translate text={"Year / color"} /></dt><dd className="bus-form-style-286-17">{[form.year, form.color].filter(Boolean).join(" · ") || "—"}</dd></div></dl></div>
                 <div className="bus-form-style-287"><p className="bus-form-style-287-2"><Translate text={"Seat plan"} /></p><div className="bus-form-style-287-3"><strong className="bus-form-style-287-4">{form.totalSeats}</strong><span className="bus-form-style-287-5"><Translate text={"seats / berths"} /></span></div><p className="bus-form-style-287-6">{layout.rows} <Translate text={"rows ·"} />{" "}{layout.columns} <Translate text={"positions per row ·"} />{" "}{form.totalSeats ? Number(form.totalSeats) - layout.disabledSeats.length : 0} <Translate text={"available"} /></p><p className="bus-form-style-287-7"><LocalizedValue value={form.amenities.length ? form.amenities.join(" · ") : "No optional amenities added"} /></p><p className="bus-form-style-287-8">{form.photos.length} <LocalizedValue value={form.photos.length === 1 ? "bus photo" : "bus photos"} /></p></div>
               </div>
-              {form.photos.length > 0 && <div className="bus-form-style-289">{form.photos.map((photo, index) => <img key={photo} src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-289-2" />)}</div>}
+              {form.photos.length > 0 && <div className="bus-form-style-289">{form.photos.map((photo, index) => <img loading="lazy" decoding="async" key={photo} src={photo} alt={`Bus photo ${index + 1}`} className="bus-form-style-289-2" />)}</div>}
               <div className="bus-form-style-290"><CheckCircle2 size={17} /> <LocalizedValue value={editing ? "Changes will update this bus record." : "The bus and its seat map will be saved together."} /></div>
             </section>
           )}
@@ -311,6 +307,6 @@ export function BusFormWorkspace({ busId, initialStep = 0 }: { busId?: string; i
           </div>
         </div>
       </Card>
-    </div>
+    </RecordPage>
   );
 }

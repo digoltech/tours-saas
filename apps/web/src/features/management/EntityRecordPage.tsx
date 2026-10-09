@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ban, Save } from "lucide-react";
+import { ArrowUpRight, Ban, Save } from "lucide-react";
 import { useAuth } from "../auth/components/AuthProvider";
 import * as api from "../auth/services/api-client";
 import {
@@ -21,6 +21,12 @@ import {
 import { useFormattingLocale } from "../../i18n/format-client";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import { DataTable } from "../../ui/DataTable";
+import {
+  isAgencyOwner,
+  canManageTeam,
+  standardRoleNames,
+  standardRoleDescriptions,
+} from "@a-one-tours/shared/team-access";
 
 export type EntityResource =
   "agencies" | "branches" | "agents" | "drivers" | "routes" | "buses" | "stops";
@@ -65,7 +71,7 @@ const configurations: Record<
     ],
   },
   agents: {
-    singular: "Agent",
+    singular: "Team member",
     permission: "agent",
     fields: [
       { key: "firstName", label: "First name", required: true },
@@ -176,12 +182,16 @@ export function EntityRecordPage({
   mode = "detail",
   routeId,
   initialAgencyId,
+  initialBranchId,
+  initialRoleCode,
 }: {
   resource: EntityResource;
   id?: string;
   mode?: "detail" | "edit" | "new";
   routeId?: string;
   initialAgencyId?: string;
+  initialBranchId?: string;
+  initialRoleCode?: string;
 }) {
   const t = useTranslations();
   const locale = useFormattingLocale();
@@ -189,10 +199,12 @@ export function EntityRecordPage({
   const router = useRouter();
   const confirm = useConfirmation();
   const config = configurations[resource];
-  const base = `/dashboard/${resource}`;
+  const base =
+    resource === "agents" ? "/dashboard/team" : `/dashboard/${resource}`;
   const [record, setRecord] = useState<RecordData | null>(null);
   const [form, setForm] = useState<Record<string, string>>({
     status: "ACTIVE",
+    branchId: initialBranchId ?? user?.branchId ?? "",
   });
   const [agencyId, setAgencyId] = useState(
     initialAgencyId ?? user?.agencyId ?? "",
@@ -205,8 +217,10 @@ export function EntityRecordPage({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const can = (action: string) =>
-    user?.role === "SUPER_ADMIN" ||
-    Boolean(user?.permissions.includes(`${config.permission}:${action}`));
+    (resource !== "agents" ||
+      (canManageTeam(user?.role) && (action === "read" || id !== user?.id))) &&
+    (user?.role === "SUPER_ADMIN" ||
+      Boolean(user?.permissions.includes(`${config.permission}:${action}`)));
   const editableFields = config.fields.filter(
     (field) => !(field.key === "password" && mode !== "new"),
   );
@@ -288,6 +302,13 @@ export function EntityRecordPage({
         if (active) {
           setBranches(branchRows as api.Branch[]);
           setRoles(roleRows.roles);
+          if (mode === "new" && initialRoleCode) {
+            const initialRole = roleRows.roles.find(
+              (role) => role.code === initialRoleCode,
+            );
+            if (initialRole)
+              setForm((current) => ({ ...current, roleId: initialRole.id }));
+          }
         }
       })
       .catch((cause) => {
@@ -304,7 +325,7 @@ export function EntityRecordPage({
     return () => {
       active = false;
     };
-  }, [mode, agencyId, resource, user?.role]);
+  }, [mode, agencyId, resource, user?.role, initialRoleCode]);
 
   function update(key: string, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -343,7 +364,10 @@ export function EntityRecordPage({
         : undefined;
     }
     if (resource === "agents") {
-      input.branchId = form.branchId || null;
+      input.branchId =
+        user?.role === "BRANCH_ADMIN"
+          ? user.branchId
+          : form.branchId || (mode === "edit" ? undefined : "");
       input.roleId = form.roleId || undefined;
       if (mode === "new") input.password = form.password || undefined;
     }
@@ -445,9 +469,78 @@ export function EntityRecordPage({
         : config.singular
       : `${mode === "new" ? "Add" : "Edit"} ${config.singular.toLowerCase()}`;
   const stops = (record?.stops ?? []) as api.Stop[];
+  const counts = record?._count as
+    { users?: number; branches?: number } | undefined;
+  const branchAdmins = (record?.users ?? []) as {
+    id: string;
+    firstName: string;
+    lastName: string;
+  }[];
+  const summary =
+    !record || mode !== "detail"
+      ? undefined
+      : resource === "branches"
+        ? [
+            { label: "Team members", value: counts?.users ?? 0 },
+            {
+              label: "Branch admin",
+              value: branchAdmins.length
+                ? branchAdmins
+                    .map((member) => `${member.firstName} ${member.lastName}`)
+                    .join(", ")
+                : t("Admin not assigned"),
+            },
+            { label: "City", value: String(record.city || "—") },
+          ]
+        : resource === "agencies"
+          ? [
+              { label: "Branches", value: counts?.branches ?? 0 },
+              { label: "Team members", value: counts?.users ?? 0 },
+              { label: "Status", value: t(record.status) },
+            ]
+          : resource === "agents"
+            ? [
+                {
+                  label: "Role",
+                  value: record.role
+                    ? t(standardRoleNames[record.role.code] ?? record.role.name)
+                    : "—",
+                },
+                { label: "Branch", value: record.branch?.name ?? "—" },
+                { label: "Status", value: t(record.status) },
+              ]
+            : resource === "routes"
+              ? [
+                  { label: "Source", value: String(record.source ?? "—") },
+                  {
+                    label: "Destination",
+                    value: String(record.destination ?? "—"),
+                  },
+                  { label: "Stops", value: stops.length },
+                ]
+              : resource === "buses"
+                ? [
+                    {
+                      label: "Registration number",
+                      value: String(record.registrationNumber ?? "—"),
+                    },
+                    {
+                      label: "Total seats",
+                      value: String(record.totalSeats ?? "—"),
+                    },
+                    {
+                      label: "Bus type",
+                      value: String(record.busType ?? "—").replaceAll("_", " "),
+                    },
+                  ]
+                : [
+                    { label: "Status", value: t(record.status) },
+                    { label: "Branch", value: record.branch?.name ?? "—" },
+                  ];
   return (
     <RecordPage
       title={title}
+      summary={summary}
       description={
         mode === "detail"
           ? "Record information and related activity."
@@ -496,7 +589,18 @@ export function EntityRecordPage({
                           ).toLocaleDateString(locale, { timeZone: "UTC" })
                         : String(record[field.key] ?? "—"),
                   })),
-                  { label: "Record ID", value: record.id },
+
+                  ...(resource === "agents" && record.role
+                    ? [
+                        {
+                          label: "Role",
+                          value: t(
+                            standardRoleNames[record.role.code] ??
+                              record.role.name,
+                          ),
+                        },
+                      ]
+                    : []),
                   ...(record.branch
                     ? [
                         {
@@ -596,6 +700,42 @@ export function EntityRecordPage({
             {resource === "stops" && (
               <StopPoints id={id!} record={record} canEdit={can("update")} />
             )}
+            {resource === "branches" && canManageTeam(user?.role) && (
+              <RecordSection
+                title="Branch team"
+                description="View the people assigned to this operating location."
+              >
+                <Link
+                  className="record-related-link"
+                  href={`/dashboard/team?agencyId=${encodeURIComponent(String(record.agencyId))}&branchId=${encodeURIComponent(record.id)}`}
+                >
+                  {t("View team members")} <ArrowUpRight size={17} />
+                </Link>
+                {!branchAdmins.length && isAgencyOwner(user?.role) && (
+                  <Link
+                    className="button button-secondary"
+                    href={`/dashboard/team/new?agencyId=${encodeURIComponent(String(record.agencyId))}&branchId=${encodeURIComponent(record.id)}&role=BRANCH_ADMIN`}
+                  >
+                    {t("Appoint admin")}
+                  </Link>
+                )}
+              </RecordSection>
+            )}
+            <RecordSection title="Record information">
+              <RecordFields
+                fields={[
+                  { label: "Record ID", value: record.id },
+                  {
+                    label: "Created",
+                    value: record.createdAt
+                      ? new Date(String(record.createdAt)).toLocaleDateString(
+                          locale,
+                        )
+                      : "—",
+                  },
+                ]}
+              />
+            </RecordSection>
             {can("delete") && (
               <RecordSection
                 title="Record status"
@@ -693,23 +833,27 @@ export function EntityRecordPage({
               {(resource === "agents" || resource === "drivers") && (
                 <label>
                   {t("Branch")}
-                  {resource === "drivers" && " *"}
+                  {" *"}
                   <select
-                    required={resource === "drivers"}
+                    required={
+                      resource === "drivers" ||
+                      mode === "new" ||
+                      !record?.role ||
+                      record.role.isSystem ||
+                      record.role.scope === "BRANCH"
+                    }
                     value={form.branchId ?? ""}
-                    disabled={optionsLoading}
+                    disabled={optionsLoading || user?.role === "BRANCH_ADMIN"}
                     onChange={(event) => update("branchId", event.target.value)}
                   >
-                    <option value="">
-                      {t(
-                        resource === "agents" ? "Unassigned" : "Select branch",
-                      )}
-                    </option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
+                    <option value="">{t("Select branch")}</option>
+                    {branches
+                      .filter((branch) => branch.status !== "INACTIVE")
+                      .map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
                   </select>
                 </label>
               )}
@@ -718,24 +862,32 @@ export function EntityRecordPage({
                   {t("Role")}
                   <select
                     value={form.roleId ?? ""}
-                    disabled={optionsLoading}
+                    disabled={optionsLoading || user?.role === "BRANCH_ADMIN"}
                     onChange={(event) => update("roleId", event.target.value)}
                   >
-                    <option value="">{t("Agent (default)")}</option>
+                    <option value="">{t("Employee (default)")}</option>
                     {roles
                       .filter(
                         (role) =>
                           role.code === "AGENT" ||
-                          (!role.isSystem &&
-                            (user?.role === "AGENCY_ADMIN" ||
-                              role.scope === "BRANCH")),
+                          (isAgencyOwner(user?.role) &&
+                            (role.code === "BRANCH_ADMIN" ||
+                              role.id === record?.roleId)),
                       )
                       .map((role) => (
                         <option key={role.id} value={role.id}>
-                          {role.name}
+                          {t(standardRoleNames[role.code] ?? role.name)}
                         </option>
                       ))}
                   </select>
+                  <small>
+                    {t(
+                      standardRoleDescriptions[
+                        roles.find((role) => role.id === form.roleId)?.code ??
+                          "AGENT"
+                      ] ?? "Custom access is managed by the agency owner.",
+                    )}
+                  </small>
                 </label>
               )}
               {mode === "edit" && (

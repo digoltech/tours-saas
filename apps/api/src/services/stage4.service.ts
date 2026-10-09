@@ -4,9 +4,16 @@ import type { FinanceMethod } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { environment } from "../config/env.js";
 import type { AuthContext } from "../types/auth.js";
-import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
+import {
+  canAccessTenant,
+  isBranchScoped,
+} from "../middleware/tenant-policy.js";
 import { createTicketDocument } from "@a-one-tours/shared/ticket";
-import { buildBookingEmail, emailLayout, escapeHtml } from "./email-templates.js";
+import {
+  buildBookingEmail,
+  emailLayout,
+  escapeHtml,
+} from "./email-templates.js";
 import { sendEmail } from "./email.service.js";
 import { cancelBooking } from "./finance.service.js";
 
@@ -34,7 +41,14 @@ export async function audit(
     data: {
       agencyId,
       actorId: context.userId,
-      branchId: details && typeof details === "object" && !Array.isArray(details) && "branchId" in details && typeof details.branchId === "string" ? details.branchId : undefined,
+      branchId:
+        details &&
+        typeof details === "object" &&
+        !Array.isArray(details) &&
+        "branchId" in details &&
+        typeof details.branchId === "string"
+          ? details.branchId
+          : undefined,
       action,
       entityType,
       entityId,
@@ -85,7 +99,12 @@ async function deliver(
       to,
       subject,
       text: message,
-      html: emailHtml ?? emailLayout(subject, `<p>${escapeHtml(message).replaceAll("\n", "<br>")}</p>`),
+      html:
+        emailHtml ??
+        emailLayout(
+          subject,
+          `<p>${escapeHtml(message).replaceAll("\n", "<br>")}</p>`,
+        ),
     });
     return;
   }
@@ -108,14 +127,34 @@ export async function sendBookingNotifications(
 ) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { passengers: true, boardingStop: true, dropOffStop: true, payments: { select: { amount: true } }, refunds: { select: { amount: true } }, agency: { select: { name: true, email: true, phone: true, address: true, city: true, state: true, logoUrl: true, brandColor: true } }, trip: { include: { route: true, bus: true } } },
+    include: {
+      passengers: true,
+      boardingStop: true,
+      dropOffStop: true,
+      payments: { select: { amount: true } },
+      refunds: { select: { amount: true } },
+      agency: {
+        select: {
+          name: true,
+          email: true,
+          phone: true,
+          address: true,
+          city: true,
+          state: true,
+          logoUrl: true,
+          brandColor: true,
+        },
+      },
+      trip: { include: { route: true, bus: true } },
+    },
   });
   if (!booking) return;
   const email = buildBookingEmail(createTicketDocument(booking));
   const text = email.text;
-  const smsText = event === "BOOKING_CONFIRMED"
-    ? `Booking ${booking.pnr} confirmed for ${booking.trip.route.source} to ${booking.trip.route.destination}. Booking total: ${booking.currency} ${booking.totalAmount}.`
-    : `Booking ${booking.pnr} has been cancelled. Contact your agency regarding the refund due.`;
+  const smsText =
+    event === "BOOKING_CONFIRMED"
+      ? `Booking ${booking.pnr} confirmed for ${booking.trip.route.source} to ${booking.trip.route.destination}. Booking total: ${booking.currency} ${booking.totalAmount}.`
+      : `Booking ${booking.pnr} has been cancelled. Contact your agency regarding the refund due.`;
   const user = await prisma.user.findUnique({
     where: { id: booking.bookedById },
     include: { notificationPreference: true },
@@ -222,7 +261,10 @@ export async function listNotifications(context: AuthContext, cursor?: string) {
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     take: 51,
   });
-  return { items: rows.slice(0, 50), nextCursor: rows.length > 50 ? rows[49].id : null };
+  return {
+    items: rows.slice(0, 50),
+    nextCursor: rows.length > 50 ? rows[49].id : null,
+  };
 }
 export async function markNotificationRead(context: AuthContext, id: string) {
   const item = await prisma.notification.findFirst({
@@ -331,12 +373,6 @@ export async function reviewCancellation(
   id: string,
   input: { approve: boolean; note?: string },
 ) {
-  if (context.role === "AGENT")
-    fail(
-      403,
-      "FORBIDDEN",
-      "Only agency administrators can review cancellation requests",
-    );
   const item = await prisma.cancellationRequest.findUnique({
     where: { id },
     include: { booking: true },
@@ -394,8 +430,7 @@ export async function reviewCancellation(
 
 export async function getAgencySettings(context: AuthContext) {
   const agencyId = context.agencyId;
-  if (!agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency first");
+  if (!agencyId) fail(400, "INVALID_REQUEST", "Select an agency first");
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
     select: {
@@ -428,8 +463,12 @@ export async function updateAgencySettings(
     defaultFare: number;
   },
 ) {
-  if (context.roleScope !== "AGENCY" || !context.agencyId || !context.permissions.includes("agency:update"))
-    fail(403, "FORBIDDEN", "Only agency admins can update agency branding");
+  if (
+    context.role !== "AGENCY_ADMIN" ||
+    !context.agencyId ||
+    !context.permissions.includes("agency:update")
+  )
+    fail(403, "FORBIDDEN", "Only agency owners can update agency branding");
   const updated = await prisma.agency.update({
     where: { id: context.agencyId },
     data: {
@@ -461,17 +500,61 @@ export async function updateAgencySettings(
   );
   return updated;
 }
-export async function listAuditLogs(context: AuthContext, filters: { from?: string; to?: string; actorId?: string; action?: string; entityType?: string } = {}) {
-  if (context.role !== "SUPER_ADMIN" && !context.permissions.includes("agency:read"))
-    fail(403, "FORBIDDEN", "You do not have permission to view agency activity");
-  const rows = await prisma.auditLog.findMany({
+export async function listAuditLogs(
+  context: AuthContext,
+  filters: {
+    from?: string;
+    to?: string;
+    branchId?: string;
+    actorId?: string;
+    action?: string;
+    entityType?: string;
+  } = {},
+) {
+  if (
+    context.role !== "SUPER_ADMIN" &&
+    context.role !== "BRANCH_ADMIN" &&
+    (context.role === "AGENT" || !context.permissions.includes("agency:read"))
+  )
+    fail(403, "FORBIDDEN", "You do not have permission to view activity");
+  if (
+    isBranchScoped(context) &&
+    filters.branchId &&
+    filters.branchId !== context.branchId
+  )
+    fail(
+      403,
+      "FORBIDDEN",
+      "You can only view activity in your assigned branch",
+    );
+  const entries = await prisma.auditLog.findMany({
     where: {
       ...agencyScope(context),
-      ...(context.roleScope === "BRANCH" ? { branchId: context.branchId ?? "__missing__" } : {}),
-      ...(filters.from || filters.to ? { createdAt: { ...(filters.from ? { gte: new Date(filters.from) } : {}), ...(filters.to ? { lte: new Date(filters.to) } : {}) } } : {}),
+      ...(isBranchScoped(context)
+        ? { branchId: context.branchId ?? "__missing__" }
+        : filters.branchId
+          ? { branchId: filters.branchId }
+          : {}),
+      ...(filters.from || filters.to
+        ? {
+            createdAt: {
+              ...(filters.from ? { gte: new Date(filters.from) } : {}),
+              ...(filters.to ? { lte: new Date(filters.to) } : {}),
+            },
+          }
+        : {}),
       ...(filters.actorId ? { actorId: filters.actorId } : {}),
-      ...(filters.action ? { action: { contains: filters.action, mode: "insensitive" as const } } : {}),
-      ...(filters.entityType ? { entityType: { equals: filters.entityType, mode: "insensitive" as const } } : {}),
+      ...(filters.action
+        ? { action: { contains: filters.action, mode: "insensitive" as const } }
+        : {}),
+      ...(filters.entityType
+        ? {
+            entityType: {
+              equals: filters.entityType,
+              mode: "insensitive" as const,
+            },
+          }
+        : {}),
     },
     include: {
       actor: { select: { id: true, firstName: true, lastName: true } },
@@ -479,26 +562,58 @@ export async function listAuditLogs(context: AuthContext, filters: { from?: stri
     orderBy: { createdAt: "desc" },
     take: 500,
   });
+  const branches = await prisma.branch.findMany({
+    where: {
+      ...agencyScope(context),
+      id: {
+        in: entries.flatMap((row) => (row.branchId ? [row.branchId] : [])),
+      },
+    },
+    select: { id: true, name: true },
+  });
+  const branchById = new Map(branches.map((branch) => [branch.id, branch]));
+  const rows = entries.map((row) => ({
+    ...row,
+    branch: row.branchId ? (branchById.get(row.branchId) ?? null) : null,
+  }));
   if (context.role === "SUPER_ADMIN") return rows.slice(0, 200);
   const can = (permission: string) => context.permissions.includes(permission);
-  return rows.filter((row) => {
-    if (["PAYMENT_RECORDED", "REFUND_RECORDED", "SETTLEMENT_POSTED", "FINANCE_SETTINGS_UPDATED", "BOOKING_CANCELLED"].includes(row.action))
-      return can("finance:read") || can("booking:read");
-    if (row.entityType === "Booking") return can("booking:read");
-    if (row.entityType === "Bus") return can("bus:read");
-    if (row.entityType === "Driver") return can("driver:read");
-    if (["Route", "Stop", "BoardingPoint"].includes(row.entityType)) return can("route:read") || can("stop:read");
-    if (["Trip", "TripSeries"].includes(row.entityType)) return can("trip:read");
-    if (["Branch"].includes(row.entityType)) return can("branch:read");
-    if (["User"].includes(row.entityType)) return can("agent:read");
-    return can("agency:read");
-  }).slice(0, 200);
+  return rows
+    .filter((row) => {
+      if (
+        [
+          "PAYMENT_RECORDED",
+          "REFUND_RECORDED",
+          "SETTLEMENT_POSTED",
+          "FINANCE_SETTINGS_UPDATED",
+          "BOOKING_CANCELLED",
+        ].includes(row.action)
+      )
+        return can("finance:read") || can("booking:read");
+      if (row.entityType === "Booking") return can("booking:read");
+      if (row.entityType === "Bus") return can("bus:read");
+      if (row.entityType === "Driver") return can("driver:read");
+      if (["Route", "Stop", "BoardingPoint"].includes(row.entityType))
+        return can("route:read") || can("stop:read");
+      if (["Trip", "TripSeries"].includes(row.entityType))
+        return can("trip:read");
+      if (["Branch"].includes(row.entityType)) return can("branch:read");
+      if (
+        ["User", "UserDocument", "UserPersonalDetails"].includes(row.entityType)
+      )
+        return can("agent:read");
+      return can("agency:read");
+    })
+    .slice(0, 200);
 }
 
 export async function getSubscription(context: AuthContext) {
-  if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency first");
-  const record = await prisma.subscription.findUnique({ where: { agencyId: context.agencyId } });
+  if (!["AGENCY_ADMIN", "SUPER_ADMIN"].includes(context.role))
+    fail(403, "FORBIDDEN", "Only agency owners can access billing");
+  if (!context.agencyId) fail(400, "INVALID_REQUEST", "Select an agency first");
+  const record = await prisma.subscription.findUnique({
+    where: { agencyId: context.agencyId },
+  });
   if (!record) return null;
   if (
     record.status === "TRIAL" &&
@@ -518,8 +633,7 @@ export async function requestPlan(
       "FORBIDDEN",
       "Only agency admins can request a subscription plan",
     );
-  if (!context.agencyId)
-    fail(400, "INVALID_REQUEST", "Select an agency first");
+  if (!context.agencyId) fail(400, "INVALID_REQUEST", "Select an agency first");
   const result = await prisma.subscription.upsert({
     where: { agencyId: context.agencyId },
     create: {
@@ -598,6 +712,8 @@ export async function invoices(
   context: AuthContext,
   requestedAgencyId?: string,
 ) {
+  if (!["AGENCY_ADMIN", "SUPER_ADMIN"].includes(context.role))
+    fail(403, "FORBIDDEN", "Only agency owners can access billing");
   const agencyId =
     context.role === "SUPER_ADMIN" ? requestedAgencyId : context.agencyId;
   if (!agencyId)

@@ -31,7 +31,11 @@ const id = z.string().min(1);
 export const notifications = (req: Request, res: Response) =>
   run(res, () =>
     req.method === "GET"
-      ? service.listNotifications(req.auth!, z.object({ cursor: z.string().min(1).optional() }).parse(req.query).cursor)
+      ? service.listNotifications(
+          req.auth!,
+          z.object({ cursor: z.string().min(1).optional() }).parse(req.query)
+            .cursor,
+        )
       : service.updatePreferences(
           req.auth!,
           z
@@ -51,7 +55,8 @@ export const markRead = (req: Request, res: Response) =>
     service.markNotificationRead(req.auth!, id.parse(req.params.id)),
   );
 export const requestCancellation = (req: Request, res: Response) =>
-  run(res,
+  run(
+    res,
     () =>
       service.requestCancellation(
         req.auth!,
@@ -105,7 +110,21 @@ export const agencySettings = (req: Request, res: Response) =>
         ),
   );
 export const auditLogs = (req: Request, res: Response) =>
-  run(res, () => service.listAuditLogs(req.auth!, z.object({ from: z.iso.datetime().optional(), to: z.iso.datetime().optional(), actorId: z.string().optional(), action: z.string().optional(), entityType: z.string().optional() }).parse(req.query)));
+  run(res, () =>
+    service.listAuditLogs(
+      req.auth!,
+      z
+        .object({
+          from: z.iso.datetime().optional(),
+          to: z.iso.datetime().optional(),
+          branchId: z.string().optional(),
+          actorId: z.string().optional(),
+          action: z.string().optional(),
+          entityType: z.string().optional(),
+        })
+        .parse(req.query),
+    ),
+  );
 export const subscription = (req: Request, res: Response) =>
   run(res, () =>
     req.method === "GET"
@@ -141,7 +160,8 @@ export const adminSubscriptionGet = (req: Request, res: Response) =>
     service.getAdminSubscription(req.auth!, id.parse(req.params.agencyId)),
   );
 export const invoices = (req: Request, res: Response) =>
-  run(res,
+  run(
+    res,
     () =>
       req.method === "GET"
         ? service.invoices(

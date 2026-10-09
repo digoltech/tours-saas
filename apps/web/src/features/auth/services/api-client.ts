@@ -30,7 +30,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...options,
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { ...(options?.body ? { "Content-Type": "application/json" } : {}), ...options?.headers },
   });
   const payload = (await response.json()) as ApiResponse<T>;
   if (!response.ok || !payload.success)
@@ -126,6 +126,9 @@ export function getInvitation(token: string) {
     firstName: string;
     lastName: string;
     agencyName: string;
+    branchName: string | null;
+    roleName: string;
+    roleDescription: string;
   }>(`/api/auth/invitations/${encodeURIComponent(token)}`);
 }
 export function acceptInvitation(token: string, password: string) {
@@ -302,6 +305,8 @@ export function getAuditLogs(filters: Record<string, string> = {}) {
       action: string;
       entityType: string;
       entityId: string | null;
+      branchId: string | null;
+      branch: { id: string; name: string } | null;
       createdAt: string;
       actor: { id: string; firstName: string; lastName: string } | null;
     }[]
@@ -412,10 +417,13 @@ export function deactivateBranch(id: string) {
   return request<unknown>(`/api/branches/${id}`, { method: "DELETE" });
 }
 
-export function getAgents(agencyId: string, search = "", status = "") {
+export function getAgents(agencyId: string, search = "", status = "", branchId = "") {
   return request<unknown[]>(
-    `/api/agencies/${agencyId}/agents?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
+    `/api/agencies/${agencyId}/agents?limit=100&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&branchId=${encodeURIComponent(branchId)}`,
   );
+}
+export function getFinancePeople(agencyId: string) {
+  return request<{ id: string; firstName: string; lastName: string; branchId: string | null }[]>(`/api/finance/people?agencyId=${encodeURIComponent(agencyId)}`);
 }
 
 export function createAgent(
@@ -456,6 +464,7 @@ export type Branch = {
   name: string;
   code: string;
   agencyId?: string;
+  status?: string;
 };
 export type Bus = {
   id: string;
@@ -529,6 +538,7 @@ export type SeatAvailability = {
     status: string;
     holdExpiresAt: string | null;
   }[];
+  pricing: { taxRate: number; gstAfterDiscount: boolean };
   discountCap: { type: "FIXED" | "PERCENTAGE"; value: number };
 };
 export type BookingPassengerInput = {
@@ -577,6 +587,7 @@ export function confirmBooking(data: {
   dropOffStopId: string;
   discountType?: "FIXED" | "PERCENTAGE";
   discountValue?: number;
+  initialPayment?: { mode: "FULL" | "PARTIAL"; amount?: number; method: FinanceMethod; reference?: string };
   passengers: BookingPassengerInput[];
 }) {
   return request<BookingRecord>("/api/bookings", {
@@ -627,10 +638,16 @@ export function getFinanceReports(
   from?: string,
   to?: string,
   scope: Omit<FinanceFilters, "from" | "to"> = {},
+  pagination: { page?: number; limit?: number; search?: string; status?: string; timezone?: string } = {},
+  signal?: AbortSignal,
 ) {
   const query = financeQuery({ ...scope, from, to });
+  for (const [key, value] of Object.entries(pagination)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
   return request<FinanceReportResponse & { ledger: Record<string, unknown>[] }>(
     `/api/finance/reports?${query}`,
+    { signal },
   );
 }
 export function getFinanceLedger() {
@@ -893,3 +910,13 @@ export function updateTrip(id: string, data: Record<string, unknown>) {
 export function cancelTrip(id: string) {
   return request<Trip>(`/api/trips/${id}`, { method: "DELETE" });
 }
+
+export type UserPersonalDetails = { dateOfBirth: string | null; gender: string | null; jobTitle: string | null; address: string | null; city: string | null; state: string | null; country: string | null; emergencyContactName: string | null; emergencyContactPhone: string | null };
+export type TeamMemberProfile = { id: string; firstName: string; lastName: string; email: string; phone: string | null; status: string; agencyId: string; branchId: string | null; createdAt: string; updatedAt: string; emailVerifiedAt: string | null; onboardingCompleted: boolean; personalDetails: UserPersonalDetails | null; agency: { id: string; name: string; email?:string|null; phone?:string|null; address?:string|null; city?:string|null; state?:string|null; country?:string|null }; branch: { id:string; name:string; code:string; email?:string|null; phone?:string|null; address?:string|null; city?:string|null; state?:string|null; country?:string|null } | null; role: { id:string; code:string; name:string; scope:string; isSystem:boolean; permissions: {permission:{code:string;description:string}}[] } };
+export type UserDocument = {id:string;userId:string;label:string;documentType:string;fileName:string;mimeType:string;size:number;createdAt:string};
+export function getTeamMemberProfile(id:string) {return request<TeamMemberProfile>(`/api/agents/${encodeURIComponent(id)}`);}
+export function getUserDocuments(id:string) {return request<UserDocument[]>(`/api/agents/${encodeURIComponent(id)}/documents`);}
+export function readUserDocument(id:string, documentId:string) {return request<UserDocument & {dataUrl:string}>(`/api/agents/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`);}
+export function uploadUserDocument(id:string,data:{label:string;documentType:string;fileName:string;mimeType:string;base64:string}) {return request<UserDocument>(`/api/agents/${encodeURIComponent(id)}/documents`,{method:"POST",body:JSON.stringify(data)});}
+export function deleteUserDocument(id:string,documentId:string) {return request<{deleted:boolean}>(`/api/agents/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`,{method:"DELETE"});}
+export function saveUserPersonalDetails(id:string,data:UserPersonalDetails) {return request<UserPersonalDetails>(`/api/agents/${encodeURIComponent(id)}/personal-details`,{method:"PATCH",body:JSON.stringify(data)});}

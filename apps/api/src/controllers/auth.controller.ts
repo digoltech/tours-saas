@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AUTH_COOKIE, clearAuthCookie, readCookie, setAuthCookie } from "../utils/cookies.js";
 import { sendError } from "../utils/api-response.js";
+import { standardRoleNames, standardRoleDescriptions } from "@a-one-tours/shared/team-access";
 import {
   createSession,
   findUserByEmail,
@@ -113,9 +114,9 @@ export async function invitationDetails(request: Request, response: Response) {
   try {
     const { prisma } = await import("../config/prisma.js");
     const crypto = await import("node:crypto");
-    const invitation = await prisma.invitation.findUnique({ where: { tokenHash: crypto.createHash("sha256").update(token).digest("hex") }, select: { email: true, firstName: true, lastName: true, agency: { select: { name: true } }, acceptedAt: true, expiresAt: true } });
+    const invitation = await prisma.invitation.findUnique({ where: { tokenHash: crypto.createHash("sha256").update(token).digest("hex") }, select: { email: true, firstName: true, lastName: true, agency: { select: { name: true } }, branch: { select: { name: true } }, role: { select: { code: true, name: true } }, acceptedAt: true, expiresAt: true } });
     if (!invitation || invitation.acceptedAt || invitation.expiresAt <= new Date()) return sendError(response, 404, "INVITATION_NOT_FOUND", "This invitation is invalid or expired");
-    return response.json({ success: true, data: { email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, agencyName: invitation.agency.name } });
+    return response.json({ success: true, data: { email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, agencyName: invitation.agency.name, branchName: invitation.branch?.name ?? null, roleName: standardRoleNames[invitation.role.code] ?? invitation.role.name, roleDescription: standardRoleDescriptions[invitation.role.code] ?? "Custom access is managed by the agency owner." } });
   } catch (error) {
     return sendError(response, 404, "INVITATION_NOT_FOUND", error instanceof Error ? error.message : "Invitation not found");
   }

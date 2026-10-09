@@ -3,6 +3,7 @@ import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
 import { isBranchScoped } from "../middleware/tenant-policy.js";
 import { audit } from "./stage4.service.js";
+import { isAgencyOwner } from "@a-one-tours/shared/team-access";
 
 export type ListQuery = {
   page?: number;
@@ -73,6 +74,7 @@ async function branchInAgency(
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (
     !branch ||
+    branch.status !== "ACTIVE" ||
     branch.agencyId !== agencyId ||
     !canAgency(context, agencyId, branchId)
   )
@@ -394,7 +396,7 @@ export async function getRoute(context: AuthContext, id: string) {
     },
   });
   if (!data) fail(404, "NOT_FOUND", "Route not found");
-  if (!canAgency(context, data.agencyId))
+  if (context.role !== "SUPER_ADMIN" && context.agencyId !== data.agencyId)
     fail(403, "FORBIDDEN", "You do not have access to this route");
   return data;
 }
@@ -409,6 +411,8 @@ export async function createRoute(
     description?: string;
   },
 ) {
+
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const agencyId = scopedAgency(context, input.agencyId);
   try {
     const created = await prisma.route.create({
@@ -437,6 +441,8 @@ export async function updateRoute(
     status: RecordStatus;
   }>,
 ) {
+
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const current = await getRoute(context, id);
   try {
     const updated = await prisma.route.update({
@@ -450,6 +456,7 @@ export async function updateRoute(
   }
 }
 export async function deactivateRoute(context: AuthContext, id: string) {
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const current = await getRoute(context, id);
   const updated = await prisma.route.update({ where: { id }, data: { status: "INACTIVE" } });
   await audit(context, current.agencyId, "ROUTE_DEACTIVATED", "Route", id, { code: current.code });
@@ -462,7 +469,7 @@ async function ownedStop(context: AuthContext, id: string) {
     include: { route: true },
   });
   if (!stop) fail(404, "NOT_FOUND", "Stop not found");
-  if (!canAgency(context, stop.route.agencyId))
+  if (context.role !== "SUPER_ADMIN" && context.agencyId !== stop.route.agencyId)
     fail(403, "FORBIDDEN", "You do not have access to this stop");
   return stop;
 }
@@ -485,6 +492,8 @@ export async function createStop(
     estimatedMinutesFromOrigin?: number;
   },
 ) {
+
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const route = await getRoute(context, routeId);
   try {
     const created = await prisma.stop.create({
@@ -513,6 +522,8 @@ export async function updateStop(
     status: RecordStatus;
   }>,
 ) {
+
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const current = await ownedStop(context, id);
   try {
     const updated = await prisma.stop.update({ where: { id }, data: input });
@@ -523,6 +534,7 @@ export async function updateStop(
   }
 }
 export async function deactivateStop(context: AuthContext, id: string) {
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const current = await ownedStop(context, id);
   const updated = await prisma.stop.update({ where: { id }, data: { status: "INACTIVE" } });
   await audit(context, current.route.agencyId, "STOP_DEACTIVATED", "Stop", id, { routeId: current.routeId, sequence: current.sequence });
@@ -540,6 +552,7 @@ export async function upsertPoint(
     status?: RecordStatus;
   },
 ) {
+  if (!isAgencyOwner(context.role)) fail(403, "FORBIDDEN", "Only agency owners can manage shared routes and stops");
   const stop = await ownedStop(context, stopId);
   try {
     const point = await prisma.boardingPoint.upsert({
@@ -596,6 +609,7 @@ async function validateTripResources(
   ]);
   if (
     !branch ||
+    branch.status !== "ACTIVE" ||
     branch.agencyId !== agencyId ||
     !canAgency(context, agencyId, input.branchId)
   )

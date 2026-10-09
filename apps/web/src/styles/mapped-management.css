@@ -208,12 +208,12 @@
   }
   .notification-empty h2 {
     font:
-      700 20px Space Grotesk,
+      700 20px var(--font-display),
       sans-serif;
   }
   .dashboard-stats h2 {
     font:
-      700 25px/1.15 Space Grotesk,
+      700 25px/1.15 var(--font-display),
       sans-serif;
   }
   .settings-card input {
@@ -325,7 +325,7 @@
   }
   .metric-card strong {
     font-family:
-      IBM Plex Mono,
+      var(--font-mono),
       monospace;
   }
   .metric-card strong {
@@ -333,7 +333,7 @@
   }
   .metric-card strong {
     font:
-      700 27px Space Grotesk,
+      700 27px var(--font-display),
       sans-serif;
   }
   .metric-card.metric-link {

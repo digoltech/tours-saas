@@ -43,15 +43,15 @@
     transform 0.2s;
 }
 .journey-tile:hover {
-  border-color: #b8cfca;
-  box-shadow: 0 16px 32px rgba(18, 45, 43, 0.1);
+  border-color: var(--brand-border);
+  box-shadow: 0 16px 32px rgba(198, 40, 40, 0.1);
   transform: translateY(-2px);
 }
 .journey-tile:focus-visible,
 .trip-directory-card a:focus-visible,
 .directory-row:focus-visible,
 .operator-profile-link:focus-visible {
-  outline: 3px solid #0b756e;
+  outline: 3px solid var(--brand);
   outline-offset: 3px;
 }
 .journey-tile-visual,
@@ -62,10 +62,10 @@
   justify-content: center;
   min-height: 115px;
   overflow: hidden;
-  color: #e0f4ee;
+  color: #ffe1e1;
   background:
-    radial-gradient(circle at 72% 25%, #367e77 0, transparent 35%),
-    linear-gradient(120deg, #163d41, #24726b);
+    radial-gradient(circle at 72% 25%, #e2696b 0, transparent 35%),
+    linear-gradient(120deg, #751820, #c62828);
 }
 .journey-tile-visual::after,
 .trip-directory-visual::after {
@@ -92,7 +92,7 @@
   border-radius: 99px;
   padding: 0.25rem 0.6rem;
   background: rgba(255, 255, 255, 0.92);
-  color: #153b3b;
+  color: #861c25;
   font-size: 0.7rem;
   font-weight: 800;
 }
@@ -108,7 +108,7 @@
 }
 .journey-code {
   color: #5c7481;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono), monospace;
   font-size: 0.68rem;
   overflow-wrap: anywhere;
 }
@@ -162,7 +162,7 @@
   font-size: 0.75rem;
 }
 .journey-tile-foot span:last-child {
-  color: #0d6862;
+  color: var(--brand);
   font-weight: 800;
 }
 .journey-empty {
@@ -233,7 +233,7 @@
 }
 .trip-profile-hero {
   padding: 1.5rem 1.75rem;
-  background: linear-gradient(135deg, #fff 55%, #eaf5f0);
+  background: linear-gradient(135deg, #fff 55%, var(--brand-soft));
 }
 .trip-profile-hero-top,
 .directory-profile-hero {
@@ -247,7 +247,7 @@
   align-items: center;
   gap: 1rem;
   margin: 2rem 0;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: clamp(1.35rem, 3vw, 2.2rem);
   font-weight: 700;
   color: #14343a;
@@ -265,7 +265,7 @@
   flex: 1;
   min-width: 2rem;
   height: 2px;
-  background: #98b9ad;
+  background: var(--brand-border);
   position: relative;
 }
 .trip-profile-line span {
@@ -274,7 +274,7 @@
   right: 0;
   width: 10px;
   height: 10px;
-  background: #238076;
+  background: var(--brand);
   border-radius: 50%;
 }
 .trip-profile-main {
@@ -331,8 +331,8 @@
   width: 42px;
   height: 42px;
   border-radius: 0.75rem;
-  background: #e5f2ed;
-  color: #176e64;
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 .trip-resource div {
   display: grid;
@@ -372,7 +372,7 @@
   top: 31px;
   bottom: 0;
   width: 2px;
-  background: #d5e4df;
+  background: #f0d4d5;
 }
 .trip-stop-marker {
   display: grid;
@@ -381,7 +381,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #1d746a;
+  background: var(--brand);
   color: white;
   font-size: 0.75rem;
   font-weight: 800;
@@ -423,7 +423,7 @@
   display: grid;
   gap: 0.2rem;
   padding: 1.2rem;
-  color: #1a766c;
+  color: var(--brand);
 }
 .directory-stats strong {
   color: #153139;
@@ -450,7 +450,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: #126f65;
+  color: var(--brand);
   font-weight: 700;
   font-size: 0.82rem;
 }

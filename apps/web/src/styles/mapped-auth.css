@@ -619,7 +619,7 @@
   }
   .login-brand {
     font:
-      700 14px Space Grotesk,
+      700 14px var(--font-display),
       sans-serif;
   }
   .auth-text-button {
@@ -635,7 +635,7 @@
       color: #748582;
     }
     .password-visibility:hover {
-      background: #edf4f2;
+      background: var(--brand-soft);
     }
   }
   .auth-text-button:disabled {
@@ -724,7 +724,7 @@
   .onboarding-intro h1,
   .login-card h1 {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .auth-visual-content h1 {
@@ -738,22 +738,22 @@
   }
   .auth-visual-content h1 {
     font:
-      700 clamp(31px, 4.1vw, 54px)/1.06 Space Grotesk,
+      700 clamp(31px, 4.1vw, 54px)/1.06 var(--font-display),
       sans-serif;
   }
   .onboarding-sidebar-copy h1 {
     font:
-      700 clamp(32px, 4vw, 54px)/1.05 Space Grotesk,
+      700 clamp(32px, 4vw, 54px)/1.05 var(--font-display),
       sans-serif;
   }
   .login-card h1 {
     font:
-      800 25px Space Grotesk,
+      800 25px var(--font-display),
       sans-serif;
   }
   .onboarding-intro h1 {
     font:
-      800 34px Space Grotesk,
+      800 34px var(--font-display),
       sans-serif;
   }
   .onboarding-card h2,
@@ -771,7 +771,7 @@
   }
   .onboarding-card h2 {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .onboarding-card h2 {
@@ -788,12 +788,12 @@
   }
   .auth-heading h2 {
     font:
-      700 clamp(24px, 2.7vw, 32px)/1.18 Space Grotesk,
+      700 clamp(24px, 2.7vw, 32px)/1.18 var(--font-display),
       sans-serif;
   }
   .onboarding-card h2 {
     font:
-      800 24px Space Grotesk,
+      800 24px var(--font-display),
       sans-serif;
   }
   .login-card input {
@@ -937,7 +937,7 @@
   }
   .login-brand strong {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .onboarding-step strong,
@@ -966,7 +966,7 @@
   }
   .onboarding-brand strong {
     font:
-      700 15px Space Grotesk,
+      700 15px var(--font-display),
       sans-serif;
   }
   .onboarding-tip svg {
@@ -1040,10 +1040,10 @@
     color: #9aa9a8;
   }
   .login-card.auth-card-stack input:focus {
-    border-color: #49a295;
+    border-color: var(--brand);
   }
   .login-card.auth-card-stack input:focus {
-    box-shadow: 0 0 0 3px #49a29520;
+    box-shadow: 0 0 0 3px #c6282820;
   }
   .login-card.auth-card-stack input:focus {
     outline: 0;
@@ -1265,7 +1265,7 @@
   }
   .auth-brand > span:last-child strong {
     font:
-      700 15px/1.1 Space Grotesk,
+      700 15px/1.1 var(--font-display),
       sans-serif;
   }
   .auth-visual-proof > span:nth-child(2) {

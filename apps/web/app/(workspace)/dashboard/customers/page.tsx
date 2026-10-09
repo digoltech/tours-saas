@@ -3,6 +3,7 @@ import { DataTable } from "../../../../src/ui/DataTable";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ViewRecordLink } from "../../../../src/ui/RecordPage";
 import {
   getCustomers,
   type CustomerRecord,
@@ -53,6 +54,7 @@ export default function CustomersPage() {
           { id: "phone", header: "Phone", render: (customer) => customer.phone },
           { id: "email", header: "Email", render: (customer) => customer.email ?? "—" },
           { id: "bookings", header: "Bookings", render: (customer) => customer.bookings },
+          { id: "actions", header: "Actions", render: (customer) => <ViewRecordLink href={`/dashboard/customers/${encodeURIComponent(customer.id)}`} /> },
           { id: "latest", header: "Latest booking", render: (customer) => customer.latestBooking ? <><Link className="text-link" href={`/dashboard/bookings/${encodeURIComponent(customer.latestBooking.pnr)}`}>{customer.latestBooking.pnr}</Link><br /><small>{customer.latestBooking.route}</small></> : "—" },
         ]}
       />

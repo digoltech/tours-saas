@@ -31,10 +31,11 @@ describe("privacy and session boundaries", () => {
   });
 
   test("inactive agencies and branches invalidate staff access", () => {
-    const user = { status: "ACTIVE", agency: { name: "A", status: "ACTIVE" }, branch: { status: "ACTIVE" } } as unknown as User & { role: never; agency: { name: string; status: string }; branch: { status: string } };
+    const user = { status: "ACTIVE", role: { code: "BRANCH_ADMIN", scope: "BRANCH" }, branchId: "branch-a", agency: { name: "A", status: "ACTIVE" }, branch: { status: "ACTIVE" } } as unknown as User & { role: never; agency: { name: string; status: string }; branch: { status: string } };
     expect(accountIsActive(user)).toBe(true);
     expect(accountIsActive({ ...user, agency: { name: "A", status: "INACTIVE" } })).toBe(false);
     expect(accountIsActive({ ...user, branch: { status: "INACTIVE" } })).toBe(false);
     expect(accountIsActive({ ...user, status: "INACTIVE" })).toBe(false);
+    expect(accountIsActive({ ...user, branchId: null })).toBe(false);
   });
 });

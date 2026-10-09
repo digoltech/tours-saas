@@ -85,15 +85,30 @@ const bookingPayload = z.object({
   dropOffStopId: id,
   discountType: z.enum(["FIXED", "PERCENTAGE"]).optional(),
   discountValue: z.number().min(0).optional(),
+  initialPayment: z
+    .object({
+      mode: z.enum(["FULL", "PARTIAL"]),
+      amount: z.number().positive().optional(),
+      method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "UPI", "OTHER"]),
+      reference: z.string().trim().max(200).optional(),
+    })
+    .optional(),
   passengers: z
     .array(
       z.object({
         seatName: z.string().min(1),
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
+        firstName: z.string().trim().min(1).max(100),
+        lastName: z.string().trim().min(1).max(100),
         age: z.number().int().min(0).max(120),
-        gender: z.string().min(1),
-        phone: z.string().min(5),
+        gender: z.enum(["Female", "Male", "Other"]),
+        phone: z
+          .string()
+          .trim()
+          .regex(/^\+?[0-9 ()-]+$/)
+          .refine((value) => {
+            const digits = value.replace(/\D/g, "");
+            return digits.length >= 7 && digits.length <= 15;
+          }, "Enter a valid phone number"),
         email: z.string().email().optional().or(z.literal("")),
         documentType: z.string().optional(),
         documentReference: z.string().optional(),
@@ -118,6 +133,7 @@ export const list = (r: Request, s: Response) =>
           page: z.coerce.number().int().min(1).default(1),
           limit: z.coerce.number().int().min(1).max(100).default(20),
           pnr: z.string().optional(),
+          search: z.string().trim().max(200).optional(),
           tripCode: z.string().optional(),
           date: z.string().optional(),
         })

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getRequestUser } from "../../../../src/features/auth/server";
-import { AgentBookingsDashboard } from "../../../../src/features/booking/BookingWorkspace";
 import {
   loadBookingDashboardSummary,
   loadUpcomingTrips,
@@ -16,16 +15,6 @@ export default async function DashboardRoute() {
     loadBookingDashboardSummary(),
     loadUpcomingTrips(),
   ]);
-
-  if (user.role === "AGENT")
-    return (
-      <AgentBookingsDashboard
-        summary={summaryResult.summary}
-        summaryError={summaryResult.error}
-        trips={tripsResult.trips}
-        tripsError={tripsResult.error}
-      />
-    );
 
   return (
     <WorkspaceDashboard

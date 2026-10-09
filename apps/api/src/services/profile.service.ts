@@ -4,6 +4,7 @@ import type { AuthContext } from "../types/auth.js";
 import { createEmailVerificationToken, verifyPassword } from "./auth.service.js";
 import { sendEmailChangeConfirmation } from "./email.service.js";
 import { environment } from "../config/env.js";
+import { standardRoleNames } from "@a-one-tours/shared/team-access";
 
 function fail(statusCode: number, code: string, message: string): never {
   throw Object.assign(new Error(message), { statusCode, code });
@@ -17,7 +18,7 @@ export async function getProfile(context: AuthContext) {
       emailVerifiedAt: true, createdAt: true,
       agency: { select: { name: true, email: true, phone: true, address: true, city: true, state: true, country: true } },
       branch: { select: { name: true } },
-      role: { select: { name: true } },
+      role: { select: { name: true, code: true } },
       emailVerificationTokens: {
         where: { pendingEmail: { not: null }, usedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: "desc" }, take: 1,
@@ -27,7 +28,7 @@ export async function getProfile(context: AuthContext) {
   });
   if (!user) fail(404, "NOT_FOUND", "Account not found");
   const { emailVerificationTokens, ...details } = user;
-  return { ...details, pendingEmail: emailVerificationTokens[0]?.pendingEmail ?? null };
+  return { ...details, role: { name: standardRoleNames[user.role.code] ?? user.role.name }, pendingEmail: emailVerificationTokens[0]?.pendingEmail ?? null };
 }
 
 export async function updateProfile(context: AuthContext, input: {

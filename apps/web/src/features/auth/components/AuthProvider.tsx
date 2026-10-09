@@ -3,6 +3,8 @@
 import {
   createContext,
   useContext,
+  useCallback,
+  useMemo,
   useEffect,
   useState,
   type ReactNode,
@@ -58,24 +60,24 @@ export function AuthProvider({
     };
   }, [initialUser]);
 
-  async function logout() {
+  const logout = useCallback(async () => {
     await requestLogout();
     setUser(null);
     setStatus("unauthenticated");
     router.push("/auth/login");
     router.refresh();
-  }
+  }, [router]);
 
-  async function refreshUser() {
+  const refreshUser = useCallback(async () => {
     setUser(await getCurrentUser());
     router.refresh();
-  }
+  }, [router]);
 
-  return (
-    <AuthContext.Provider value={{ user, status, error, logout, refreshUser }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, status, error, logout, refreshUser }),
+    [user, status, error, logout, refreshUser],
   );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

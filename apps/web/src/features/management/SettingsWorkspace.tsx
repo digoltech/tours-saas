@@ -10,7 +10,6 @@ import { cn } from "../../lib/utils";
 import { useConfirmation } from "../../ui/ConfirmationModal";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
-import { PageHeader } from "../../ui/PageHeader";
 import {
   getAgencySettings,
   getSubscription,
@@ -41,7 +40,7 @@ const empty: Values = {
   currency: "INR",
   defaultFare: "0",
 };
-export function SettingsWorkspace() {
+export function AgencySettingsWorkspace({ section }: { section: "agency" | "billing" }) {
   const confirm = useConfirmation();
   const { user } = useAuth();
   const [values, setValues] = useState(empty);
@@ -55,19 +54,21 @@ export function SettingsWorkspace() {
   const [price, setPrice] = useState("0");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<
     "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER"
   >("CASH");
   useEffect(() => {
     let active = true;
     const agencyRequest =
-      user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update")
+      section === "agency" && user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update")
         ? getAgencySettings()
         : Promise.resolve(null);
     Promise.all([
       agencyRequest,
-      user?.role === "SUPER_ADMIN" ? Promise.resolve(null) : getSubscription(),
-      user?.role === "SUPER_ADMIN"
+      section !== "billing" || user?.role === "SUPER_ADMIN" ? Promise.resolve(null) : getSubscription(),
+      section !== "billing" || user?.role === "SUPER_ADMIN"
         ? Promise.resolve([])
         : getSubscriptionInvoices(),
     ])
@@ -89,6 +90,7 @@ export function SettingsWorkspace() {
           setPrice(String(sub.requestedPrice ?? sub.price));
         }
         setInvoices(bills);
+        setLoaded(true);
       })
       .catch((cause) => {
         if (active)
@@ -99,8 +101,10 @@ export function SettingsWorkspace() {
     return () => {
       active = false;
     };
-  }, [user?.role, user?.roleScope, user?.permissions]);
+  }, [section, user?.role, user?.roleScope, user?.permissions]);
   async function save() {
+    if (!loaded || saving) return;
+    setSaving(true);
     setError("");
     setSaved(false);
     try {
@@ -117,6 +121,8 @@ export function SettingsWorkspace() {
       setError(
         cause instanceof Error ? cause.message : localizeText("Unable to save settings"),
       );
+    } finally {
+      setSaving(false);
     }
   }
   async function requestPlan() {
@@ -157,16 +163,12 @@ export function SettingsWorkspace() {
   );
   return (
     <>
-      <PageHeader
-        title="Agency settings"
-        description="Manage your agency profile, ticket branding, and subscription."
-      />
       {error && (
         <div className={cn("state-message state-error")} role="alert">
           {error}
         </div>
       )}
-      {user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update") && (
+      {section === "agency" && user?.roleScope === "AGENCY" && user?.permissions.includes("agency:update") && (
         <Card className={cn("settings-card")}>
           <p className={cn("eyebrow")}><Translate text={"AGENCY BRANDING"} /></p>
           <h2><Translate text={"Agency and ticket details"} /></h2>
@@ -192,7 +194,7 @@ export function SettingsWorkspace() {
           </div>
           {field("defaultFare", "Default one-way fare", "number")}
           <div className="settings-style-187">
-            <Button onClick={() => void save()}>
+            <Button disabled={!loaded || saving} loading={saving} loadingLabel="Saving…" onClick={() => void save()}>
               <Save size={15} /> <Translate text={"Save settings"} /></Button>
           </div>
           {saved && (
@@ -201,7 +203,7 @@ export function SettingsWorkspace() {
           )}
         </Card>
       )}
-      {user?.role === "SUPER_ADMIN" ? (
+      {section === "billing" && (user?.role === "SUPER_ADMIN" ? (
         <SubscriptionAdmin />
       ) : (
         <>
@@ -295,7 +297,7 @@ export function SettingsWorkspace() {
             )}
           </section>
         </>
-      )}
+      ))}
     </>
   );
 }

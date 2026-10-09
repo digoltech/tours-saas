@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ pnr?: string }>;
+  searchParams: Promise<{ pnr?: string; search?: string }>;
 }) {
-  const { pnr } = await searchParams;
+  const { pnr, search } = await searchParams;
   if (pnr) redirect(`/dashboard/bookings/${encodeURIComponent(pnr)}`);
   return (
     <>
@@ -16,7 +16,7 @@ export default async function Page({
         description="Browse passenger bookings and open a ticket to manage its details."
       />
       <TicketLookup />
-      <BookingHistory />
+      <BookingHistory initialSearch={search} />
     </>
   );
 }

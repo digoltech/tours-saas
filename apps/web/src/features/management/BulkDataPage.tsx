@@ -13,6 +13,7 @@ import { CheckCircle2, Download, FileSpreadsheet, FileUp, RefreshCw, UploadCloud
 import { useConfirmation } from "../../ui/ConfirmationModal";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
+import { ExtraTabs } from "../../ui/ExtraTabs";
 import { PageHeader } from "../../ui/PageHeader";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../auth/components/AuthProvider";
@@ -47,6 +48,12 @@ function download(name: string, text: string) {
 }
 
 export function BulkDataPage() {
+  const { user } = useAuth();
+  if (user?.role !== "AGENCY_ADMIN" && user?.role !== "SUPER_ADMIN") return <><PageHeader title="Extra" description="Manage your data and privacy requests." /><ExtraTabs active="data" /><Card><Translate text={"Bulk data is available to agency administrators."} /></Card></>;
+  return <BulkDataWorkspace />;
+}
+
+function BulkDataWorkspace() {
   const t = useTranslations();
   const confirm = useConfirmation();
   const { user } = useAuth();
@@ -88,7 +95,8 @@ export function BulkDataPage() {
     finally { setBusy(null); }
   }
   return <>
-    <PageHeader title="Bulk data" description="Import or export fleet and route records with CSV files." />
+    <PageHeader title="Extra" description="Manage your data and privacy requests." />
+    <ExtraTabs active="data" />
     <div className="data-hero"><span className="data-hero-icon"><FileSpreadsheet size={25} /></span><div><p className="eyebrow"><Translate text={"DATA WORKSPACE"} /></p><h1><Translate text={"Move records with confidence"} /></h1><p><Translate text={"Download a template, validate your file, then import the rows that are ready."} /></p></div></div>
     {error && <div className={cn("state-message state-error")} role="alert">{error}</div>}
     <Card className="data-card"><div className="data-card-heading"><div><p className="eyebrow"><Translate text={"STEP 01"} /></p><h2><Translate text={"Choose records"} /></h2><p><Translate text={"Select the data you want to work with."} /></p></div></div><div className="data-controls">{user?.role === "SUPER_ADMIN" && <label><Translate text={"Agency"} /><select value={agencyId} disabled={busy !== null} onChange={(event) => { setAgencyId(event.target.value); setRows([]); setResult(null); setFileName(""); }}><option value=""><Translate text={"Select agency"} /></option>{agencies.map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}</select></label>}<label><Translate text={"Record type"} /><select value={entity} disabled={busy !== null} onChange={(event) => { setEntity(event.target.value as BulkEntity); setRows([]); setResult(null); setFileName(""); }}>{entities.map((item) => <option key={item.key} value={item.key}>{t(item.label)}</option>)}</select></label></div><div className="data-card-actions">{(allowed("read") || allowed("create")) && <Button variant="secondary" onClick={() => void getFile("template")} disabled={busy !== null} loading={busy === "template"} loadingLabel="Downloading…"><Download size={16} /> <Translate text={"CSV template"} /></Button>}{allowed("read") && <Button variant="secondary" onClick={() => void getFile("export")} disabled={busy !== null || (user?.role === "SUPER_ADMIN" && !agencyId)} loading={busy === "export"} loadingLabel="Exporting…"><Download size={16} /> <Translate text={"Export records"} /></Button>}</div></Card>

@@ -6,6 +6,8 @@ import type { AuthContext } from "../types/auth.js";
 import { environment } from "../config/env.js";
 import { isBranchScoped } from "../middleware/tenant-policy.js";
 import { sendTeamInvitation, sendTeamWelcome } from "./email.service.js";
+import { standardRoleNames } from "@a-one-tours/shared/team-access";
+import { assertTeamManager, assertManagedMember, assertAssignableRole, assertActiveBranch, protectLastOwner, teamError } from "./team-policy.js";
 
 export type AgencyQuery = {
   page?: number;
@@ -349,6 +351,7 @@ export async function updateAgency(
   if (data.country !== undefined) nextData.country = data.country ?? null;
   if (data.status !== undefined) nextData.status = data.status;
 
+
   try {
     const updated = await prisma.agency.update({
       where: { id: agencyId },
@@ -439,7 +442,7 @@ export async function listBranches(
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { updatedAt: "desc" },
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { users: true } }, users: { where: { status: "ACTIVE", role: { code: "BRANCH_ADMIN" } }, select: { id: true, firstName: true, lastName: true } } },
     }),
   ]);
 
@@ -447,6 +450,7 @@ export async function listBranches(
     branches.map((branch) => ({
       ...branch,
       agentCount: branch._count.users,
+      branchAdmins: branch.users,
     })),
     page,
     limit,
@@ -457,7 +461,7 @@ export async function listBranches(
 export async function getBranch(context: AuthContext, branchId: string) {
   const branch = await prisma.branch.findUnique({
     where: { id: branchId },
-    include: { agency: true, _count: { select: { users: true } } },
+    include: { agency: true, _count: { select: { users: true } }, users: { where: { status: "ACTIVE", role: { code: "BRANCH_ADMIN" } }, select: { id: true, firstName: true, lastName: true } } },
   });
   if (!branch) {
     const error = new Error("Branch not found") as Error & {
@@ -487,6 +491,8 @@ export async function createBranch(
     status?: RecordStatus;
   },
 ) {
+
+  if (!["SUPER_ADMIN", "AGENCY_ADMIN"].includes(context.role)) teamError("Only agency owners can manage branches");
   ensureAgencyAccess(context, agencyId);
   if (isBranchScoped(context)) {
     const error = new Error("Branch-scoped users cannot create branches") as Error & { statusCode?: number; code?: string };
@@ -565,6 +571,8 @@ export async function updateBranch(
     status: RecordStatus;
   }>,
 ) {
+
+  if (!["SUPER_ADMIN", "AGENCY_ADMIN"].includes(context.role)) teamError("Only agency owners can manage branches");
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (!branch) {
     const error = new Error("Branch not found") as Error & {
@@ -588,10 +596,16 @@ export async function updateBranch(
   if (data.country !== undefined) nextData.country = data.country ?? null;
   if (data.status !== undefined) nextData.status = data.status;
 
+
   try {
-    const updated = await prisma.branch.update({ where: { id: branchId }, data: nextData });
-    if (data.status === RecordStatus.INACTIVE)
-      await prisma.session.updateMany({ where: { user: { branchId }, revokedAt: null }, data: { revokedAt: new Date() } });
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Agency" WHERE id = ${branch.agencyId} FOR UPDATE`;
+      if (data.status === RecordStatus.INACTIVE) await assertBranchHasNoActiveOwner(tx, branchId);
+      const result = await tx.branch.update({ where: { id: branchId }, data: nextData });
+      if (data.status === RecordStatus.INACTIVE)
+        await tx.session.updateMany({ where: { user: { branchId }, revokedAt: null }, data: { revokedAt: new Date() } });
+      return result;
+    });
     await recordManagementAudit(context, branch.agencyId, "BRANCH_UPDATED", "Branch", branchId, { changedFields: Object.keys(data) }, branchId);
     return updated;
   } catch (error) {
@@ -611,6 +625,7 @@ export async function updateBranch(
 }
 
 export async function deactivateBranch(context: AuthContext, branchId: string) {
+  if (!["SUPER_ADMIN", "AGENCY_ADMIN"].includes(context.role)) teamError("Only agency owners can manage branches");
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (!branch) {
     const error = new Error("Branch not found") as Error & {
@@ -622,11 +637,13 @@ export async function deactivateBranch(context: AuthContext, branchId: string) {
     throw error;
   }
   ensureBranchAccess(context, branch.agencyId, branch.id);
-  const updated = await prisma.branch.update({
-    where: { id: branchId },
-    data: { status: RecordStatus.INACTIVE },
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Agency" WHERE id = ${branch.agencyId} FOR UPDATE`;
+    await assertBranchHasNoActiveOwner(tx, branchId);
+    const result = await tx.branch.update({ where: { id: branchId }, data: { status: RecordStatus.INACTIVE } });
+    await tx.session.updateMany({ where: { user: { branchId }, revokedAt: null }, data: { revokedAt: new Date() } });
+    return result;
   });
-  await prisma.session.updateMany({ where: { user: { branchId }, revokedAt: null }, data: { revokedAt: new Date() } });
   await recordManagementAudit(context, branch.agencyId, "BRANCH_DEACTIVATED", "Branch", branchId, { code: branch.code }, branchId);
   return updated;
 }
@@ -640,6 +657,8 @@ export async function listAgents(
     branchStatus?: RecordStatus | "ALL";
   },
 ) {
+
+  assertTeamManager(context);
   const page = Number(query.page ?? 1);
   const limit = Number(query.limit ?? 20);
   const search = (query.search ?? "").trim();
@@ -657,7 +676,7 @@ export async function listAgents(
   ensureAgencyAccess(context, agencyId);
   const where: Prisma.UserWhereInput = {
     agencyId,
-    role: { OR: [{ code: "AGENT" }, { agencyId, isSystem: false }] },
+    role: context.role === "BRANCH_ADMIN" ? { code: "AGENT" } : { OR: [{ code: { in: ["AGENT", "BRANCH_ADMIN", "AGENCY_ADMIN"] } }, { agencyId, isSystem: false }] },
     ...(status && status !== "ALL" ? { status } : {}),
     ...(branchId ? { branchId } : {}),
     ...(search
@@ -702,7 +721,8 @@ export async function listAgents(
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,
       roleId: agent.roleId,
-      roleName: agent.role.name,
+      roleName: standardRoleNames[agent.role.code] ?? agent.role.name,
+      roleCode: agent.role.code,
     })),
     page,
     limit,
@@ -713,7 +733,7 @@ export async function listAgents(
 export async function getAgent(context: AuthContext, agentId: string) {
   const agent = await prisma.user.findUnique({
     where: { id: agentId },
-    include: { agency: true, branch: true, role: true },
+    include: { agency: true, branch: true, personalDetails: true, role: { include: { permissions: { include: { permission: true } } } } },
   });
   if (!agent) {
     const error = new Error("Agent not found") as Error & {
@@ -734,7 +754,8 @@ export async function getAgent(context: AuthContext, agentId: string) {
     throw error;
   }
   ensureBranchAccess(context, agent.agencyId, agent.branchId);
-  return agent;
+  assertManagedMember(context, agent, false);
+  return { ...agent, passwordHash: undefined, role: { ...agent.role, name: standardRoleNames[agent.role.code] ?? agent.role.name } };
 }
 
 export async function createAgent(
@@ -751,9 +772,10 @@ export async function createAgent(
     roleId?: string;
   },
 ) {
+  assertTeamManager(context);
   ensureAgencyAccess(context, agencyId);
   if (!data.firstName || !data.lastName || !data.email) {
-    const error = new Error("Agent name and email are required") as Error & {
+    const error = new Error("Employee name and email are required") as Error & {
       statusCode?: number;
       code?: string;
     };
@@ -792,10 +814,10 @@ export async function createAgent(
   }
 
   const role = data.roleId
-    ? await prisma.role.findFirst({ where: { id: data.roleId, OR: [{ code: "AGENT" }, { agencyId, isSystem: false }] } })
+    ? await prisma.role.findFirst({ where: { id: data.roleId, OR: [{ code: { in: ["AGENT", "BRANCH_ADMIN", "AGENCY_ADMIN"] } }, { agencyId, isSystem: false }] } })
     : await prisma.role.findUnique({ where: { code: "AGENT" } });
   if (!role) {
-    const error = new Error("Agent role is not configured") as Error & {
+    const error = new Error("Employee role is not configured") as Error & {
       statusCode?: number;
       code?: string;
     };
@@ -803,12 +825,8 @@ export async function createAgent(
     error.code = "INTERNAL_SERVER_ERROR";
     throw error;
   }
-  if (isBranchScoped(context) && role.scope !== "BRANCH") {
-    const error = new Error("Branch-scoped users can only assign branch-scoped roles") as Error & { statusCode?: number; code?: string };
-    error.statusCode = 403;
-    error.code = "FORBIDDEN";
-    throw error;
-  }
+  assertAssignableRole(context, role, agencyId);
+  await assertActiveBranch(agencyId, data.branchId);
 
   const email = data.email.trim().toLowerCase();
   const hasExplicitPassword = Boolean(data.password?.trim());
@@ -864,13 +882,13 @@ export async function createAgent(
         loginUrl: `${environment.WEB_URL}/auth/login`,
       }).catch((error) => console.error("Team welcome email failed", error));
     }
-    return { ...user, invitationSent: !hasExplicitPassword };
+    return { ...user, passwordHash: undefined, invitationSent: !hasExplicitPassword };
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      const duplicate = new Error("Agent email already exists") as Error & {
+      const duplicate = new Error("This team email already exists") as Error & {
         statusCode?: number;
         code?: string;
       };
@@ -896,7 +914,7 @@ export async function updateAgent(
 ) {
   const agent = await prisma.user.findUnique({
     where: { id: agentId },
-    include: { agency: true, branch: true },
+    include: { agency: true, branch: true, role: true },
   });
   if (!agent) {
     const error = new Error("Agent not found") as Error & {
@@ -917,6 +935,7 @@ export async function updateAgent(
     throw error;
   }
   ensureBranchAccess(context, agent.agencyId, agent.branchId);
+  assertManagedMember(context, agent);
 
   if (isBranchScoped(context) && data.branchId !== undefined && data.branchId !== context.branchId) {
     const error = new Error("You can only assign agents to your branch") as Error & { statusCode?: number; code?: string };
@@ -928,7 +947,7 @@ export async function updateAgent(
   let roleId: string | undefined;
   if (data.roleId) {
     const role = await prisma.role.findFirst({
-      where: { id: data.roleId, OR: [{ code: "AGENT" }, { agencyId: agent.agencyId, isSystem: false }] },
+      where: { id: data.roleId, OR: [{ code: { in: ["AGENT", "BRANCH_ADMIN", "AGENCY_ADMIN"] } }, { agencyId: agent.agencyId, isSystem: false }] },
     });
     if (!role) {
       const error = new Error("Role does not belong to this agency") as Error & { statusCode?: number; code?: string };
@@ -936,30 +955,19 @@ export async function updateAgent(
       error.code = "INVALID_REQUEST";
       throw error;
     }
-    if (isBranchScoped(context) && role.scope !== "BRANCH") {
-      const error = new Error("Branch-scoped users can only assign branch-scoped roles") as Error & { statusCode?: number; code?: string };
-      error.statusCode = 403;
-      error.code = "FORBIDDEN";
-      throw error;
-    }
+    assertAssignableRole(context, role, agent.agencyId);
     roleId = role.id;
   }
 
-  if (data.branchId !== undefined && data.branchId !== null) {
-    const branch = await prisma.branch.findUnique({
-      where: { id: data.branchId },
-    });
-    if (!branch || branch.agencyId !== agent.agencyId) {
-      const error = new Error(
-        "Branch does not belong to this agency",
-      ) as Error & { statusCode?: number; code?: string };
-      error.statusCode = 400;
-      error.code = "INVALID_REQUEST";
-      throw error;
-    }
-  }
+  const nextRole = roleId ? await prisma.role.findUniqueOrThrow({ where: { id: roleId } }) : agent.role;
+  if (nextRole.isSystem || nextRole.scope === "BRANCH" || data.branchId !== undefined)
+    await assertActiveBranch(agent.agencyId, data.branchId !== undefined ? data.branchId : agent.branchId);
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const liveMember = await tx.user.findUniqueOrThrow({ where: { id: agentId }, include: { role: true } });
+    assertManagedMember(context, liveMember);
+    await protectLastOwner(tx, agent.agencyId!, agentId, { roleCode: nextRole.code, status: data.status });
+    const result = await tx.user.update({
     where: { id: agentId },
     data: {
       ...(data.firstName !== undefined
@@ -978,21 +986,23 @@ export async function updateAgent(
       ...(roleId ? { roleId } : {}),
     },
     include: { agency: true, branch: true, role: true },
+    });
+    if (roleId || data.branchId !== undefined || data.status !== undefined) {
+      await tx.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.invitation.updateMany({ where: { userId: agentId, acceptedAt: null }, data: { roleId: result.roleId, branchId: result.branchId } });
+    }
+    return result;
   });
   if (roleId) {
-    await prisma.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
-    await prisma.invitation.updateMany({ where: { userId: agentId, acceptedAt: null }, data: { roleId } });
     await recordManagementAudit(context, agent.agencyId, "USER_ROLE_ASSIGNED", "User", updated.id, { roleId }, updated.branchId);
   }
   const changedFields = Object.keys(data).filter((key) => key !== "roleId");
-  if (data.status === RecordStatus.INACTIVE)
-    await prisma.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
   if (changedFields.length) await recordManagementAudit(context, agent.agencyId, "USER_UPDATED", "User", updated.id, { changedFields }, updated.branchId);
-  return updated;
+  return { ...updated, passwordHash: undefined };
 }
 
 export async function deactivateAgent(context: AuthContext, agentId: string) {
-  const agent = await prisma.user.findUnique({ where: { id: agentId } });
+  const agent = await prisma.user.findUnique({ where: { id: agentId }, include: { role: true } });
   if (!agent) {
     const error = new Error("Agent not found") as Error & {
       statusCode?: number;
@@ -1012,13 +1022,22 @@ export async function deactivateAgent(context: AuthContext, agentId: string) {
     throw error;
   }
   ensureBranchAccess(context, agent.agencyId, agent.branchId);
-  const updated = await prisma.user.update({
-    where: { id: agentId },
-    data: { status: RecordStatus.INACTIVE },
+  assertManagedMember(context, agent);
+  const updated = await prisma.$transaction(async (tx) => {
+    const liveMember = await tx.user.findUniqueOrThrow({ where: { id: agentId }, include: { role: true } });
+    assertManagedMember(context, liveMember);
+    await protectLastOwner(tx, agent.agencyId!, agentId, { status: "INACTIVE" });
+    const result = await tx.user.update({ where: { id: agentId }, data: { status: RecordStatus.INACTIVE } });
+    await tx.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
+    return result;
   });
-  await prisma.session.updateMany({ where: { userId: agentId, revokedAt: null }, data: { revokedAt: new Date() } });
   await recordManagementAudit(context, agent.agencyId, "USER_DEACTIVATED", "User", agentId, {}, agent.branchId);
-  return updated;
+  return { ...updated, passwordHash: undefined };
 }
 
 export const agencyListSchema = { page: 1, limit: 20 } as const;
+
+async function assertBranchHasNoActiveOwner(tx: Prisma.TransactionClient, branchId: string) {
+  const owners = await tx.user.count({ where: { branchId, status: RecordStatus.ACTIVE, role: { code: "AGENCY_ADMIN" } } });
+  if (owners) teamError("Move the agency owner to an active branch before deactivating this branch", 400);
+}

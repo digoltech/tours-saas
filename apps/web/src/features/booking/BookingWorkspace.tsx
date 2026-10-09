@@ -17,13 +17,13 @@ import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   Bus,
   Clock3,
   Lock,
   Search,
   Ticket,
-  Unlock,
 } from "lucide-react";
 import { useConfirmation } from "../../ui/ConfirmationModal";
 import { Badge } from "../../ui/Badge";
@@ -44,7 +44,9 @@ import {
   releaseSeatHold,
   searchBookingTrips,
 } from "../auth/services/api-client";
-import { TicketLookup } from "./TicketLookup";
+import { useAuth } from "../auth/components/AuthProvider";
+import { useTranslations } from "../../i18n/LocaleProvider";
+import "../../styles/booking-flow.css";
 import { TicketView } from "./TicketView";
 import { TicketExportMenu } from "./TicketExportMenu";
 import { BookingHistory } from "./BookingHistory";
@@ -56,7 +58,7 @@ const emptyPassenger = (seatName: string): Passenger => ({
   seatName,
   firstName: "",
   lastName: "",
-  age: 18,
+  age: NaN,
   gender: "",
   phone: "",
   email: "",
@@ -70,6 +72,28 @@ export function BookingWorkspace({
   hideHistory?: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations();
+  const { user } = useAuth();
+  const canPay =
+    user?.role === "SUPER_ADMIN" ||
+    user?.permissions.includes("finance:payment");
+  const [step, setStep] = useState(0);
+  const [paymentMode, setPaymentMode] = useState<"LATER" | "FULL" | "PARTIAL">(
+    "LATER",
+  );
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER"
+  >("CASH");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [searched, setSearched] = useState(false);
+  const steps = ["Journey", "Bus & timing", "Seats", "Passengers", "Payment"];
+  function goToStep(next: number) {
+    setStep(next);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   const confirm = useConfirmation();
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
@@ -138,6 +162,7 @@ export function BookingWorkspace({
       setSecondsLeft(left);
       if (!left) {
         setHold(null);
+        setStep(2);
         setSelectedSeats([]);
         setPassengers([]);
         setError(
@@ -152,6 +177,7 @@ export function BookingWorkspace({
   async function search() {
     setError("");
     setLoading(true);
+    if (hold) await releaseSeatHold(hold.holdToken).catch(() => undefined);
     setAvailability(null);
     setHold(null);
     setBooking(null);
@@ -164,6 +190,8 @@ export function BookingWorkspace({
           date,
         }),
       );
+      setSearched(true);
+      goToStep(1);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -179,16 +207,21 @@ export function BookingWorkspace({
     setSelectedSeats([]);
     setHold(null);
     setBooking(null);
+    setSaving(true);
     try {
       const data = await getSeatAvailability(trip.id);
       setAvailability(data);
       setDiscountType(data.discountCap.type);
+      setDiscountValue(0);
+      goToStep(2);
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
           : localizeText("Unable to load trip"),
       );
+    } finally {
+      setSaving(false);
     }
   }
   function toggleSeat(name: string) {
@@ -206,6 +239,7 @@ export function BookingWorkspace({
     try {
       const result = await createSeatHold(availability.trip.id, selectedSeats);
       setHold(result);
+      goToStep(3);
       setPassengers(selectedSeats.map(emptyPassenger));
       setIdempotencyKey(crypto.randomUUID());
       const stops = availability.trip.route.stops;
@@ -250,6 +284,7 @@ export function BookingWorkspace({
     setHold(null);
     setSelectedSeats([]);
     setPassengers([]);
+    goToStep(2);
     if (availability) await loadAvailability(availability.trip.id);
   }
   async function submit() {
@@ -257,7 +292,7 @@ export function BookingWorkspace({
     if (
       !(await confirm({
         title: "Confirm booking?",
-        description: `${availability.trip.route.source} → ${availability.trip.route.destination} · ${date} · Seats ${selectedSeats.join(", ")} · ${passengers.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}. Confirm to reserve these seats and issue the ticket. Payment is collected separately.`,
+        description: `${availability.trip.route.source} → ${availability.trip.route.destination} · ${date} · Seats ${selectedSeats.join(", ")} · ${passengers.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}. Confirm to reserve these seats and issue the ticket. Payment: ${paymentMode === "LATER" ? "record later" : paymentMode === "FULL" ? "full amount received" : `₹${paymentAmount} received`} ${paymentMode !== "LATER" ? paymentMethod : ""}.`,
         confirmLabel: "Confirm booking",
         destructive: false,
       }))
@@ -277,7 +312,25 @@ export function BookingWorkspace({
         boardingStopId,
         dropOffStopId,
         ...(discountValue > 0 ? { discountType, discountValue } : {}),
-        passengers,
+        passengers: passengers.map((passenger) => ({
+          ...passenger,
+          firstName: passenger.firstName.trim(),
+          lastName: passenger.lastName.trim(),
+          phone: passenger.phone.replace(/[ ()-]/g, ""),
+          email: passenger.email?.trim(),
+        })),
+        ...(paymentMode !== "LATER"
+          ? {
+              initialPayment: {
+                mode: paymentMode,
+                ...(paymentMode === "PARTIAL"
+                  ? { amount: Number(paymentAmount) }
+                  : {}),
+                method: paymentMethod,
+                reference: paymentReference.trim(),
+              },
+            }
+          : {}),
       });
       setBooking(result);
       router.push(
@@ -309,6 +362,17 @@ export function BookingWorkspace({
       ? (baseFare * discountValue) / 100
       : discountValue;
 
+  const tax =
+    Math.round(
+      Math.max(
+        0,
+        availability?.pricing?.gstAfterDiscount === false
+          ? baseFare
+          : baseFare - discount,
+      ) * (availability?.pricing?.taxRate ?? 0),
+    ) / 100;
+  const totalFare =
+    Math.round((Math.max(0, baseFare - discount) + tax) * 100) / 100;
   if (booking)
     return (
       <>
@@ -327,7 +391,7 @@ export function BookingWorkspace({
   return (
     <>
       <PageHeader
-        title="Agent bookings"
+        title="New ticket booking"
         description="Search scheduled trips, reserve seats, and issue a passenger ticket."
       />
       {error && (
@@ -335,535 +399,768 @@ export function BookingWorkspace({
           {error}
         </div>
       )}
-      <TicketLookup />
-      <Card className={cn("management-form")}>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void search();
-          }}
-        >
-          <div className={cn("form-grid")}>
-            <label>
-              <Translate text={"From"} />
-              <input
-                value={source}
-                required
-                onChange={(e) => setSource(e.target.value)}
-                placeholder="Source city"
-              />
-            </label>
-            <label>
-              <Translate text={"To"} />
-              <input
-                value={destination}
-                required
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="Destination city"
-              />
-            </label>
-            <label>
-              <Translate text={"Travel date"} />
-              <input
-                type="date"
-                min={today}
-                value={date}
-                required
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
+      <div className="booking-flow">
+        <div className="booking-flow-heading">
+          <div>
+            <p className="eyebrow">{t("BOOKING DESK")}</p>
+            <h1>{t("Book a bus ticket")}</h1>
+            <p>{t("Choose your journey, reserve seats and issue a ticket.")}</p>
           </div>
-          <Button
-            type="submit"
-            disabled={loading || !source.trim() || !destination.trim()}
-          >
-            <Search size={16} />{" "}
-            <LocalizedValue value={loading ? "Searching..." : "Search buses"} />
-          </Button>
-        </form>
-      </Card>
-      {trips.length > 0 && (
-        <Card className={cn("management-card")}>
-          <h2>
-            <Translate text={"Available buses"} />
-          </h2>
-          {trips.map((trip) => (
-            <div className={cn("setup-row")} key={trip.id}>
-              <Bus size={19} />
-              <div>
-                <strong>
-                  {trip.route.source} → {trip.route.destination} ·{" "}
-                  {trip.bus.busNumber}
-                </strong>
-                <span>
-                  {new Date(trip.departureTime).toLocaleTimeString(
-                    getFormattingLocale(),
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    },
-                  )}{" "}
-                  · {trip.bus.busType} · {trip.availableSeats}{" "}
-                  <Translate text={"seats · ₹"} />
-                  {formatDecimal(Number(trip.fare))}{" "}
-                  <Translate text={"/ seat"} />
-                </span>
-              </div>
-              <Button variant="secondary" onClick={() => void chooseTrip(trip)}>
-                <Translate text={"Select bus"} /> <ArrowRight size={15} />
-              </Button>
+          <Link href="/dashboard/bookings" className="button button-secondary">
+            {t("Back to bookings")}
+          </Link>
+        </div>
+        <nav className="booking-steps" aria-label={t("Booking steps")}>
+          {steps.map((label, index) => (
+            <div
+              key={label}
+              className={
+                index === step
+                  ? "booking-step current"
+                  : index < step
+                    ? "booking-step complete"
+                    : "booking-step"
+              }
+              aria-current={index === step ? "step" : undefined}
+            >
+              <span>{index < step ? "✓" : index + 1}</span>
+              <strong>{t(label)}</strong>
             </div>
           ))}
-        </Card>
-      )}
-      {availability && (
-        <Card className={cn("seat-layout-card")}>
-          <div className={cn("card-heading")}>
+        </nav>
+        {step > 0 && (
+          <div className="booking-journey-bar">
             <div>
-              <p className={cn("eyebrow")}>{availability.trip.tripCode}</p>
-              <h2>
-                <Translate text={"Select seats"} />
-              </h2>
+              <strong>
+                {source} → {destination}
+              </strong>
+              <span>
+                {date}
+                {availability ? ` · ${availability.trip.bus.busNumber}` : ""}
+                {selectedSeats.length
+                  ? ` · ${t("Seats")}: ${selectedSeats.join(", ")}`
+                  : ""}
+              </span>
             </div>
-            <Badge>{availability.trip.bus.busType}</Badge>
-          </div>
-          <p className={cn("muted booking-seat-help")}>
-            <Translate
-              text={
-                "Seat labels show the berth type and any passenger eligibility. Check these before assigning passengers."
-              }
-            />
-          </p>
-          <div
-            className={cn("seat-grid")}
-            role="group"
-            aria-label={"Seat selection for " + availability.trip.tripCode}
-            style={{
-              gridTemplateColumns: `repeat(${availability.columns}, minmax(44px, 1fr))`,
-            }}
-          >
-            {availability.seats.map((seat) => {
-              const unavailable =
-                seat.status !== "AVAILABLE" &&
-                !selectedSeats.includes(seat.name);
-              const selected = selectedSeats.includes(seat.name);
-              return (
-                <button
-                  key={seat.name}
-                  type="button"
-                  disabled={unavailable || !!hold}
-                  aria-pressed={selected}
-                  aria-label={
-                    "Seat " +
-                    seat.name +
-                    ", " +
-                    (unavailable
-                      ? "unavailable"
-                      : selected
-                        ? "selected"
-                        : "available")
-                  }
-                  className={cn(
-                    `seat-button seat-${seat.type.toLowerCase().replaceAll("_", "-")} ${unavailable ? "seat-unavailable" : ""} ${selected ? "seat-selected" : ""}`,
-                  )}
-                  onClick={() => toggleSeat(seat.name)}
-                >
-                  <b>{unavailable ? "×" : selected ? "✓" : seat.name}</b>
-                  <small>
-                    {seat.type
-                      .replaceAll("_", " ")
-                      .toLowerCase()
-                      .replace(/^\w/, (c) => c.toUpperCase())}
-                  </small>
-                  {seat.restriction !== "ALL" && (
-                    <small className={cn("booking-seat-restriction")}>
-                      <LocalizedValue
-                        value={
-                          seat.restriction === "SENIOR"
-                            ? "Senior only"
-                            : `${seat.restriction.toLowerCase()} only`
-                        }
-                      />
-                    </small>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div className={cn("seat-legend")}>
-            <span>
-              <i /> <Translate text={"Available"} />
-            </span>
-            <span>
-              <i className={cn("seat-legend-unavailable")} />{" "}
-              <Translate text={"Held or booked"} />
-            </span>
-            <span className={cn("booking-seat-restriction")}>
-              <Translate text={"Female only"} />
-            </span>
-            <span className={cn("booking-seat-restriction booking-senior")}>
-              <Translate text={"Senior only"} />
-            </span>
-            <span>
-              <Translate text={"Selected:"} />{" "}
-              {selectedSeats.join(", ") || "none"}
-            </span>
-          </div>
-          {!hold && (
-            <Button
-              onClick={() => void lockSeats()}
-              disabled={!selectedSeats.length || saving}
-            >
-              <Lock size={15} />{" "}
-              <LocalizedValue
-                value={
-                  saving
-                    ? "Locking seats..."
-                    : "Lock selected seats for 10 minutes"
-                }
-              />
-            </Button>
-          )}
-        </Card>
-      )}
-      {hold && availability && (
-        <Card className={cn("management-form")}>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submit();
-            }}
-          >
-            <div className={cn("card-heading")}>
-              <div>
-                <p className={cn("eyebrow")}>
-                  <Translate text={"Seat hold active"} />
-                </p>
-                <h2>
-                  <Clock3 size={18} />{" "}
-                  <span role="timer" aria-live="off">
-                    {Math.floor(secondsLeft / 60)}:
-                    {String(secondsLeft % 60).padStart(2, "0")}
-                  </span>{" "}
-                  <Translate text={"remaining"} />
-                </h2>
-              </div>
-              <Button variant="secondary" onClick={() => void cancelHold()}>
-                <Unlock size={15} /> <Translate text={"Release seats"} />
-              </Button>
-            </div>
-            <div className={cn("form-grid")}>
-              <label>
-                <Translate text={"Boarding point"} />
-                <select
-                  required
-                  value={boardingStopId}
-                  onChange={(e) => {
-                    const nextId = e.target.value;
-                    const nextSequence = points.find(
-                      (stop) => stop.id === nextId,
-                    )?.sequence;
-                    if (
-                      nextSequence !== undefined &&
-                      dropOffSequence !== undefined &&
-                      nextSequence >= dropOffSequence
-                    )
-                      setDropOffStopId("");
-                    setBoardingStopId(nextId);
-                  }}
-                >
-                  <option value="">
-                    <Translate text={"Select boarding"} />
-                  </option>
-                  {points
-                    .filter(
-                      (s) =>
-                        s.points.some(
-                          (p) =>
-                            p.pointType === "BOARDING" ||
-                            p.pointType === "BOTH",
-                        ) &&
-                        (dropOffSequence === undefined ||
-                          s.sequence < dropOffSequence),
-                    )
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                <Translate text={"Drop-off point"} />
-                <select
-                  required
-                  value={dropOffStopId}
-                  onChange={(e) => setDropOffStopId(e.target.value)}
-                >
-                  <option value="">
-                    <Translate text={"Select drop-off"} />
-                  </option>
-                  {points
-                    .filter(
-                      (s) =>
-                        s.points.some(
-                          (p) =>
-                            p.pointType === "DROP_OFF" ||
-                            p.pointType === "BOTH",
-                        ) &&
-                        (boardingSequence === undefined ||
-                          s.sequence > boardingSequence),
-                    )
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            </div>
-            <h3>
-              <Translate text={"Passenger details"} />
-            </h3>
-            {passengers.map((passenger, index) => (
-              <div
-                className={cn("form-grid passenger-form")}
-                key={passenger.seatName}
+            {step !== 3 && (
+              <Button
+                variant="secondary"
+                disabled={saving}
+                onClick={() => goToStep(step === 4 ? 3 : step - 1)}
               >
-                <strong>
-                  <Translate text={"Seat"} /> {passenger.seatName}
-                </strong>
-                {(
-                  [
-                    "firstName",
-                    "lastName",
-                    "age",
-                    "gender",
-                    "phone",
-                    "email",
-                    "documentType",
-                    "documentReference",
-                  ] as const
-                ).map((field) => (
-                  <label key={field}>
-                    <LocalizedValue
-                      value={
-                        field === "documentReference"
-                          ? "Document reference"
-                          : field === "documentType"
-                            ? "Document type"
-                            : field[0].toUpperCase() + field.slice(1)
-                      }
-                    />
-                    {field === "gender" ? (
-                      <select
-                        required
-                        value={passenger.gender}
-                        onChange={(e) =>
-                          setPassengers((current) =>
-                            current.map((item, i) =>
-                              i === index
-                                ? { ...item, gender: e.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                      >
-                        <option value="">
-                          <Translate text={"Select gender"} />
-                        </option>
-                        <option value="Female">
-                          <Translate text={"Female"} />
-                        </option>
-                        <option value="Male">
-                          <Translate text={"Male"} />
-                        </option>
-                        <option value="Other">
-                          <Translate text={"Other"} />
-                        </option>
-                      </select>
-                    ) : field === "documentType" ? (
-                      <select
-                        value={passenger.documentType ?? ""}
-                        onChange={(e) =>
-                          setPassengers((current) =>
-                            current.map((item, i) =>
-                              i === index
-                                ? { ...item, documentType: e.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                      >
-                        <option value="">
-                          <Translate text={"No document"} />
-                        </option>
-                        <option value="National ID">
-                          <Translate text={"National ID"} />
-                        </option>
-                        <option value="Passport">
-                          <Translate text={"Passport"} />
-                        </option>
-                        <option value="Other">
-                          <Translate text={"Other"} />
-                        </option>
-                      </select>
-                    ) : (
-                      <input
-                        type={
-                          field === "age"
-                            ? "number"
-                            : field === "email"
-                              ? "email"
-                              : field === "phone"
-                                ? "tel"
-                                : "text"
-                        }
-                        min={field === "age" ? 0 : undefined}
-                        max={field === "age" ? 120 : undefined}
-                        pattern={
-                          field === "phone" ? "[+]?[0-9 ()-]{7,20}" : undefined
-                        }
-                        required={[
-                          "firstName",
-                          "lastName",
-                          "age",
-                          "phone",
-                        ].includes(field)}
-                        autoComplete={
-                          field === "firstName" ||
-                          field === "lastName" ||
-                          field === "email" ||
-                          field === "phone"
-                            ? field
-                            : undefined
-                        }
-                        value={passenger[field] ?? ""}
-                        onChange={(e) =>
-                          setPassengers((current) =>
-                            current.map((item, i) =>
-                              i === index
-                                ? {
-                                    ...item,
-                                    [field]:
-                                      field === "age"
-                                        ? Number(e.target.value)
-                                        : e.target.value,
-                                  }
-                                : item,
-                            ),
-                          )
-                        }
-                      />
+                <ArrowLeft size={16} />
+                {t(step === 4 ? "Passenger details" : "Back")}
+              </Button>
+            )}
+          </div>
+        )}
+        {hold && (
+          <div className="booking-hold-bar">
+            <Clock3 size={16} />
+            <span>
+              {t("Seat hold active")} · {Math.floor(secondsLeft / 60)}:
+              {String(secondsLeft % 60).padStart(2, "0")}
+            </span>
+            <Button
+              variant="secondary"
+              disabled={saving}
+              onClick={() => void cancelHold()}
+            >
+              {t("Change seats")}
+            </Button>
+          </div>
+        )}
+        {step === 0 && (
+          <Card className={cn("management-form")}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void search();
+              }}
+            >
+              <div className={cn("form-grid")}>
+                <label>
+                  <Translate text={"From"} />
+                  <input
+                    value={source}
+                    required
+                    onChange={(e) => setSource(e.target.value)}
+                    placeholder="Source city"
+                  />
+                </label>
+                <label>
+                  <Translate text={"To"} />
+                  <input
+                    value={destination}
+                    required
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="Destination city"
+                  />
+                </label>
+                <label>
+                  <Translate text={"Travel date"} />
+                  <input
+                    type="date"
+                    min={today}
+                    value={date}
+                    required
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </label>
+              </div>
+              <Button
+                type="submit"
+                disabled={loading || !source.trim() || !destination.trim()}
+              >
+                <Search size={16} />{" "}
+                <LocalizedValue
+                  value={loading ? "Searching..." : "Search buses"}
+                />
+              </Button>
+            </form>
+          </Card>
+        )}
+        {step === 1 && trips.length > 0 && (
+          <Card className={cn("management-card")}>
+            <h2>
+              <Translate text={"Available buses"} />
+            </h2>
+            {trips.map((trip) => (
+              <div className="booking-bus-result" key={trip.id}>
+                <Bus size={19} />
+                <div>
+                  <p className="eyebrow">
+                    {trip.bus.operatorName || trip.bus.busNumber}
+                  </p>
+                  <strong>
+                    {trip.route.source} → {trip.route.destination} ·{" "}
+                    {trip.bus.busNumber}
+                  </strong>
+                  <span>
+                    {new Date(trip.departureTime).toLocaleTimeString(
+                      getFormattingLocale(),
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    )}{" "}
+                    →{" "}
+                    {new Date(trip.arrivalTime).toLocaleTimeString(
+                      getFormattingLocale(),
+                      { hour: "2-digit", minute: "2-digit" },
                     )}
-                  </label>
-                ))}
+                    · {trip.bus.busType.replaceAll("_", " ")} ·{" "}
+                    {trip.availableSeats} <Translate text={"seats · ₹"} />
+                    {formatDecimal(Number(trip.fare))}{" "}
+                    <Translate text={"/ seat"} />
+                  </span>
+                </div>
+                <Button
+                  variant="secondary"
+                  disabled={saving || trip.availableSeats === 0}
+                  onClick={() => void chooseTrip(trip)}
+                >
+                  <Translate text={"Select bus"} /> <ArrowRight size={15} />
+                </Button>
               </div>
             ))}
-            <div className={cn("form-grid")}>
-              <label>
-                <Translate text={"Discount type"} />
-                <select
-                  value={discountType}
-                  onChange={(e) =>
-                    setDiscountType(e.target.value as "FIXED" | "PERCENTAGE")
-                  }
-                >
-                  <option value={cap?.type ?? "PERCENTAGE"}>
-                    <LocalizedValue
-                      value={
-                        cap?.type === "FIXED" ? "Fixed amount" : "Percentage"
-                      }
-                    />
-                  </option>
-                </select>
-              </label>
-              <label>
-                <Translate text={"Discount"} />{" "}
-                {discountType === "PERCENTAGE" ? "%" : "₹"}{" "}
-                <Translate text={"(cap"} />{" "}
-                {cap?.type === discountType ? cap.value : 0})
-                <input
-                  type="number"
-                  min="0"
-                  max={cap?.type === discountType ? cap.value : 0}
-                  step="0.01"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(Number(e.target.value))}
-                />
-              </label>
+          </Card>
+        )}
+        {step === 2 && availability && (
+          <Card className={cn("seat-layout-card")}>
+            <div className={cn("card-heading")}>
+              <div>
+                <p className={cn("eyebrow")}>{availability.trip.tripCode}</p>
+                <h2>
+                  <Translate text={"Select seats"} />
+                </h2>
+              </div>
+              <Badge>{availability.trip.bus.busType}</Badge>
             </div>
-            <div className="booking-review">
-              <h3>
-                <Translate text="Review your booking" />
-              </h3>
-              <p>
-                {availability.trip.route.source} →{" "}
-                {availability.trip.route.destination} · {date}
-              </p>
-              <p>
-                <Translate text="Selected:" /> {selectedSeats.join(", ")}
-              </p>
-              <p>
-                <strong>
-                  <Translate text={"Fare:"} />
-                </strong>{" "}
-                ₹{formatDecimal(baseFare)} ·{" "}
-                <strong>
-                  <Translate text={"Discount:"} />
-                </strong>{" "}
-                ₹{formatDecimal(discount)} ·{" "}
-                <strong>
-                  <Translate text={"Total:"} />
-                </strong>{" "}
-                ₹{formatDecimal(Math.max(0, baseFare - discount))}
-              </p>
-              <p className="muted">
-                <Translate text="Applicable taxes are calculated when the booking is confirmed." />
-              </p>
-            </div>
-            <p className={cn("muted")}>
-              <strong>
-                <Translate text={"Payment methods:"} />
-              </strong>{" "}
+            <p className={cn("muted booking-seat-help")}>
               <Translate
                 text={
-                  "Cash, bank transfer, card, UPI, or other. Payment is collected offline and recorded in Finance; no online charge is made at checkout."
+                  "Seat labels show the berth type and any passenger eligibility. Check these before assigning passengers."
                 }
               />
             </p>
-            <Button
-              type="submit"
-              disabled={
-                saving ||
-                discountValue > (cap?.type === discountType ? cap.value : 0)
-              }
+            <div
+              className={cn("seat-grid")}
+              role="group"
+              aria-label={"Seat selection for " + availability.trip.tripCode}
+              style={{
+                gridTemplateColumns: `repeat(${availability.columns}, minmax(44px, 1fr))`,
+              }}
             >
-              <LocalizedValue
-                value={
-                  saving ? (
-                    "Confirming..."
-                  ) : (
-                    <>
-                      <Ticket size={15} />{" "}
-                      <Translate text={"Confirm booking and issue ticket"} />
-                    </>
-                  )
+              {availability.seats.map((seat) => {
+                const unavailable =
+                  seat.status !== "AVAILABLE" &&
+                  !selectedSeats.includes(seat.name);
+                const selected = selectedSeats.includes(seat.name);
+                return (
+                  <button
+                    key={seat.name}
+                    type="button"
+                    disabled={unavailable || !!hold}
+                    aria-pressed={selected}
+                    aria-label={
+                      "Seat " +
+                      seat.name +
+                      ", " +
+                      (unavailable
+                        ? "unavailable"
+                        : selected
+                          ? "selected"
+                          : "available")
+                    }
+                    className={cn(
+                      `seat-button seat-${seat.type.toLowerCase().replaceAll("_", "-")} ${unavailable ? "seat-unavailable" : ""} ${selected ? "seat-selected" : ""}`,
+                    )}
+                    onClick={() => toggleSeat(seat.name)}
+                  >
+                    <b>{unavailable ? "×" : selected ? "✓" : seat.name}</b>
+                    <small>
+                      {seat.type
+                        .replaceAll("_", " ")
+                        .toLowerCase()
+                        .replace(/^\w/, (c) => c.toUpperCase())}
+                    </small>
+                    {seat.restriction !== "ALL" && (
+                      <small className={cn("booking-seat-restriction")}>
+                        <LocalizedValue
+                          value={
+                            seat.restriction === "SENIOR"
+                              ? "Senior only"
+                              : `${seat.restriction.toLowerCase()} only`
+                          }
+                        />
+                      </small>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className={cn("seat-legend")}>
+              <span>
+                <i /> <Translate text={"Available"} />
+              </span>
+              <span>
+                <i className={cn("seat-legend-unavailable")} />{" "}
+                <Translate text={"Held or booked"} />
+              </span>
+              <span className={cn("booking-seat-restriction")}>
+                <Translate text={"Female only"} />
+              </span>
+              <span className={cn("booking-seat-restriction booking-senior")}>
+                <Translate text={"Senior only"} />
+              </span>
+              <span>
+                <Translate text={"Selected:"} />{" "}
+                {selectedSeats.join(", ") || "none"}
+              </span>
+            </div>
+            {!hold && (
+              <Button
+                onClick={() => void lockSeats()}
+                disabled={!selectedSeats.length || saving}
+              >
+                <Lock size={15} />{" "}
+                <LocalizedValue
+                  value={
+                    saving
+                      ? "Locking seats..."
+                      : "Lock selected seats for 10 minutes"
+                  }
+                />
+              </Button>
+            )}
+          </Card>
+        )}
+        {step === 3 && hold && availability && (
+          <Card className={cn("management-form")}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const invalid = passengers.some(
+                  (passenger) =>
+                    !passenger.firstName.trim() ||
+                    !passenger.lastName.trim() ||
+                    !Number.isInteger(passenger.age) ||
+                    passenger.age < 0 ||
+                    passenger.age > 120 ||
+                    !["Female", "Male", "Other"].includes(passenger.gender) ||
+                    !/^\+?\d{7,15}$/.test(
+                      passenger.phone.replace(/[ ()-]/g, ""),
+                    ),
+                );
+                if (invalid) {
+                  setError(
+                    t("Enter valid required details for every passenger."),
+                  );
+                  return;
                 }
-              />
-            </Button>
-          </form>
-        </Card>
-      )}
-      {trips.length === 0 && !loading && (
-        <p className={cn("muted")}>
-          <Translate
-            text={
-              "Search by source, destination, and date to view available trips."
-            }
-          />
-        </p>
-      )}
+                const restricted = passengers.some((passenger) => {
+                  const seat = availability.seats.find(
+                    (seat) => seat.name === passenger.seatName,
+                  );
+                  return (
+                    (seat?.restriction === "FEMALE" &&
+                      passenger.gender !== "Female") ||
+                    (seat?.restriction === "MALE" &&
+                      passenger.gender !== "Male") ||
+                    (seat?.restriction === "SENIOR" && passenger.age < 60)
+                  );
+                });
+                if (restricted) {
+                  setError(
+                    t(
+                      "Passenger details must match the selected seat eligibility.",
+                    ),
+                  );
+                  return;
+                }
+                goToStep(4);
+              }}
+            >
+              <div className={cn("form-grid")}>
+                <label>
+                  <Translate text={"Boarding point"} />
+                  <select
+                    required
+                    value={boardingStopId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      const nextSequence = points.find(
+                        (stop) => stop.id === nextId,
+                      )?.sequence;
+                      if (
+                        nextSequence !== undefined &&
+                        dropOffSequence !== undefined &&
+                        nextSequence >= dropOffSequence
+                      )
+                        setDropOffStopId("");
+                      setBoardingStopId(nextId);
+                    }}
+                  >
+                    <option value="">
+                      <Translate text={"Select boarding"} />
+                    </option>
+                    {points
+                      .filter(
+                        (s) =>
+                          s.points.some(
+                            (p) =>
+                              p.pointType === "BOARDING" ||
+                              p.pointType === "BOTH",
+                          ) &&
+                          (dropOffSequence === undefined ||
+                            s.sequence < dropOffSequence),
+                      )
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  <Translate text={"Drop-off point"} />
+                  <select
+                    required
+                    value={dropOffStopId}
+                    onChange={(e) => setDropOffStopId(e.target.value)}
+                  >
+                    <option value="">
+                      <Translate text={"Select drop-off"} />
+                    </option>
+                    {points
+                      .filter(
+                        (s) =>
+                          s.points.some(
+                            (p) =>
+                              p.pointType === "DROP_OFF" ||
+                              p.pointType === "BOTH",
+                          ) &&
+                          (boardingSequence === undefined ||
+                            s.sequence > boardingSequence),
+                      )
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+              <h3>
+                <Translate text={"Passenger details"} />
+              </h3>
+              {passengers.map((passenger, index) => (
+                <div
+                  className={cn("form-grid passenger-form")}
+                  key={passenger.seatName}
+                >
+                  <strong>
+                    <Translate text={"Seat"} /> {passenger.seatName}
+                  </strong>
+                  {(
+                    [
+                      "firstName",
+                      "lastName",
+                      "age",
+                      "gender",
+                      "phone",
+                      "email",
+                      "documentType",
+                      "documentReference",
+                    ] as const
+                  ).map((field) => (
+                    <label key={field}>
+                      <LocalizedValue
+                        value={
+                          field === "documentReference"
+                            ? "Document reference"
+                            : field === "documentType"
+                              ? "Document type"
+                              : field === "firstName"
+                                ? "First name"
+                                : field === "lastName"
+                                  ? "Last name"
+                                  : field[0].toUpperCase() + field.slice(1)
+                        }
+                      />
+                      {[
+                        "firstName",
+                        "lastName",
+                        "age",
+                        "gender",
+                        "phone",
+                      ].includes(field) && (
+                        <span className="record-required"> *</span>
+                      )}
+                      {field === "gender" ? (
+                        <select
+                          required
+                          value={passenger.gender}
+                          onChange={(e) =>
+                            setPassengers((current) =>
+                              current.map((item, i) =>
+                                i === index
+                                  ? { ...item, gender: e.target.value }
+                                  : item,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">
+                            <Translate text={"Select gender"} />
+                          </option>
+                          <option value="Female">
+                            <Translate text={"Female"} />
+                          </option>
+                          <option value="Male">
+                            <Translate text={"Male"} />
+                          </option>
+                          <option value="Other">
+                            <Translate text={"Other"} />
+                          </option>
+                        </select>
+                      ) : field === "documentType" ? (
+                        <select
+                          value={passenger.documentType ?? ""}
+                          onChange={(e) =>
+                            setPassengers((current) =>
+                              current.map((item, i) =>
+                                i === index
+                                  ? { ...item, documentType: e.target.value }
+                                  : item,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">
+                            <Translate text={"No document"} />
+                          </option>
+                          <option value="National ID">
+                            <Translate text={"National ID"} />
+                          </option>
+                          <option value="Passport">
+                            <Translate text={"Passport"} />
+                          </option>
+                          <option value="Other">
+                            <Translate text={"Other"} />
+                          </option>
+                        </select>
+                      ) : (
+                        <input
+                          type={
+                            field === "age"
+                              ? "number"
+                              : field === "email"
+                                ? "email"
+                                : field === "phone"
+                                  ? "tel"
+                                  : "text"
+                          }
+                          step={field === "age" ? 1 : undefined}
+                          min={field === "age" ? 0 : undefined}
+                          max={field === "age" ? 120 : undefined}
+                          pattern={
+                            field === "phone"
+                              ? "\\+?[0-9]{7,15}"
+                              : ["firstName", "lastName"].includes(field)
+                                ? ".*\\S.*"
+                                : undefined
+                          }
+                          required={[
+                            "firstName",
+                            "lastName",
+                            "age",
+                            "phone",
+                          ].includes(field)}
+                          autoComplete={
+                            field === "firstName" ||
+                            field === "lastName" ||
+                            field === "email" ||
+                            field === "phone"
+                              ? field
+                              : undefined
+                          }
+                          value={
+                            field === "age" && Number.isNaN(passenger.age)
+                              ? ""
+                              : (passenger[field] ?? "")
+                          }
+                          onChange={(e) =>
+                            setPassengers((current) =>
+                              current.map((item, i) =>
+                                i === index
+                                  ? {
+                                      ...item,
+                                      [field]:
+                                        field === "age"
+                                          ? e.target.value === ""
+                                            ? NaN
+                                            : Number(e.target.value)
+                                          : field === "phone"
+                                            ? e.target.value.replace(
+                                                /[ ()-]/g,
+                                                "",
+                                              )
+                                            : e.target.value,
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              ))}
+              <Button type="submit">
+                {t("Continue to payment")} <ArrowRight size={16} />
+              </Button>
+            </form>
+          </Card>
+        )}
+        {step === 4 && hold && availability && (
+          <Card className="management-form">
+            <h2>{t("Review & payment")}</h2>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit();
+              }}
+            >
+              <div className={cn("form-grid")}>
+                <label>
+                  <Translate text={"Discount type"} />
+                  <select
+                    value={discountType}
+                    onChange={(e) =>
+                      setDiscountType(e.target.value as "FIXED" | "PERCENTAGE")
+                    }
+                  >
+                    <option value={cap?.type ?? "PERCENTAGE"}>
+                      <LocalizedValue
+                        value={
+                          cap?.type === "FIXED" ? "Fixed amount" : "Percentage"
+                        }
+                      />
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  <Translate text={"Discount"} />{" "}
+                  {discountType === "PERCENTAGE" ? "%" : "₹"}{" "}
+                  <Translate text={"(cap"} />{" "}
+                  {cap?.type === discountType ? cap.value : 0})
+                  <input
+                    type="number"
+                    min="0"
+                    max={cap?.type === discountType ? cap.value : 0}
+                    step="0.01"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="booking-review">
+                <h3>
+                  <Translate text="Review your booking" />
+                </h3>
+                <p>
+                  {availability.trip.route.source} →{" "}
+                  {availability.trip.route.destination} · {date}
+                </p>
+                <p>
+                  <Translate text="Selected:" /> {selectedSeats.join(", ")}
+                </p>
+                <p>
+                  <strong>
+                    <Translate text={"Fare:"} />
+                  </strong>{" "}
+                  ₹{formatDecimal(baseFare)} ·{" "}
+                  <strong>
+                    <Translate text={"Discount:"} />
+                  </strong>{" "}
+                  ₹{formatDecimal(discount)} ·{" "}
+                  <strong>
+                    <Translate text={"Total:"} />
+                  </strong>{" "}
+                  ₹{formatDecimal(totalFare)}
+                </p>
+                <p className="muted">
+                  {t("Tax / GST")}: ₹{formatDecimal(tax)}
+                </p>
+              </div>
+              <div className="booking-payment-entry">
+                <h3>{t("Payment entry")}</h3>
+                <p className="muted">
+                  {t(
+                    "Record money already received, or leave payment pending.",
+                  )}
+                </p>
+                <label>
+                  {t("Payment status")}
+                  <select
+                    value={paymentMode}
+                    onChange={(event) =>
+                      setPaymentMode(event.target.value as typeof paymentMode)
+                    }
+                  >
+                    <option value="LATER">{t("Payment pending")}</option>
+                    {canPay && (
+                      <>
+                        <option value="FULL">
+                          {t("Full payment received")}
+                        </option>
+                        <option value="PARTIAL">
+                          {t("Partial payment received")}
+                        </option>
+                      </>
+                    )}
+                  </select>
+                </label>
+                {paymentMode !== "LATER" && (
+                  <div className="form-grid">
+                    {paymentMode === "PARTIAL" && (
+                      <label>
+                        {t("Amount received")} *
+                        <input
+                          type="number"
+                          required
+                          min="0.01"
+                          max={totalFare}
+                          step="0.01"
+                          value={paymentAmount}
+                          onChange={(event) =>
+                            setPaymentAmount(event.target.value)
+                          }
+                        />
+                      </label>
+                    )}
+                    <label>
+                      {t("Method")} *
+                      <select
+                        value={paymentMethod}
+                        onChange={(event) =>
+                          setPaymentMethod(
+                            event.target.value as typeof paymentMethod,
+                          )
+                        }
+                      >
+                        {["CASH", "BANK_TRANSFER", "CARD", "UPI", "OTHER"].map(
+                          (method) => (
+                            <option key={method} value={method}>
+                              {t(method.replaceAll("_", " "))}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+                    <label>
+                      {t("Reference")}
+                      <input
+                        value={paymentReference}
+                        maxLength={200}
+                        onChange={(event) =>
+                          setPaymentReference(event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                )}
+                <p className="record-help">
+                  {t(
+                    "Full payment includes the final tax calculated by the agency. No online charge is made.",
+                  )}
+                </p>
+              </div>
+              <div className="booking-passenger-review">
+                {passengers.map((passenger) => (
+                  <p key={passenger.seatName}>
+                    <strong>{passenger.seatName}</strong> {passenger.firstName}{" "}
+                    {passenger.lastName} · {passenger.age} ·{" "}
+                    {t(passenger.gender)} · {passenger.phone}
+                  </p>
+                ))}
+              </div>
+              <Button
+                type="submit"
+                disabled={
+                  saving ||
+                  discountValue < 0 ||
+                  discount > baseFare ||
+                  discountValue > (cap?.type === discountType ? cap.value : 0)
+                }
+              >
+                <LocalizedValue
+                  value={
+                    saving ? (
+                      "Confirming..."
+                    ) : (
+                      <>
+                        <Ticket size={15} />{" "}
+                        <Translate text={"Confirm booking and issue ticket"} />
+                      </>
+                    )
+                  }
+                />
+              </Button>
+            </form>
+          </Card>
+        )}
+        {step === 1 && searched && trips.length === 0 && !loading && (
+          <p className={cn("muted")}>
+            <Translate
+              text={"No buses found. Try another journey or travel date."}
+            />
+          </p>
+        )}
+      </div>
       {!hideHistory && <BookingHistory />}
     </>
   );
@@ -889,7 +1186,7 @@ export function AgentBookingsDashboard({
   return (
     <>
       <PageHeader
-        title="Agent dashboard"
+        title="Employee dashboard"
         description="Find a scheduled trip and create a confirmed passenger booking."
       />
       {summaryError && (

@@ -118,8 +118,44 @@ model User {
   reviewedPrivacyRequests PrivacyRequest[] @relation("PrivacyReviewer")
   securityEvents          SecurityEvent[]
 
+  personalDetails         UserPersonalDetails?
+  documents               UserDocument[]
+
   @@index([agencyId])
   @@index([branchId])
+  @@index([roleId])
+  @@index([agencyId, branchId, status])
+
+}
+
+model UserPersonalDetails {
+  userId               String @id
+  dateOfBirth          DateTime? @db.Date
+  gender               String?
+  jobTitle             String?
+  address              String?
+  city                 String?
+  state                String?
+  country              String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  updatedAt            DateTime @updatedAt
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserDocument {
+  id           String @id @default(cuid())
+  userId       String
+  label        String
+  documentType String
+  fileName     String
+  mimeType     String
+  size         Int
+  content      Bytes
+  uploadedById String
+  createdAt    DateTime @default(now())
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
 }
 
 model NewsletterSubscriber {
@@ -255,6 +291,8 @@ model Branch {
   buses       Bus[]
   drivers     Driver[]
   trips       Trip[]
+  settlements Settlement[]
+  ledger      FinanceLedger[]
 
   @@unique([agencyId, code])
   @@index([agencyId])
@@ -361,6 +399,8 @@ model Route {
 
   @@unique([agencyId, code])
   @@index([agencyId, status])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "Route_name_trgm_idx")
+
 }
 
 model Stop {
@@ -427,6 +467,11 @@ model Trip {
   @@index([busId, departureTime, arrivalTime])
   @@index([driverId, departureTime, arrivalTime])
   @@index([branchId, status])
+  @@index([agencyId, status, departureTime])
+  @@index([branchId, status, departureTime])
+  @@index([routeId])
+  @@index([tripCode(ops: raw("gin_trgm_ops"))], type: Gin, map: "Trip_tripCode_trgm_idx")
+
 }
 
 model PasswordResetOtp {
@@ -516,6 +561,10 @@ model Booking {
   @@index([agencyId, createdAt])
   @@index([branchId, createdAt])
   @@index([tripId, status])
+  @@index([agencyId, bookedById, createdAt])
+  @@index([bookedById])
+  @@index([pnr(ops: raw("gin_trgm_ops"))], type: Gin, map: "Booking_pnr_trgm_idx")
+
 }
 
 model BookingPassenger {
@@ -534,6 +583,12 @@ model BookingPassenger {
 
   @@unique([bookingId, seatName])
   @@index([phone])
+  @@index([phone, firstName, lastName, bookingId])
+  @@index([firstName(ops: raw("gin_trgm_ops"))], type: Gin, map: "BookingPassenger_firstName_trgm_idx")
+  @@index([lastName(ops: raw("gin_trgm_ops"))], type: Gin, map: "BookingPassenger_lastName_trgm_idx")
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin, map: "BookingPassenger_phone_trgm_idx")
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin, map: "BookingPassenger_email_trgm_idx")
+
 }
 
 model EmailVerificationToken {
@@ -652,6 +707,7 @@ model AgentCommission {
 model Settlement {
   id           String          @id @default(cuid())
   agencyId     String
+  branchId     String?
   party        SettlementParty
   partyId      String
   amount       Decimal         @db.Decimal(10, 2)
@@ -660,13 +716,16 @@ model Settlement {
   settledAt    DateTime        @default(now())
   recordedById String
   agency       Agency          @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  branch       Branch?         @relation(fields: [branchId], references: [id], onDelete: Restrict)
 
   @@index([agencyId, party, partyId, settledAt])
+  @@index([agencyId, branchId, settledAt])
 }
 
 model FinanceLedger {
   id          String           @id @default(cuid())
   agencyId    String
+  branchId    String?
   bookingId   String?
   type        LedgerType
   party       SettlementParty?
@@ -676,9 +735,11 @@ model FinanceLedger {
   createdAt   DateTime         @default(now())
   agency      Agency           @relation(fields: [agencyId], references: [id], onDelete: Restrict)
   booking     Booking?         @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  branch      Branch?          @relation(fields: [branchId], references: [id], onDelete: Restrict)
 
   @@index([agencyId, createdAt])
   @@index([bookingId, createdAt])
+  @@index([agencyId, branchId, createdAt])
 }
 
 enum NotificationChannel {
@@ -745,6 +806,8 @@ model Notification {
 
   @@index([agencyId, createdAt])
   @@index([userId, createdAt])
+  @@index([agencyId, userId, channel, createdAt, id])
+
 }
 
 model CancellationRequest {

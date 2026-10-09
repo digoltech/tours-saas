@@ -1,3 +1,4 @@
+import { userDocumentsRouter } from "./routes/user-documents.routes.js";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -48,6 +49,7 @@ app.use("/api/newsletter", newsletterRouter);
 app.use("/api/contact", contactRouter);
 app.use("/api/tenants", tenantRouter);
 app.use("/api", managementRouter);
+app.use("/api", userDocumentsRouter);
 app.use("/api", transportRouter);
 app.use("/api", bookingRouter);
 app.use("/api", financeRouter);

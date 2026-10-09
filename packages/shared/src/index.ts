@@ -59,6 +59,9 @@ export type FinanceReportFilters = {
   tripId?: string;
 };
 export type FinanceReportResponse = {
+  meta: { page: number; limit: number; total: number; totalPages: number };
+  branches: { branchId: string; count: number; cancellations: number; value: number; refunds: number }[];
+  dailySales: { day: string; count: number; value: number }[];
   totals: {
     bookings: number;
     revenue: number | string;
@@ -70,6 +73,7 @@ export type FinanceReportResponse = {
   bookings: {
     id: string;
     pnr: string;
+    branchId: string;
     status: string;
     totalAmount: number | string;
     taxAmount: number | string;

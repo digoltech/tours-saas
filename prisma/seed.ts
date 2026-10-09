@@ -1,6 +1,7 @@
 import { PrismaClient, RecordStatus } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { config as loadEnv } from "dotenv";
+import { standardRoleNames, standardRolePermissions } from "../packages/shared/src/team-access.js";
 
 loadEnv({ path: [".env", "apps/api/.env"] });
 
@@ -61,45 +62,9 @@ const permissions = [
 
 const builtinRoleCodes = ["SUPER_ADMIN", "AGENCY_ADMIN", "BRANCH_ADMIN", "AGENT"] as const;
 type BuiltinRoleCode = (typeof builtinRoleCodes)[number];
-const roleDefinitions: Record<
-  BuiltinRoleCode,
-  { name: string; permissions: string[] }
-> = {
-  SUPER_ADMIN: { name: "Super Admin", permissions },
-  AGENCY_ADMIN: {
-    name: "Agency Admin",
-    permissions: permissions.filter(
-      (code) =>
-        code.startsWith("agency:") ||
-        code.startsWith("branch:") ||
-        code.startsWith("agent:") ||
-        code.startsWith("bus:") ||
-        code.startsWith("driver:") ||
-        code.startsWith("route:") ||
-        code.startsWith("stop:") ||
-        code.startsWith("boarding_point:") ||
-        code.startsWith("trip:") ||
-        code.startsWith("booking:") ||
-        code.startsWith("finance:"),
-    ),
-  },
-  BRANCH_ADMIN: {
-    name: "Branch Admin",
-    permissions: permissions.filter(
-      (code) =>
-        code.endsWith(":read") ||
-        code.startsWith("agent:") ||
-        code.startsWith("booking:") ||
-        ["finance:read", "finance:payment", "finance:refund", "finance:cancel"].includes(code),
-    ),
-  },
-  AGENT: {
-    name: "Agent",
-    permissions: permissions.filter(
-      (code) => code.endsWith(":read") || code.startsWith("booking:") || ["finance:read", "finance:payment", "finance:cancel"].includes(code),
-    ),
-  },
-};
+const roleDefinitions = Object.fromEntries(builtinRoleCodes.map((code) => [code, {
+  name: standardRoleNames[code], permissions: standardRolePermissions[code] ?? permissions,
+}])) as Record<BuiltinRoleCode, { name: string; permissions: readonly string[] }>;
 
 async function main() {
   if (process.env.NODE_ENV === "production")
@@ -191,6 +156,7 @@ async function main() {
       firstName: "Agency",
       lastName: "Admin A",
       roleCode: "AGENCY_ADMIN",
+      branchId: "branch-a1",
       agencyId: agencyA.id,
       branchId: null,
     },

@@ -62,7 +62,11 @@ export function UpcomingTrips({
             <Translate text="Your next scheduled departures." />
           </p>
         </div>
-        <Link href="/dashboard/trips" className="button button-secondary">
+        <Link
+          prefetch={false}
+          href="/dashboard/trips"
+          className="button button-secondary"
+        >
           <Translate text="All trips" /> <ArrowRight size={16} />
         </Link>
       </div>
@@ -86,6 +90,7 @@ export function UpcomingTrips({
         <div className="journey-grid">
           {trips.map((trip) => (
             <Link
+              prefetch={false}
               href={`/dashboard/trips/${trip.id}`}
               className="journey-tile"
               key={trip.id}
@@ -96,6 +101,7 @@ export function UpcomingTrips({
                     src={trip.bus.photos[0]}
                     alt={`${trip.bus.busNumber} bus`}
                     loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <BusFront size={54} strokeWidth={1.3} aria-hidden="true" />

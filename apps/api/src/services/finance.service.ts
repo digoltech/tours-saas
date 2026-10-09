@@ -1,6 +1,11 @@
+import { financeBookingSummary } from "./finance-report-summary.js";
+import { Prisma, type BookingStatus } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import type { AuthContext } from "../types/auth.js";
-import { canAccessTenant, isBranchScoped } from "../middleware/tenant-policy.js";
+import {
+  canAccessTenant,
+  isBranchScoped,
+} from "../middleware/tenant-policy.js";
 import { calculateCancellation } from "./finance-calculations.js";
 
 type FinanceMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "UPI" | "OTHER";
@@ -52,7 +57,13 @@ export async function saveSettings(
     tiers: { hoursBeforeDeparture: number; feePercent: number }[];
   },
 ) {
-  if (context.role !== "SUPER_ADMIN" && (context.roleScope !== "AGENCY" || !context.permissions.includes("finance:settings")))
+  if (!["AGENCY_ADMIN", "SUPER_ADMIN"].includes(context.role))
+    fail(403, "FORBIDDEN", "Only agency owners can change finance settings");
+  if (
+    context.role !== "SUPER_ADMIN" &&
+    (context.roleScope !== "AGENCY" ||
+      !context.permissions.includes("finance:settings"))
+  )
     fail(
       403,
       "FORBIDDEN",
@@ -197,6 +208,7 @@ export async function recordPayment(
     await tx.financeLedger.create({
       data: {
         agencyId: booking.agencyId,
+        branchId: booking.branchId,
         bookingId,
         type: "PAYMENT",
         amount: input.amount,
@@ -287,6 +299,7 @@ export async function cancelBooking(
     await tx.financeLedger.create({
       data: {
         agencyId: booking.agencyId,
+        branchId: booking.branchId,
         bookingId,
         type: "OPERATOR_PAYABLE",
         party: "OPERATOR",
@@ -315,6 +328,7 @@ export async function cancelBooking(
       await tx.financeLedger.create({
         data: {
           agencyId: booking.agencyId,
+          branchId: booking.branchId,
           bookingId,
           type: "COMMISSION_REVERSAL",
           party: "AGENT",
@@ -381,6 +395,7 @@ export async function recordRefund(
     await tx.financeLedger.create({
       data: {
         agencyId: booking.agencyId,
+        branchId: booking.branchId,
         bookingId,
         type: "REFUND",
         amount: -input.amount,
@@ -412,8 +427,6 @@ export async function postSettlement(
   },
 ) {
   if (!context.agencyId) fail(403, "FORBIDDEN", "Agency context is required");
-  if (context.role === "AGENT")
-    fail(403, "FORBIDDEN", "Agents cannot post settlements");
   if (input.amount <= 0)
     fail(400, "INVALID_REQUEST", "Settlement amount must be positive");
   const agencyId = context.agencyId;
@@ -436,13 +449,30 @@ export async function postSettlement(
     });
     if (!agent) fail(404, "NOT_FOUND", "Agent not found in this agency");
   }
+  if (isBranchScoped(context) && !context.branchId)
+    fail(403, "FORBIDDEN", "Assign your account to a branch first");
+  const branchId = isBranchScoped(context) ? context.branchId : null;
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Agency" WHERE id = ${agencyId} FOR UPDATE`;
     const balance = await tx.financeLedger.aggregate({
-      where: { agencyId, party: input.party, partyId: input.partyId },
+      where: {
+        agencyId,
+        party: input.party,
+        partyId: input.partyId,
+        ...(branchId ? { branchId } : {}),
+      },
       _sum: { amount: true },
     });
-    const available = Number(balance._sum.amount ?? 0);
+    const overallBalance = branchId
+      ? await tx.financeLedger.aggregate({
+          where: { agencyId, party: input.party, partyId: input.partyId },
+          _sum: { amount: true },
+        })
+      : balance;
+    const available = Math.min(
+      Number(balance._sum.amount ?? 0),
+      Number(overallBalance._sum.amount ?? 0),
+    );
     if (input.amount > available + 0.001)
       fail(
         409,
@@ -452,6 +482,7 @@ export async function postSettlement(
     const settlement = await tx.settlement.create({
       data: {
         agencyId,
+        branchId,
         ...input,
         reference: input.reference || null,
         recordedById: context.userId,
@@ -460,6 +491,7 @@ export async function postSettlement(
     await tx.financeLedger.create({
       data: {
         agencyId,
+        branchId,
         type: "SETTLEMENT",
         party: input.party,
         partyId: input.partyId,
@@ -484,26 +516,86 @@ export async function postSettlement(
     return settlement;
   });
 }
-export async function listLedger(context: AuthContext) {
-  const where =
+export async function listLedger(
+  context: AuthContext,
+  from?: string,
+  to?: string,
+  filters: {
+    agencyId?: string;
+    branchId?: string;
+    agentId?: string;
+    tripId?: string;
+  } = {},
+) {
+  if (
+    isBranchScoped(context) &&
+    filters.branchId &&
+    filters.branchId !== context.branchId
+  )
+    fail(
+      403,
+      "FORBIDDEN",
+      "You can only view the ledger of your assigned branch",
+    );
+  const agencyId =
     context.role === "SUPER_ADMIN"
-      ? {}
-      : {
-          agencyId: context.agencyId ?? "__missing__",
-          ...(isBranchScoped(context)
-            ? { booking: { branchId: context.branchId ?? "__missing__" } }
-            : context.role === "AGENT"
-              ? {
-                  booking: { bookedById: context.userId },
-                  NOT: { party: "OPERATOR" as const },
-                }
-              : {}),
-        };
+      ? filters.agencyId
+      : (context.agencyId ?? "__missing__");
+  const branchId = isBranchScoped(context)
+    ? (context.branchId ?? "__missing__")
+    : filters.branchId;
   return prisma.financeLedger.findMany({
-    where,
-    include: { booking: { select: { pnr: true, branchId: true } } },
+    where: {
+      ...(agencyId ? { agencyId } : {}),
+      ...(branchId ? { branchId } : {}),
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}),
+              ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}),
+            },
+          }
+        : {}),
+      ...(filters.agentId || filters.tripId
+        ? {
+            booking: {
+              ...(filters.agentId ? { bookedById: filters.agentId } : {}),
+              ...(filters.tripId ? { tripId: filters.tripId } : {}),
+            },
+          }
+        : {}),
+    },
+    include: {
+      booking: { select: { pnr: true, branchId: true } },
+      branch: { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 500,
+  });
+}
+export async function listFinancePeople(
+  context: AuthContext,
+  requestedAgencyId?: string,
+) {
+  const agencyId =
+    context.role === "SUPER_ADMIN" ? requestedAgencyId : context.agencyId;
+  if (!agencyId) fail(400, "INVALID_REQUEST", "Select an agency first");
+  if (
+    context.role !== "SUPER_ADMIN" &&
+    requestedAgencyId &&
+    requestedAgencyId !== agencyId
+  )
+    fail(403, "FORBIDDEN", "You cannot access another agency");
+  return prisma.user.findMany({
+    where: {
+      agencyId,
+      status: "ACTIVE",
+      ...(isBranchScoped(context)
+        ? { branchId: context.branchId ?? "__missing__" }
+        : {}),
+    },
+    select: { id: true, firstName: true, lastName: true, branchId: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
 }
 export async function getReports(
@@ -516,6 +608,14 @@ export async function getReports(
     agentId?: string;
     tripId?: string;
   } = {},
+  options: {
+    page?: number;
+    limit?: number;
+    allBookings?: boolean;
+    timezone?: string;
+    search?: string;
+    status?: BookingStatus;
+  } = {},
 ) {
   const agencyId =
     context.role === "SUPER_ADMIN"
@@ -527,23 +627,10 @@ export async function getReports(
     filters.branchId !== context.branchId
   )
     fail(403, "FORBIDDEN", "You can only report on your assigned branch");
-  if (
-    context.role === "AGENT" &&
-    filters.branchId &&
-    filters.branchId !== context.branchId
-  )
-    fail(403, "FORBIDDEN", "You can only report on your assigned branch");
-  if (
-    context.role === "AGENT" &&
-    filters.agentId &&
-    filters.agentId !== context.userId
-  )
-    fail(403, "FORBIDDEN", "You can only report on your own bookings");
-  const branchId =
-    isBranchScoped(context)
-      ? (context.branchId ?? "__missing__")
-      : filters.branchId;
-  const agentId = context.role === "AGENT" ? context.userId : filters.agentId;
+  const branchId = isBranchScoped(context)
+    ? (context.branchId ?? "__missing__")
+    : filters.branchId;
+  const agentId = filters.agentId;
   const scope = {
     ...(agencyId ? { agencyId } : {}),
     ...(branchId ? { branchId } : {}),
@@ -564,66 +651,106 @@ export async function getReports(
     ...(to ? { lte: new Date(`${to}T00:00:00.000Z`) } : {}),
   };
   const tripPeriod = { ...tripScope, ...(from || to ? { travelDate } : {}) };
-  const [bookings, payments, refunds, seats, trips, ledger] = await Promise.all(
-    [
-      prisma.booking.findMany({
-        where: { ...scope, createdAt },
-        include: {
-          trip: { include: { bus: true } },
-          refunds: true,
-          cancellation: true,
-        },
-      }),
-      prisma.paymentRecord.aggregate({
-        where: {
-          ...(agencyId ? { agencyId } : {}),
-          receivedAt: createdAt,
-          booking: scope,
-        },
-        _sum: { amount: true },
-      }),
-      prisma.refundRecord.aggregate({
-        where: {
-          ...(agencyId ? { agencyId } : {}),
-          refundedAt: createdAt,
-          booking: scope,
-        },
-        _sum: { amount: true },
-      }),
-      prisma.tripSeat.count({ where: { status: "BOOKED", trip: tripPeriod } }),
-      prisma.trip.findMany({
-        where: tripPeriod,
-        include: {
-          bus: { include: { seatLayout: { select: { disabledSeats: true } } } },
-          _count: { select: { seats: true } },
-        },
-      }),
-      listLedger(context),
-    ],
-  );
+  const page = Math.max(1, options.page ?? 1);
+  const limit = Math.min(100, Math.max(1, options.limit ?? 20));
+  const bookingWhere = {
+    ...scope,
+    createdAt,
+    ...(options.search
+      ? { pnr: { contains: options.search, mode: "insensitive" as const } }
+      : {}),
+    ...(options.status ? { status: options.status } : {}),
+  };
+  const [
+    bookings,
+    payments,
+    refunds,
+    seats,
+    capacityRows,
+    ledger,
+    commissions,
+    summary,
+    total,
+  ] = await Promise.all([
+    prisma.booking.findMany({
+      where: bookingWhere,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      ...(options.allBookings ? {} : { skip: (page - 1) * limit, take: limit }),
+      select: {
+        id: true,
+        pnr: true,
+        branchId: true,
+        status: true,
+        totalAmount: true,
+        taxAmount: true,
+        commissionAmount: true,
+        createdAt: true,
+        refunds: { select: { amount: true } },
+        cancellation: { select: { eligibleRefund: true, feeAmount: true } },
+      },
+    }),
+    prisma.paymentRecord.aggregate({
+      where: {
+        ...(agencyId ? { agencyId } : {}),
+        receivedAt: createdAt,
+        booking: scope,
+      },
+      _sum: { amount: true },
+    }),
+    prisma.refundRecord.aggregate({
+      where: {
+        ...(agencyId ? { agencyId } : {}),
+        refundedAt: createdAt,
+        booking: scope,
+      },
+      _sum: { amount: true },
+    }),
+    prisma.tripSeat.count({ where: { status: "BOOKED", trip: tripPeriod } }),
+    prisma.$queryRaw<{ capacity: bigint }[]>(Prisma.sql`
+        SELECT COALESCE(SUM(GREATEST(0, b."totalSeats" - COALESCE(cardinality(l."disabledSeats"), 0))), 0)::bigint AS capacity
+        FROM "Trip" t JOIN "Bus" b ON b.id = t."busId" LEFT JOIN "BusSeatLayout" l ON l."busId" = b.id
+        WHERE ${Prisma.join(
+          [
+            Prisma.sql`TRUE`,
+            ...(agencyId ? [Prisma.sql`t."agencyId" = ${agencyId}`] : []),
+            ...(branchId ? [Prisma.sql`t."branchId" = ${branchId}`] : []),
+            ...(filters.tripId ? [Prisma.sql`t.id = ${filters.tripId}`] : []),
+            ...(from
+              ? [
+                  Prisma.sql`t."travelDate" >= ${new Date(`${from}T00:00:00.000Z`)}`,
+                ]
+              : []),
+            ...(to
+              ? [
+                  Prisma.sql`t."travelDate" <= ${new Date(`${to}T00:00:00.000Z`)}`,
+                ]
+              : []),
+          ],
+          " AND ",
+        )}`),
+    listLedger(context, from, to, filters),
+    prisma.agentCommission.aggregate({
+      where: {
+        ...(agencyId ? { agencyId } : {}),
+        booking: { ...scope, createdAt },
+      },
+      _sum: { amount: true, reversedAmount: true },
+    }),
+    financeBookingSummary(scope, from, to, options.timezone),
+    prisma.booking.count({ where: bookingWhere }),
+  ]);
   const sold = seats;
-  const capacity = trips.reduce(
-    (sum, t) =>
-      sum +
-      Math.max(
-        0,
-        t.bus.totalSeats - (t.bus.seatLayout?.disabledSeats.length ?? 0),
-      ),
-    0,
-  );
-  const commissions = await prisma.agentCommission.aggregate({
-    where: {
-      ...(agencyId ? { agencyId } : {}),
-      booking: { ...scope, createdAt },
-    },
-    _sum: { amount: true, reversedAmount: true },
-  });
+  const capacity = Number(capacityRows[0]?.capacity ?? 0);
+
   return {
     totals: {
-      bookings: bookings.length,
+      bookings: summary.branches.reduce((sum, branch) => sum + branch.count, 0),
       revenue: payments._sum.amount ?? 0,
       refunds: refunds._sum.amount ?? 0,
-      cancellations: bookings.filter((b) => b.status === "CANCELLED").length,
+      cancellations: summary.branches.reduce(
+        (sum, branch) => sum + branch.cancellations,
+        0,
+      ),
       commission:
         Number(commissions._sum.amount ?? 0) -
         Number(commissions._sum.reversedAmount ?? 0),
@@ -633,5 +760,12 @@ export async function getReports(
     },
     bookings,
     ledger,
+    ...summary,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
   };
 }

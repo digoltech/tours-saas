@@ -854,7 +854,7 @@
   }
   .step-number {
     font-family:
-      IBM Plex Mono,
+      var(--font-mono),
       monospace;
   }
   .hero-description,
@@ -863,7 +863,7 @@
   .page-description,
   .muted,
   .button {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .preview-sample-tag,
   .preview-status,
@@ -1316,17 +1316,17 @@
   .step-number,
   .preview-window-brand {
     font:
-      700 11px Space Grotesk,
+      700 11px var(--font-display),
       sans-serif;
   }
   .preview-title {
     font:
-      700 17px Space Grotesk,
+      700 17px var(--font-display),
       sans-serif;
   }
   .brand-mark {
     font:
-      800 20px Space Grotesk,
+      800 20px var(--font-display),
       sans-serif;
   }
   .sidebar-collapse-toggle {
@@ -1544,7 +1544,7 @@
   }
   .preview-title b {
     font-family:
-      IBM Plex Mono,
+      var(--font-mono),
       monospace;
   }
   .preview-title b {
@@ -1649,7 +1649,7 @@
   .hero-copy h1,
   .page-header h1 {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .page-header h1 {
@@ -1666,12 +1666,12 @@
   }
   .page-header h1 {
     font:
-      800 29px/1.2 Space Grotesk,
+      800 29px/1.2 var(--font-display),
       sans-serif;
   }
   .hero-copy h1 {
     font:
-      800 clamp(42px, 5.5vw, 76px)/1.02 Space Grotesk,
+      800 clamp(42px, 5.5vw, 76px)/1.02 var(--font-display),
       sans-serif;
   }
   .card h2,
@@ -1689,7 +1689,7 @@
   }
   .card h2 {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .layout-setup-heading h2 {
@@ -1706,18 +1706,18 @@
   }
   .card h2 {
     font:
-      700 17px Space Grotesk,
+      700 17px var(--font-display),
       sans-serif;
   }
   .dialog h2,
   .preview-greeting h2 {
     font:
-      700 18px Space Grotesk,
+      700 18px var(--font-display),
       sans-serif;
   }
   .empty-state h2 {
     font:
-      700 20px Space Grotesk,
+      700 20px var(--font-display),
       sans-serif;
   }
   .highlight-grid h3 {
@@ -1725,7 +1725,7 @@
   }
   .highlight-grid h3 {
     font:
-      700 16px Space Grotesk,
+      700 16px var(--font-display),
       sans-serif;
   }
   .preview-sidebar i {
@@ -1864,7 +1864,7 @@
   }
   .header-search input {
     font:
-      500 12px Manrope,
+      500 12px var(--font-manrope),
       sans-serif;
   }
   .form-grid input,
@@ -1932,7 +1932,7 @@
   }
   .header-search kbd {
     font:
-      9px Manrope,
+      9px var(--font-manrope),
       sans-serif;
   }
   .point-editor label,
@@ -1946,7 +1946,7 @@
     gap: 9px;
   }
   .form-grid label {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .point-editor label,
   .form-grid label {
@@ -1979,7 +1979,7 @@
     max-width: 360px;
   }
   .highlight-grid p {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .preview-greeting p {
     font-size: 9px;
@@ -2322,12 +2322,12 @@
   .preview-metrics strong,
   .preview-footer strong {
     font-family:
-      IBM Plex Mono,
+      var(--font-mono),
       monospace;
   }
   .brand strong {
     font-family:
-      Space Grotesk,
+      var(--font-display),
       sans-serif;
   }
   .preview-trip-seats strong {
@@ -2402,12 +2402,12 @@
   }
   .preview-section-heading strong {
     font:
-      700 11px Space Grotesk,
+      700 11px var(--font-display),
       sans-serif;
   }
   .preview-metrics strong {
     font:
-      700 27px Space Grotesk,
+      700 27px var(--font-display),
       sans-serif;
   }
   .setup-row svg {
@@ -2420,7 +2420,7 @@
     border-collapse: collapse;
   }
   .table-wrapper table {
-    font-family: Manrope, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
   }
   .table-wrapper table {
     font-size: 12px;
@@ -3336,7 +3336,7 @@
   }
   .preview-stat > strong {
     font:
-      700 21px Space Grotesk,
+      700 21px var(--font-display),
       sans-serif;
   }
   .profile-menu > summary {
